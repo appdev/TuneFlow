@@ -275,10 +275,13 @@ export class SourceWorkerHost {
       const qualityTypes = typeof music._types === 'object' && music._types != null && !Array.isArray(music._types) ? music._types : {}
       const originalMeta = music.meta != null && typeof music.meta === 'object' && !Array.isArray(music.meta) ? music.meta as Record<string, unknown> : {}
       const qualitys = Array.isArray(music.types) ? music.types : Array.isArray(originalMeta.qualitys) ? originalMeta.qualitys : []
+      const id = String(music.id ?? '')
+      const songmid = String(music.songmid ?? '')
+      const stableId = id.length > 0 ? id : songmid
       return {
         ...music,
-        id: String(music.id ?? music.songmid ?? ''),
-        songmid: String(music.songmid ?? music.id ?? ''),
+        id: id.length > 0 ? id : stableId,
+        songmid: songmid.length > 0 ? songmid : stableId,
         name: String(music.name ?? ''),
         singer: String(music.singer ?? ''),
         source: typeof music.source === 'string' ? music.source : result.source,

@@ -1,13 +1,15 @@
 import http from 'node:http'
-import { afterEach, expect, it } from 'vitest'
-import { search } from './index'
+import { afterEach, expect, it, vi } from 'vitest'
+import { search, searchCollections } from './index'
 import { proxy } from './rendererStoreShim'
 import { decodeLyric } from '../../renderer/utils/musicSdk/kw/util'
+import musicSdk from '../../renderer/utils/musicSdk'
 
 let server: http.Server | undefined
 const originalWindow = (globalThis as { window?: unknown }).window
 
 afterEach(async() => {
+  vi.restoreAllMocks()
   proxy.enable = false
   proxy.host = ''
   proxy.port = ''
@@ -15,6 +17,18 @@ afterEach(async() => {
   const currentServer = server
   server = undefined
   if (currentServer != null) await new Promise<void>(resolve => currentServer.close(() => { resolve() }))
+})
+
+it('rejects collection results containing an empty identifier', async() => {
+  vi.spyOn(musicSdk.kw.songList, 'search').mockResolvedValue({
+    list: [{ id: '', name: 'Malformed collection' }],
+    total: 1,
+    limit: 20,
+    source: 'kw',
+  })
+
+  await expect(searchCollections('playlist', { source: 'kw', text: 'fixture', page: 1, limit: 20 }))
+    .rejects.toMatchObject({ code: 'SOURCE_PROTOCOL_ERROR' })
 })
 
 it('executes the bundled KW provider through an HTTP fixture boundary', async() => {

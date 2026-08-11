@@ -200,9 +200,21 @@ window.lx.send(window.lx.EVENT_NAMES.inited, { sources: { fixture: { type: 'musi
     })
   })
 
-  it('rejects search items without a stable track id', () => {
+  it.each([
+    ['id', { id: '', songmid: 'songmid-id' }, { id: 'songmid-id', songmid: 'songmid-id' }],
+    ['songmid', { id: 'track-id', songmid: '' }, { id: 'track-id', songmid: 'track-id' }],
+  ])('fills an empty %s from the other stable track identifier', (_field, item, expected) => {
+    expect(SourceWorkerHost.normalizeSearchResult({
+      list: [item], total: 1, limit: 20, page: 1, source: 'fixture',
+    }).list).toEqual([expect.objectContaining(expected)])
+  })
+
+  it.each([
+    ['empty', { id: '', songmid: '' }],
+    ['missing', { name: 'Missing id' }],
+  ])('rejects search items when both stable track identifiers are %s', (_case, item) => {
     expect(() => SourceWorkerHost.normalizeSearchResult({
-      list: [{ name: 'Missing id' }], total: 1, limit: 20, page: 1, source: 'fixture',
+      list: [item], total: 1, limit: 20, page: 1, source: 'fixture',
     })).toThrowError(expect.objectContaining({ code: 'SOURCE_PROTOCOL_ERROR' }))
   })
 

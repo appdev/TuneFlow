@@ -36,7 +36,8 @@ const normalizeCollectionSearchResult = (value: unknown, kind: 'playlist' | 'alb
       ...(typeof collection.img === 'string' || collection.img === null ? { img: collection.img } : {}),
       ...(typeof collection.desc === 'string' ? { description: collection.desc } : typeof collection.description === 'string' ? { description: collection.description } : {}),
     }
-  }).filter(item => item.id.length > 0)
+  })
+  if (list.some(item => item.id.length === 0)) throw Object.assign(new Error('Collection search result is missing an id'), { code: 'SOURCE_PROTOCOL_ERROR' })
   return { list, total: Number(result.total ?? list.length), limit: Number(result.limit ?? list.length), page, source: result.source }
 }
 
