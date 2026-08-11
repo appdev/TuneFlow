@@ -156,11 +156,14 @@ export default {
       return list
     }
 
-    const updateView = (currentScrollTop = dom_scrollContainer.value.scrollTop) => {
+    const updateView = (currentScrollTop) => {
+      const scrollContainer = dom_scrollContainer.value
+      if (scrollContainer == null) return
+      currentScrollTop ??= scrollContainer.scrollTop
       // const currentScrollTop = this.$refs.dom_scrollContainer.scrollTop
       const itemHeight = props.itemHeight
       const currentStartIndex = Math.floor(currentScrollTop / itemHeight)
-      const scrollContainerHeight = dom_scrollContainer.value.clientHeight
+      const scrollContainerHeight = scrollContainer.clientHeight
       const currentEndIndex = currentStartIndex + Math.ceil(scrollContainerHeight / itemHeight)
       const continuous = currentStartIndex <= endIndex && currentEndIndex >= startIndex
       const currentStartRenderIndex = Math.max(currentStartIndex, 0)
@@ -202,6 +205,7 @@ export default {
       isListScrollingRef.value = false
     }, 200)
     const onScroll = event => {
+      if (dom_scrollContainer.value == null) return
       if (!isListScrolling) isListScrolling = isListScrollingRef.value = true
       setStopScrollStatus()
 
@@ -307,7 +311,7 @@ export default {
       window.addEventListener('resize', handleResize)
     })
     onBeforeUnmount(() => {
-      dom_scrollContainer.value.removeEventListener('scroll', onScroll)
+      dom_scrollContainer.value?.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', handleResize)
       if (cancelScroll) cancelScroll()
     })

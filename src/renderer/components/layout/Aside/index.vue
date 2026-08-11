@@ -1,16 +1,11 @@
 <template>
-  <div :class="[$style.aside, { [$style.fullscreen]: isFullscreen }]">
-    <ControlBtns v-if="appSetting['common.controlBtnPosition'] == 'left'" />
-    <div v-else :class="$style.logo">L X</div>
+  <div :class="$style.aside">
+    <div :class="$style.logo">L X</div>
     <NavBar />
   </div>
 </template>
 
 <script setup>
-import { isFullscreen } from '@renderer/store'
-import { appSetting } from '@renderer/store/setting'
-
-import ControlBtns from './ControlBtns.vue'
 import NavBar from './NavBar.vue'
 
 </script>
@@ -31,12 +26,6 @@ import NavBar from './NavBar.vue'
   display: flex;
   flex-flow: column nowrap;
 
-  &.fullscreen {
-    -webkit-app-region: no-drag;
-    .logo {
-      display: none;
-    }
-  }
 }
 
 .logo {

@@ -104,7 +104,7 @@
 </template>
 
 <script>
-import { clipboardWriteText } from '@common/utils/electron'
+import { clipboardWriteText } from '@web-runtime/browser'
 import { assertApiSupport } from '@renderer/store/utils'
 import SearchList from './components/SearchList.vue'
 import MusicSortModal from './components/MusicSortModal.vue'

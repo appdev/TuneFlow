@@ -7,7 +7,6 @@ export default ({
   handleStartTask,
   handlePauseTask,
   handleRemoveTask,
-  handleOpenFile,
   handlePlayMusic,
   handlePlayMusicLater,
   handleShowMusicAddModal,
@@ -19,7 +18,6 @@ export default ({
     start: true,
     pause: true,
     playLater: true,
-    file: true,
     sourceDetail: true,
     search: true,
     remove: true,
@@ -52,11 +50,6 @@ export default ({
         hide: !itemMenuControl.playLater,
       },
       {
-        name: t('list__file'),
-        action: 'file',
-        hide: !itemMenuControl.file,
-      },
-      {
         name: t('list__add_to'),
         action: 'addTo',
         disabled: !itemMenuControl.addTo,
@@ -83,22 +76,19 @@ export default ({
     itemMenuControl.sourceDetail = !!musicSdk[taskInfo.metadata.musicInfo.source]?.getMusicDetailPageUrl
 
     if (taskInfo.isComplate) {
-      itemMenuControl.play =
-        itemMenuControl.playLater =
-        itemMenuControl.file = true
-      itemMenuControl.start =
-        itemMenuControl.pause = false
+      itemMenuControl.play = true
+      itemMenuControl.playLater = true
+      itemMenuControl.start = false
+      itemMenuControl.pause = false
     } else if (taskInfo.status === DOWNLOAD_STATUS.ERROR || taskInfo.status === DOWNLOAD_STATUS.PAUSE) {
-      itemMenuControl.play =
-        itemMenuControl.playLater =
-        itemMenuControl.pause =
-        itemMenuControl.file = false
+      itemMenuControl.play = false
+      itemMenuControl.playLater = false
+      itemMenuControl.pause = false
       itemMenuControl.start = true
     } else {
-      itemMenuControl.play =
-        itemMenuControl.playLater =
-        itemMenuControl.start =
-        itemMenuControl.file = false
+      itemMenuControl.play = false
+      itemMenuControl.playLater = false
+      itemMenuControl.start = false
       itemMenuControl.pause = true
     }
 
@@ -126,9 +116,6 @@ export default ({
         break
       case 'pause':
         handlePauseTask(index)
-        break
-      case 'file':
-        handleOpenFile(index)
         break
       case 'play':
         handlePlayMusic(index)

@@ -23,16 +23,14 @@ material-modal(:show="modelValue" bg-close teleport="#view" @close="handleClose"
         span.hover.underline(aria-label="https://lxmusic.toside.cn/desktop/custom-source" @click="handleOpenUrl('https://lyswhut.github.io/lx-music-doc/desktop/custom-source')") FAQ
       p {{ $t('user_api__note') }}
     div(:class="$style.footer")
-      base-btn(:class="$style.footerBtn" @click="isShowOnlineImportModal = true") {{ $t('user_api__btn_import_online') }}
-      base-btn(:class="$style.footerBtn" @click="handleImport") {{ $t('user_api__btn_import') }}
+      base-btn(data-testid="user-api-import-network" :class="$style.footerBtn" @click="isShowOnlineImportModal = true") {{ $t('user_api__btn_import_online') }}
       //- base-btn(:class="$style.footerBtn" @click="handleExport") {{ $t('user_api__btn_export') }}
     UserApiOnlineImportModal(v-model:show="isShowOnlineImportModal" @import="importUserApi")
 </template>
 
 <script>
-import { importUserApi, removeUserApi, showSelectDialog, setAllowShowUserApiUpdateAlert } from '@renderer/utils/ipc'
-import { readFile } from '@common/utils/nodejs'
-import { openUrl } from '@common/utils/electron'
+import { importUserApi, removeUserApi, setAllowShowUserApiUpdateAlert } from '@renderer/utils/ipc'
+import { openUrl } from '@web-runtime/browser'
 import apiSourceInfo from '@renderer/utils/musicSdk/api-source-info'
 import { userApi } from '@renderer/store'
 import { appSetting, updateSetting } from '@renderer/store/setting'
@@ -70,31 +68,6 @@ export default {
       }).catch((err) => {
         void dialog(this.$t('user_api_import__failed', { message: err.message }))
       })
-    },
-    handleImport() {
-      if (this.userApi.list.length > 20) {
-        this.$dialog({
-          message: this.$t('user_api__max_tip'),
-          confirmButtonText: this.$t('ok'),
-        })
-        return
-      }
-      void showSelectDialog({
-        title: this.$t('user_api__import_file'),
-        properties: ['openFile'],
-        filters: [
-          { name: 'LX API File', extensions: ['js'] },
-          { name: 'All Files', extensions: ['*'] },
-        ],
-      }).then(async result => {
-        if (result.canceled) return
-        return readFile(result.filePaths[0]).then(async data => {
-          return this.importUserApi(data.toString())
-        })
-      })
-    },
-    handleExport() {
-
     },
     async handleRemove(index) {
       const api = this.apiList[index]

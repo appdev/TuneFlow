@@ -1,7 +1,12 @@
-import { getHotKeyConfig, onFocus, onKeyDown, onUpdateHotkey } from '@renderer/utils/ipc'
+import { getHotKeyConfig } from '@renderer/utils/ipc'
 import { registerKeyEvent, createKeyEventHub } from './keyEvent'
 // import { registerRendererEvents, unregisterRendererEvents } from './rendererEvent'
 import { createAppEventHub } from './appEvent'
+
+const ignoreUnsupportedIpc = (error: unknown) => {
+  if (typeof error == 'object' && error != null && 'code' in error && error.code == 'UNSUPPORTED_IPC') return
+  throw error
+}
 
 export const registerEvents = () => {
   window.lx.isEditingHotKey = false
@@ -15,20 +20,7 @@ export const registerEvents = () => {
     }
   }
 
-  void getHotKeyConfig().then(setHotkeyConfig)
-
-  onUpdateHotkey(({ params }) => {
-    setHotkeyConfig(params)
-  })
-
-  onKeyDown(({ params: { key } }) => {
-    const keyInfo = window.lx.appHotKeyConfig.global.keys[key]
-    if (keyInfo) window.key_event.emit(keyInfo.action)
-  })
-
-  onFocus(() => {
-    window.app_event.focus()
-  })
+  void getHotKeyConfig().then(setHotkeyConfig).catch(ignoreUnsupportedIpc)
 
   registerKeyEvent()
   // registerRendererEvents()

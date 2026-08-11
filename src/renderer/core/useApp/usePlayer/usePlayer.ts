@@ -35,7 +35,6 @@ import { playNext, pause, playPrev, togglePlay, collectMusic, uncollectMusic, di
 import usePlaybackRate from './usePlaybackRate'
 import useSoundEffect from './useSoundEffect'
 import useMaxOutputChannelCount from './useMaxOutputChannelCount'
-import { setPowerSaveBlocker } from '@renderer/core/player/utils'
 import usePreloadNextMusic from './usePreloadNextMusic'
 
 
@@ -60,20 +59,12 @@ export default () => {
     void playPrev()
   }
 
-  const addPowerSaveBlocker = () => {
-    setPowerSaveBlocker(true)
-  }
-  const removePowerSaveBlocker = () => {
-    setPowerSaveBlocker(false)
-  }
-
   const setPlayStatus = () => {
     setPlay(true)
   }
   const setPauseStatus = () => {
     setPlay(false)
     if (window.lx.isPlayedStop) pause()
-    removePowerSaveBlocker()
   }
 
   const handleUpdatePlayInfo = () => {
@@ -121,7 +112,6 @@ export default () => {
     setTitle(null)
     setAllStatus('')
     setStop()
-    removePowerSaveBlocker()
   }
 
   watch(() => appSetting['player.togglePlayMethod'], newValue => {
@@ -148,8 +138,6 @@ export default () => {
   window.app_event.on('stop', setStopStatus)
   window.app_event.on('musicToggled', handleUpdatePlayInfo)
   window.app_event.on('playerCanplay', handleCanplay)
-  window.app_event.on('playerPlaying', addPowerSaveBlocker)
-  window.app_event.on('playerEmptied', removePowerSaveBlocker)
 
   window.app_event.on('playerEnded', handleEnded)
 
@@ -172,8 +160,6 @@ export default () => {
     window.app_event.off('error', setPauseStatus)
     window.app_event.off('stop', setStopStatus)
     window.app_event.off('musicToggled', handleUpdatePlayInfo)
-    window.app_event.off('playerPlaying', addPowerSaveBlocker)
-    window.app_event.off('playerEmptied', removePowerSaveBlocker)
     window.app_event.off('playerCanplay', handleCanplay)
 
     window.app_event.off('playerEnded', handleEnded)

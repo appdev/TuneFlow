@@ -1,93 +1,47 @@
-<p align="center"><a href="https://github.com/lyswhut/lx-music-desktop"><img width="200" src="https://github.com/lyswhut/lx-music-desktop/blob/master/doc/images/icon.png" alt="lx-music logo"></a></p>
+<p align="center"><img width="200" src="./doc/images/icon.png" alt="LX Music logo"></p>
 
-<h1 align="center">LX Music 桌面版</h1>
+<h1 align="center">LX Music Server + Web</h1>
 
-<p align="center">
-  <a href="https://github.com/lyswhut/lx-music-desktop/releases"><img src="https://img.shields.io/github/release/lyswhut/lx-music-desktop" alt="Release version"></a>
-  <a href="https://github.com/lyswhut/lx-music-desktop/actions/workflows/release.yml"><img src="https://github.com/lyswhut/lx-music-desktop/workflows/Build/badge.svg" alt="Build status"></a>
-  <a href="https://github.com/lyswhut/lx-music-desktop/actions/workflows/beta-pack.yml"><img src="https://github.com/lyswhut/lx-music-desktop/workflows/Build%20Beta/badge.svg" alt="Build status"></a>
-  <a href="https://electronjs.org/releases/stable"><img src="https://img.shields.io/github/package-json/dependency-version/lyswhut/lx-music-desktop/dev/electron/master" alt="Electron version"></a>
-  <!-- <a href="https://github.com/lyswhut/lx-music-desktop/releases"><img src="https://img.shields.io/github/downloads/lyswhut/lx-music-desktop/latest/total" alt="Downloads"></a> -->
-  <a href="https://github.com/lyswhut/lx-music-desktop/tree/dev"><img src="https://img.shields.io/github/package-json/v/lyswhut/lx-music-desktop/dev" alt="Dev branch version"></a>
-  <!-- <a href="https://github.com/lyswhut/lx-music-desktop/blob/master/LICENSE"><img src="https://img.shields.io/github/license/lyswhut/lx-music-desktop" alt="License"></a> -->
-</p>
-
-<!-- [![GitHub release][1]][2]
-[![Build status][3]][4]
-[![GitHub Releases Download][5]][6]
-[![dev branch][7]][8]
-[![GitHub license][9]][10] -->
-
-<!-- [1]: https://img.shields.io/github/release/lyswhut/lx-music-desktop
-[2]: https://github.com/lyswhut/lx-music-desktop/releases
-[3]: https://ci.appveyor.com/api/projects/status/flrsqd5ymp8fnte5?svg=true
-[4]: https://ci.appveyor.com/project/lyswhut/lx-music-desktop
-[5]: https://img.shields.io/github/downloads/lyswhut/lx-music-desktop/latest/total
-[5]: https://img.shields.io/github/downloads/lyswhut/lx-music-desktop/total
-[6]: https://github.com/lyswhut/lx-music-desktop/releases
-[7]: https://img.shields.io/github/package-json/v/lyswhut/lx-music-desktop/dev
-[8]: https://github.com/lyswhut/lx-music-desktop/tree/dev
-[9]: https://img.shields.io/github/license/lyswhut/lx-music-desktop
-[10]: https://github.com/lyswhut/lx-music-desktop/blob/master/LICENSE -->
-
-<p align="center">一个基于 Electron & Vue 开发的音乐软件</p>
+<p align="center">由 Node.js Service 提供数据与媒体能力、在浏览器运行 Vue UI 的音乐软件</p>
 
 ## 说明
 
 所用技术栈：
 
-- Electron 30+
+- Node.js 22+
 - Vue 3
 
-已支持的平台：
+本仓库只构建 Node.js Service 与 Web UI，不再生成桌面安装包。未来原生客户端通过 Service API 接入。
 
-- Linux
-- macOS
-- Windows 7 及以上
+## 构建与启动
 
-*移动版项目地址：https://github.com/lyswhut/lx-music-mobile*
+安装 Node.js 22 或更高版本，然后运行：
 
-*LX Music 项目发展调整与新项目计划：https://github.com/lyswhut/lx-music-desktop/issues/1912*
+```sh
+npm ci
+npm run build:service
+npm run start:server
+```
 
-软件变化请查看[更新日志](https://github.com/lyswhut/lx-music-desktop/blob/master/CHANGELOG.md)。
-
-软件下载请查看 [GitHub Releases](https://github.com/lyswhut/lx-music-desktop/releases)。
-
-使用常见问题请参阅[桌面版常见问题](https://lyswhut.github.io/lx-music-doc/desktop/faq)。
-
-目前本项目的原始发布地址只有 [**GitHub**](https://github.com/lyswhut/lx-music-desktop/releases)，其他渠道均为第三方转载发布，与本项目无关！
-
-为了提高使用门槛，本软件内的默认设置、UI 操作不以新手友好为目标，所以使用前建议先根据你的喜好浏览调整一遍软件设置，阅读一遍[音乐播放列表机制](https://lyswhut.github.io/lx-music-doc/desktop/faq/playlist)及[可用的鼠标、键盘快捷操作](https://lyswhut.github.io/lx-music-doc/desktop/faq/hotkey)。
-
-### Scheme URL 支持
-
-从 v1.17.0 起支持 Scheme URL，可以使用此功能在浏览器等场景下调用 LX Music，我们开发了一个[油猴脚本](https://github.com/lyswhut/lx-music-script#readme)配套使用。
-
-脚本安装地址：[LX Music 辅助脚本](https://greasyfork.org/zh-CN/scripts/438148)。
-
-若你想自己调用 LX Music，可以参考文档「[Scheme URL 支持](https://lyswhut.github.io/lx-music-doc/desktop/scheme-url)」部分。
-
-### 数据同步服务
-
-从 v2.2.0 起，我们发布了一个独立的[数据同步服务](https://github.com/lyswhut/lx-music-sync-server#readme)。如果你有服务器，可以将其部署到服务器上作为私人多端同步服务使用，详情看该项目说明。
-
-### 开放 API 支持
-
-从 v2.7.0 起支持开放 API 服务。启用该功能后，将会在本地启动一个 HTTP 服务，提供播放器相关的接口供第三方软件调用，详情看文档「[开放 API 服务](https://lyswhut.github.io/lx-music-doc/desktop/open-api)」部分。
+浏览器打开 <http://127.0.0.1:3124>。默认只监听本机回环地址；若要在可信局域网使用，可显式设置 `LX_HOST=0.0.0.0`，并通过主机防火墙或反向代理限制访问。本服务没有身份认证、多租户隔离或公网安全加固，请勿直接暴露到互联网。
 
 ### 数据存储目录
 
-默认情况下，软件的数据存储在：
+Service 独占所有持久化数据。数据根目录由 `LX_STORAGE_ROOT` 指定，默认是当前工作目录下的 `./data`。其中包括：
 
-- Linux：`$XDG_CONFIG_HOME/lx-music-desktop` 或 `~/.config/lx-music-desktop`
-- macOS：`~/Library/Application Support/lx-music-desktop`
-- Windows：`%APPDATA%/lx-music-desktop`
+- `lx.data.db`，以及 Service 运行时可能存在的 WAL/SHM 文件；
+- 固定下载与本地媒体目录 `${LX_STORAGE_ROOT}/audio`；
+- `sources/`、`tmp/`、`logs/` 与 `backups/` 支持目录。
 
-在 Windows 平台上，若程序文件夹中存在 `portable` 文件夹，则自动使用此文件夹作为数据存储文件夹（适用于 v1.17.0 及以上版本）。
+浏览器和 API 都不能选择或修改宿主机下载路径。Docker 中 `LX_STORAGE_ROOT=/data`，因此媒体固定存放在 `/data/audio`。备份时应先停止 Service 并备份完整数据根目录，而不是只复制数据库文件。
+
+## 功能边界
+
+Web UI 支持导航、搜索、列表、播放、Service 下载与本地媒体库、网络导入自定义源、常规设置、本地快捷键和内置主题。不支持桌面窗口/托盘、桌面歌词、全局快捷键、安装更新、原桌面同步与开放 API、原生文件对话框、系统字体枚举或文件型自定义主题编辑。
 
 ## 用户界面
 
-<p><img width="100%" src="./doc/images/app.png" alt="lx-music desktop UI"></p>
+<p><img width="100%" src="./doc/images/app.png" alt="LX Music Web UI"></p>
 
 ## 贡献代码
 
@@ -97,15 +51,11 @@
 - 对于修复 bug 的 PR，请提供修复前后的说明及重现方式。
 - 对于其他类型的 PR，则适当附上说明。
 
-贡献代码步骤：
-
-1. 参照[源码使用方法](https://lyswhut.github.io/lx-music-doc/desktop/use-source-code)设置开发环境；
-2. 克隆本仓库代码并切换至 `dev` 分支进行开发；
-3. 提交 PR 至 `dev` 分支。
+提交代码前请至少运行与变更相关的测试；涉及生产构建边界时还应运行 `npm run build:service`。
 
 ## 源码使用方法
 
-请参阅：<https://lyswhut.github.io/lx-music-doc/desktop/use-source-code>
+构建、启动、环境变量、Docker、数据备份、媒体目录、功能边界与安全注意事项请参阅 [Server + Web 文档](./docs/server-web.md)。
 
 ## 项目协议
 
@@ -113,7 +63,7 @@
 
 ---
 
-*词语约定：本协议中的“本项目”指 LX Music（洛雪音乐助手）桌面版项目；“使用者”指签署本协议的使用者；“官方音乐平台”指对本项目内置的包括酷我、酷狗、咪咕等音乐源的官方平台统称；“版权数据”指包括但不限于图像、音频、名字等在内的他人拥有所属版权的数据。*
+*词语约定：本协议中的“本项目”指本仓库的 LX Music Server + Web 项目；“使用者”指签署本协议的使用者；“官方音乐平台”指对本项目内置的包括酷我、酷狗、咪咕等音乐源的官方平台统称；“版权数据”指包括但不限于图像、音频、名字等在内的他人拥有所属版权的数据。*
 
 ### 一、数据来源
 
@@ -121,7 +71,7 @@
 
 1.2 本项目本身没有获取某个音频数据的能力，本项目使用的在线音频数据来源来自软件设置内“自定义源”设置所选择的“源”返回的在线链接。例如播放某首歌，本项目所做的只是将希望播放的歌曲名、艺术家等信息传递给“源”，若“源”返回了一个链接，则本项目将认为这就是该歌曲的音频数据而进行使用，至于这是不是正确的音频数据本项目无法校验其准确性，所以使用本项目的过程中可能会出现希望播放的音频与实际播放的音频不对应或者无法播放的问题。
 
-1.3 本项目的非官方平台数据（例如“我的列表”内列表）来自使用者本地系统或者使用者连接的同步服务，本项目不对这些数据的合法性、准确性负责。
+1.3 本项目的非官方平台数据（例如“我的列表”内列表）来自使用者管理的 Service 数据根目录，本项目不对这些数据的合法性、准确性负责。
 
 ### 二、版权数据
 

@@ -49,7 +49,7 @@
 </template>
 
 <script>
-import { clipboardReadText } from '@common/utils/electron'
+import { clipboardReadText } from '@web-runtime/browser'
 import { HOTKEY_COMMON } from '@common/hotKey'
 import { appSetting } from '@renderer/store/setting'
 

@@ -22,9 +22,9 @@ import { langList } from '@root/lang'
 import type { I18n } from '@root/lang/i18n'
 
 import { initSetting } from './store/setting'
+import { applyBuiltInTheme } from './store/builtInThemes'
 // import { bubbleCursor } from './utils/cursor-effects/bubbleCursor'
 
-import './worker'
 import { saveViewPrevState } from './utils/data'
 
 // sync(store, router)
@@ -62,12 +62,18 @@ void getSetting().then(setting => {
   window.setLang(setting['common.langId'])
   window.i18n.setLanguage(setting['common.langId'])
 
-  if (!setting['common.startInFullscreen'] && (document.body.clientHeight > window.screen.availHeight || document.body.clientWidth > window.screen.availWidth) && setting['common.windowSizeId'] > 1) {
-    void updateSetting({ 'common.windowSizeId': 1 })
-  }
-
   // store.commit('setSetting', setting)
   initSetting(setting)
+
+  applyBuiltInTheme({
+    id: setting['theme.id'],
+    lightId: setting['theme.lightId'],
+    darkId: setting['theme.darkId'],
+    prefersDark: window.shouldUseDarkColors,
+    setTheme: window.setTheme,
+    root: document.documentElement,
+  })
+  if (!window.dom_style.isConnected) document.head.appendChild(window.dom_style)
 
   const app = createApp(App)
   app

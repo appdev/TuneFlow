@@ -4,7 +4,7 @@
       <transition enter-active-class="animated fadeIn" leave-active-class="animated fadeOut">
         <div v-show="showContent" :class="[$style.modal, {[$style.filter]: filter}]" @click="bgClose && close()">
           <transition :enter-active-class="inClass" :leave-active-class="outClass" @after-enter="$emit('after-enter', $event)" @after-leave="handleAfterLeave">
-            <div v-show="showContent" :class="$style.content" :style="contentStyle" @click.stop>
+            <div v-show="showContent" :class="$style.content" :style="contentStyle" data-testid="modal" @click.stop>
               <header :class="$style.header">
                 <button v-if="closeBtn" type="button" @click="close">
                   <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="100%" viewBox="0 0 212.982 212.982" space="preserve">
@@ -280,6 +280,23 @@ export default {
   flex-flow: column nowrap;
   z-index: 100;
   background-color: var(--color-content-background);
+}
+
+@media (max-width: 600px) {
+  .container {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: auto;
+  }
+  .content {
+    box-sizing: border-box;
+    min-width: 0 !important;
+    width: calc(100vw - 40px) !important;
+    max-width: calc(100vw - 40px) !important;
+    max-height: calc(100vh - 40px) !important;
+  }
 }
 
 .header {

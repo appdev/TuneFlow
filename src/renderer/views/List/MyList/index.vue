@@ -79,7 +79,7 @@
 </template>
 
 <script>
-import { openUrl } from '@common/utils/electron'
+import { openUrl } from '@web-runtime/browser'
 
 import musicSdk from '@renderer/utils/musicSdk'
 import DuplicateMusicModal from './components/DuplicateMusicModal.vue'
@@ -100,7 +100,6 @@ import { saveListPrevSelectId } from '@renderer/utils/data'
 import { useI18n } from '@renderer/plugins/i18n'
 
 
-import useShare from './useShare'
 import useMenu from './useMenu'
 import useListUpdate from './useListUpdate'
 import useSort from './useSort'
@@ -130,7 +129,6 @@ export default {
     const dom_lists_list = ref(null)
     const rightClickItemIndex = ref(-10)
 
-    const { handleImportList, handleExportList } = useShare()
     const { isShowListUpdateModal, handleUpdateSourceList } = useListUpdate()
     const { isShowListSortModal, sortListInfo, handleSortList } = useSort()
     const { isShowDuplicateMusicModal, duplicateListInfo, handleDuplicateList } = useDuplicate()
@@ -173,8 +171,6 @@ export default {
     } = useMenu({
       emit,
 
-      handleImportList,
-      handleExportList,
       handleUpdateSourceList,
       handleOpenSourceDetailPage,
       handleSortList,

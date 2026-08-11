@@ -39,7 +39,7 @@
 
 <script>
 import { debounce } from '@common/utils'
-import { clipboardReadText } from '@common/utils/electron'
+import { clipboardReadText } from '@web-runtime/browser'
 import { toRaw } from '@common/utils/vueTools'
 
 export default {

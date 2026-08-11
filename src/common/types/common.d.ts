@@ -54,7 +54,7 @@ declare namespace LX {
   interface EnvParams {
     deeplink?: string | null
     cmdParams: CmdParams
-    workAreaSize?: Electron.Size
+    workAreaSize?: { width: number, height: number }
   }
 
   interface HotKey {

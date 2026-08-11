@@ -1,7 +1,7 @@
 import { dateFormat } from '@common/utils/common'
 
 export * from '@common/utils/renderer'
-export * from '@common/utils/nodejs'
+export * from '@web-runtime/browser'
 export * from '@common/utils/common'
 export * from '@common/utils/tools'
 
@@ -36,10 +36,10 @@ export const dateFormat2 = (time: number): string => {
 /**
  * 设置标题
  */
-let dom_title = document.getElementsByTagName('title')[0]
+let dom_title = typeof document === 'undefined' ? undefined : document.getElementsByTagName('title')[0]
 export const setTitle = (title: string | null) => {
   title ||= 'LX Music'
-  dom_title.innerText = title
+  if (dom_title != null) dom_title.innerText = title
 }
 
 

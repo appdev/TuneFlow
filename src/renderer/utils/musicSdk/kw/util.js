@@ -1,6 +1,6 @@
 // import { httpGet, httpFetch } from '../../request'
 import { WIN_MAIN_RENDERER_EVENT_NAME } from '@common/ipcNames'
-import { rendererInvoke } from '@common/rendererIpc'
+import { rendererInvoke } from '@web-runtime/rendererIpc'
 import { createCipheriv, createDecipheriv } from 'crypto'
 import { toMD5 } from '../utils'
 

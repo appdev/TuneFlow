@@ -1,6 +1,6 @@
 import { useRouter } from '@common/utils/vueRouter'
 import musicSdk from '@renderer/utils/musicSdk'
-import { openUrl } from '@common/utils/electron'
+import { openUrl } from '@web-runtime/browser'
 import { toOldMusicInfo } from '@renderer/utils'
 import { addDislikeInfo, hasDislike } from '@renderer/core/dislikeList'
 import { playNext } from '@renderer/core/player'

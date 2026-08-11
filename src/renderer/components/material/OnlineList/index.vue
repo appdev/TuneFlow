@@ -99,7 +99,7 @@
 </template>
 
 <script>
-import { clipboardWriteText } from '@common/utils/electron'
+import { clipboardWriteText } from '@web-runtime/browser'
 import { assertApiSupport } from '@renderer/store/utils'
 import { ref } from '@common/utils/vueTools'
 import useList from './useList'

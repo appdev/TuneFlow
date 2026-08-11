@@ -1,6 +1,6 @@
 <template lang="pug">
 transition(enter-active-class="animated slideInRight" leave-active-class="animated slideOutDown" @after-enter="handleAfterEnter" @after-leave="handleAfterLeave")
-  div(v-if="isShowPlayerDetail" :class="[$style.container, { fullscreen: isFullscreen }]" @contextmenu="handleContextMenu")
+  div(v-if="isShowPlayerDetail" data-testid="play-detail" :class="$style.container" @contextmenu="handleContextMenu")
     div(:class="$style.bg")
     //- div(:class="$style.bg" :style="bgStyle")
     //- div(:class="$style.bg2")
@@ -27,8 +27,7 @@ transition(enter-active-class="animated slideInRight" leave-active-class="animat
 
 
 <script>
-import { ref, watch } from '@common/utils/vueTools'
-import { isFullscreen } from '@renderer/store'
+import { ref } from '@common/utils/vueTools'
 import {
   isShowPlayerDetail,
   isShowPlayComment,
@@ -45,9 +44,7 @@ import PlayBar from './PlayBar.vue'
 import MusicComment from './components/MusicComment/index.vue'
 import ControlBtnsLeftHeader from './ControlBtnsLeftHeader.vue'
 import ControlBtnsRightHeader from './ControlBtnsRightHeader.vue'
-import { registerAutoHideMounse, unregisterAutoHideMounse } from './autoHideMounse'
 import { appSetting } from '@renderer/store/setting'
-import { closeWindow, maxWindow, minWindow, setFullScreen } from '@renderer/utils/ipc'
 
 export default {
   name: 'CorePlayDetail',
@@ -80,8 +77,6 @@ export default {
     }
 
     const handleAfterEnter = () => {
-      if (isFullscreen.value) registerAutoHideMounse()
-
       visibled.value = true
     }
 
@@ -89,13 +84,7 @@ export default {
       setShowPlayLrcSelectContentLrc(false)
       hideComment(false)
       visibled.value = false
-
-      unregisterAutoHideMounse()
     }
-
-    watch(isFullscreen, isFullscreen => {
-      (isFullscreen ? registerAutoHideMounse : unregisterAutoHideMounse)()
-    })
 
 
     return {
@@ -110,21 +99,6 @@ export default {
       handleAfterEnter,
       handleAfterLeave,
       visibled,
-      isFullscreen,
-      fullscreenExit() {
-        void setFullScreen(false).then((fullscreen) => {
-          isFullscreen.value = fullscreen
-        })
-      },
-      min() {
-        minWindow()
-      },
-      max() {
-        maxWindow()
-      },
-      close() {
-        closeWindow()
-      },
     }
   },
 }

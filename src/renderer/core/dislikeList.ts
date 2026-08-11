@@ -1,6 +1,6 @@
 // import { toRaw } from '@common/utils/vueTools'
 import { DISLIKE_EVENT_NAME } from '@common/ipcNames'
-import { rendererInvoke, rendererOff, rendererOn } from '@common/rendererIpc'
+import { rendererInvoke, rendererOff, rendererOn } from '@web-runtime/rendererIpc'
 import { action } from '@renderer/store/dislikeList'
 
 

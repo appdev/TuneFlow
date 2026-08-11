@@ -1,4 +1,4 @@
-import { checkPath, joinPath, extname, basename, readFile, getFileStats } from '@common/utils/nodejs'
+import { checkPath, joinPath, extname, basename, readFile, getFileStats } from '@web-runtime/browser'
 import { formatPlayTime } from '@common/utils/common'
 import { decodeKrc } from '@common/utils/lyricUtils/kg'
 import { type IAudioMetadata } from 'music-metadata'

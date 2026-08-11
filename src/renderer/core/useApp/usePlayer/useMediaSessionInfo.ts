@@ -14,7 +14,7 @@ export default () => {
   emptyAudio.onplaying = () => {
     emptyAudio.pause()
   }
-  void emptyAudio.play()
+  void emptyAudio.play().catch(() => {})
   let prevPicUrl = ''
 
   const updateMediaSessionInfo = () => {

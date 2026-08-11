@@ -340,9 +340,8 @@ export const scrollXRTo = (element: ScrollElement<HTMLElement>, to: number, dura
 /**
   * 设置标题
   */
-let dom_title = document.getElementsByTagName('title')[0]
+let dom_title = typeof document === 'undefined' ? undefined : document.getElementsByTagName('title')[0]
 export const setTitle = (title: string | null) => {
   title ||= 'LX Music'
-  dom_title.innerText = title
+  if (dom_title != null) dom_title.innerText = title
 }
-

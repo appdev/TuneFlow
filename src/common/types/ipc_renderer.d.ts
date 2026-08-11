@@ -1,9 +1,9 @@
 declare namespace LX {
   interface IpcRendererEvent {
-    event: Electron.IpcRendererEvent
+    event: null
   }
   interface IpcRendererEventParams<T> {
-    event: Electron.IpcRendererEvent
+    event: null
     params: T
   }
   type IpcRendererEventListener = (params: LX.IpcRendererEvent) => any

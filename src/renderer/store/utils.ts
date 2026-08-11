@@ -6,9 +6,9 @@
 //   return listId == 'download' ? downloadList : getListFromState(listId)
 // }
 import { encodePath, isUrl } from '@common/utils/common'
-import { joinPath } from '@common/utils/nodejs'
+import { joinPath } from '@web-runtime/browser'
 import { markRaw, shallowReactive } from '@common/utils/vueTools'
-import { getThemes as getTheme } from '@renderer/utils/ipc'
+import { getBuiltInThemeInfo } from './builtInThemes'
 import { qualityList, themeInfo, themeShouldUseDarkColors } from './index'
 
 export const assertApiSupport = (source: LX.Source): boolean => {
@@ -26,12 +26,11 @@ export const getThemes = (callback: (themeInfo: LX.ThemeInfo) => void) => {
     callback(themeInfo)
     return
   }
-  void getTheme().then(info => {
-    themeInfo.themes = markRaw(info.themes)
-    themeInfo.userThemes = shallowReactive(info.userThemes)
-    themeInfo.dataPath = info.dataPath
-    callback(themeInfo)
-  })
+  const info = getBuiltInThemeInfo()
+  themeInfo.themes = markRaw(info.themes)
+  themeInfo.userThemes = shallowReactive(info.userThemes)
+  themeInfo.dataPath = info.dataPath
+  callback(themeInfo)
 }
 export const buildThemeColors = (theme: LX.Theme, dataPath: string) => {
   if (theme.isCustom && theme.config.extInfo['--background-image'] != 'none') {
@@ -78,5 +77,6 @@ export const applyTheme = (id: string, lightId: string, darkId: string, dataPath
       theme = themeInfo.themes.find(theme => theme.id == themeId)!
     }
     window.setTheme(buildThemeColors(theme, dataPath))
+    document.documentElement.dataset.themeId = themeId
   })
 }

@@ -25,7 +25,6 @@
 <script setup>
 import { ref, watch } from '@common/utils/vueTools'
 // import useNextTogglePlay from '@renderer/utils/compositions/useNextTogglePlay'
-// import useToggleDesktopLyric from '@renderer/utils/compositions/useToggleDesktopLyric'
 // import { musicInfo, playMusicInfo } from '@renderer/store/player/state'
 // import { saveVolumeIsMute } from '@renderer/store/setting'
 // import { volume, isMute } from '@renderer/store/player/volume'

@@ -1,13 +1,11 @@
 import { useRouter } from '@common/utils/vueRouter'
 import musicSdk from '@renderer/utils/musicSdk'
-import { openUrl } from '@common/utils/electron'
-import { checkPath } from '@common/utils/nodejs'
+import { openUrl } from '@web-runtime/browser'
 // import { dialog } from '@renderer/plugins/Dialog'
 // import { useI18n } from '@renderer/plugins/i18n'
 // import { appSetting } from '@renderer/store/setting'
 import { toOldMusicInfo } from '@renderer/utils/index'
 import { startDownloadTasks, pauseDownloadTasks, removeDownloadTasks } from '@renderer/store/download/action'
-import { openDirInExplorer } from '@renderer/utils/ipc'
 
 export default ({ list, selectedList, removeAllSelect }) => {
   const router = useRouter()
@@ -66,18 +64,11 @@ export default ({ list, selectedList, removeAllSelect }) => {
     }
   }
 
-  const handleOpenFile = async(index) => {
-    const task = list.value[index]
-    if (!checkPath(task.metadata.filePath)) return
-    openDirInExplorer(task.metadata.filePath)
-  }
-
   return {
     handleSearch,
     handleOpenMusicDetail,
     handleStartTask,
     handlePauseTask,
     handleRemoveTask,
-    handleOpenFile,
   }
 }

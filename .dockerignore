@@ -1,0 +1,10 @@
+.git
+.superpowers
+node_modules
+dist
+data
+coverage
+playwright-report
+test-results
+.DS_Store
+npm-debug.log*

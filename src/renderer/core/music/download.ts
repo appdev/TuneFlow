@@ -29,12 +29,6 @@ export const getPicUrl = async({ musicInfo, isRefresh, listId, onToggleSource = 
   onToggleSource?: (musicInfo?: LX.Music.MusicInfoOnline) => void
 }): Promise<string> => {
   if (!isRefresh) {
-    const path = await getDownloadFilePath(musicInfo, buildSavePath(musicInfo))
-    if (path) {
-      const pic = await window.lx.worker.main.getMusicFilePic(path)
-      if (pic) return pic
-    }
-
     const onlineMusicInfo = musicInfo.metadata.musicInfo
     if (onlineMusicInfo.meta.picUrl) return onlineMusicInfo.meta.picUrl
   }
@@ -60,14 +54,5 @@ export const getLyricInfo = async({ musicInfo, isRefresh, onToggleSource = () =>
     musicInfo: musicInfo.metadata.musicInfo,
     isRefresh,
     onToggleSource,
-  }).catch(async() => {
-    // 尝试读取文件内歌词
-    const path = await getDownloadFilePath(musicInfo, buildSavePath(musicInfo))
-    if (path) {
-      const rawlrcInfo = await window.lx.worker.main.getMusicFileLyric(path)
-      if (rawlrcInfo) return buildLyricInfo(rawlrcInfo)
-    }
-
-    throw new Error('failed')
   })
 }

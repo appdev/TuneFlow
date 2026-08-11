@@ -1,14 +1,7 @@
 /* eslint-disable no-var */
 import { type AppEventTypes, type KeyEventTypes } from '@renderer/event'
-import { type MainTypes, type DownloadTypes } from '@renderer/worker/utils'
+import { type MainTypes, type DownloadTypes } from '@web-runtime/workers'
 import { type I18n } from '@renderer/plugins/i18n'
-// interface LX.EnvParams {
-//   deeplink?: string | null
-//   cmdParams: LX.CmdParams
-//   workAreaSize?: Electron.Size
-// }
-
-
 interface Lx {
   // appSetting: LX.AppSetting
   isEditingHotKey: boolean
@@ -33,7 +26,6 @@ interface Lx {
 
 declare global {
   interface Window {
-    ELECTRON_DISABLE_SECURITY_WARNINGS?: string
     dt: boolean
     shouldUseDarkColors: boolean
     lx: Lx
@@ -43,6 +35,7 @@ declare global {
 
     lxData: any
 
+    dom_style: HTMLStyleElement
     setTheme: (colors: Record<string, string>) => void
     setLang: (lang?: string) => void
   }
@@ -101,5 +94,4 @@ declare global {
 }
 
 
-// declare const ELECTRON_DISABLE_SECURITY_WARNINGS: string
 // declare const userApiPath: string

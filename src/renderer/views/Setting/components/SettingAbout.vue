@@ -44,7 +44,7 @@ dd
 <script>
 // import { ref, onBeforeUnmount } from '@common/utils/vueTools'
 import { isShowPact } from '@renderer/store'
-import { openUrl, clipboardWriteText } from '@common/utils/electron'
+import { openUrl, clipboardWriteText } from '@web-runtime/browser'
 
 export default {
   name: 'SettingAbout',

@@ -6,6 +6,8 @@ import mg from './mg/index'
 import bd from './bd/index'
 import xm from './xm'
 import { supportQuality } from './api-source'
+import { rendererInvoke } from '@web-runtime/rendererIpc'
+import { WIN_MAIN_RENDERER_EVENT_NAME } from '@common/ipcNames'
 
 
 const sources = {
@@ -46,6 +48,16 @@ const sources = {
   mg,
   bd,
   xm,
+}
+
+if (globalThis.lxWebRuntime != null) {
+  for (const source of sources.sources) {
+    const search = sources[source.id]?.musicSearch
+    if (!search) continue
+    search.search = (text, page = 1, limit = search.limit || 30) => rendererInvoke(WIN_MAIN_RENDERER_EVENT_NAME.handle_request, {
+      kind: 'provider-search', source: source.id, text, page, limit,
+    }).then(result => ({ ...result, allPage: Math.ceil(result.total / result.limit) }))
+  }
 }
 export default {
   ...sources,

@@ -1,6 +1,4 @@
 import { computed, watch, ref, onBeforeUnmount } from '@common/utils/vueTools'
-import { isFullscreen } from '@renderer/store'
-import { getFontSizeWithScreen } from '@renderer/utils'
 import { appSetting } from '@renderer/store/setting'
 
 const useKeyEvent = ({ handleSelectAllData, listRef }) => {
@@ -50,7 +48,7 @@ export default ({ listRef, list }) => {
 
   let lastSelectIndex = -1
   const listItemHeight = computed(() => {
-    return Math.ceil((isFullscreen.value ? getFontSizeWithScreen() : appSetting['common.fontSize']) * 2.3)
+    return Math.ceil(appSetting['common.fontSize'] * 2.3)
   })
 
   const removeAllSelect = () => {

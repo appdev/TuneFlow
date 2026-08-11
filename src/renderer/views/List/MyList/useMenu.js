@@ -2,7 +2,6 @@ import { computed, ref, reactive, nextTick } from '@common/utils/vueTools'
 import { useI18n } from '@renderer/plugins/i18n'
 import { userLists, defaultList, loveList } from '@renderer/store/list/state'
 import musicSdk from '@renderer/utils/musicSdk'
-import { addLocalFile } from './actions'
 
 export default ({
   emit,
@@ -11,8 +10,6 @@ export default ({
   handleDuplicateList,
   handleSortList,
   handleOpenSourceDetailPage,
-  handleImportList,
-  handleExportList,
   handleUpdateSourceList,
   handleRemove,
 }) => {
@@ -20,10 +17,7 @@ export default ({
     rename: true,
     duplicate: true,
     sort: true,
-    local_file: true,
     sourceDetail: true,
-    import: true,
-    export: true,
     sync: false,
     remove: true,
   })
@@ -49,11 +43,6 @@ export default ({
         disabled: !menuControl.duplicate,
       },
       {
-        name: t('lists__select_local_file'),
-        action: 'local_file',
-        disabled: !menuControl.local_file,
-      },
-      {
         name: t('lists__sync'),
         action: 'sync',
         disabled: !menuControl.sync,
@@ -62,16 +51,6 @@ export default ({
         name: t('lists__source_detail'),
         action: 'sourceDetail',
         disabled: !menuControl.sourceDetail,
-      },
-      {
-        name: t('lists__import'),
-        action: 'import',
-        disabled: !menuControl.export,
-      },
-      {
-        name: t('lists__export'),
-        action: 'export',
-        disabled: !menuControl.export,
       },
       {
         name: t('lists__remove'),
@@ -161,17 +140,8 @@ export default ({
       case 'sort':
         handleSortList(listInfo)
         break
-      case 'local_file':
-        addLocalFile(listInfo)
-        break
       case 'sourceDetail':
         handleOpenSourceDetailPage(listInfo)
-        break
-      case 'import':
-        handleImportList(listInfo, index)
-        break
-      case 'export':
-        handleExportList(listInfo)
         break
       case 'sync':
         handleUpdateSourceList(listInfo)

@@ -1,5 +1,5 @@
 // import defaultSetting from '@common/defaultSetting'
-import createWorkers from '@renderer/worker'
+import { createWebWorkers } from '@web-runtime/workers'
 
 window.lx = {
   // appSetting: defaultSetting,
@@ -23,12 +23,10 @@ window.lx = {
     songlistPosition: 0,
   },
   restorePlayInfo: null,
-  worker: createWorkers(),
+  worker: createWebWorkers(),
   isProd: process.env.NODE_ENV == 'production',
   rootOffset: window.dt ? 0 : 8,
   apiInitPromise: [Promise.resolve(false), true, () => {}],
 }
 
 window.lxData = {}
-
-window.ELECTRON_DISABLE_SECURITY_WARNINGS = process.env.ELECTRON_DISABLE_SECURITY_WARNINGS

@@ -1,5 +1,5 @@
 import { toRaw } from '@common/utils/vueTools'
-import { rendererInvoke, rendererOff, rendererOn } from '@common/rendererIpc'
+import { rendererInvoke, rendererOff, rendererOn } from '@web-runtime/rendererIpc'
 import { PLAYER_EVENT_NAME } from '@common/ipcNames'
 import {
   userListCreate,

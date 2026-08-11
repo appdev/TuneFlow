@@ -39,7 +39,7 @@ import { openSongListInputInfo } from '@renderer/store/songList/state'
 import { setOpenSongListInputInfo } from '@renderer/store/songList/action'
 import { ref, watch } from '@common/utils/vueTools'
 import { useRoute, useRouter } from '@common/utils/vueRouter'
-import { openUrl } from '@common/utils/electron'
+import { openUrl } from '@web-runtime/browser'
 
 const props = defineProps({
   modelValue: Boolean,

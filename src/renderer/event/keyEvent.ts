@@ -1,7 +1,5 @@
 import keyBind from '../utils/keyBind'
-import { HOTKEY_COMMON } from '@common/hotKey'
 import Event from './Event'
-import { appSetting } from '@renderer/store/setting'
 
 declare class keyEventTypes extends Event {
   on(event: string, listener: (event: LX.KeyDownEevent) => any): void
@@ -28,13 +26,6 @@ export const registerKeyEvent = () => {
       // console.log(key, eventKey, type, keys, isEditing)
       event.preventDefault()
       if (type == 'up') return
-
-      // 软件内快捷键的最小化触发时
-      // 如果已启用托盘，则隐藏程序，否则最小化程序 https://github.com/lyswhut/lx-music-desktop/issues/603
-      if (window.lx.appHotKeyConfig.local.keys[key].action == HOTKEY_COMMON.min.action && appSetting['tray.enable']) {
-        window.key_event.emit(HOTKEY_COMMON.hide_toggle.action)
-        return
-      }
 
       window.key_event.emit(window.lx.appHotKeyConfig.local.keys[key].action)
       return

@@ -1,7 +1,5 @@
 import { computed, watch, ref, onBeforeUnmount, type Ref } from '@common/utils/vueTools'
-import { isFullscreen } from '@renderer/store'
 import { appSetting } from '@renderer/store/setting'
-import { getFontSizeWithScreen } from '@renderer/utils'
 
 const useKeyEvent = ({ handleSelectAllData, listRef }: {
   handleSelectAllData: () => void
@@ -58,7 +56,7 @@ export default ({ props, listRef }: {
   const selectedList = ref<LX.Music.MusicInfoOnline[]>([])
   let lastSelectIndex = -1
   const listItemHeight = computed(() => {
-    return Math.ceil((isFullscreen.value ? getFontSizeWithScreen() : appSetting['common.fontSize']) * 2.3)
+    return Math.ceil(appSetting['common.fontSize'] * 2.3)
   })
 
   const removeAllSelect = () => {

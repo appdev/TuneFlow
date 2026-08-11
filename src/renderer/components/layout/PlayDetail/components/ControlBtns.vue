@@ -1,10 +1,5 @@
 <template lang="pug">
 div(:class="$style.footerLeftControlBtns")
-  button(:class="[$style.footerLeftControlBtn, $style.lrcBtn]" :aria-label="toggleDesktopLyricBtnTitle" @click="toggleDesktopLyric" @contextmenu="toggleLockDesktopLyric")
-    svg(v-show="appSetting['desktopLyric.enable']" version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="125%" viewBox="0 0 512 512" space="preserve")
-      use(xlink:href="#icon-desktop-lyric-on")
-    svg(v-show="!appSetting['desktopLyric.enable']" version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="125%" viewBox="0 0 512 512" space="preserve")
-      use(xlink:href="#icon-desktop-lyric-off")
   button(:class="[$style.footerLeftControlBtn, { [$style.active]: appSetting['player.audioVisualization'] }]" :aria-label="$t('audio_visualization')" @click="toggleAudioVisualization")
     svg(version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" width="95%" viewBox="0 0 24 24" space="preserve")
       use(xlink:href="#icon-audio-wave")
@@ -40,7 +35,6 @@ import {
 } from '@renderer/store/player/action'
 
 import useNextTogglePlay from '@renderer/utils/compositions/useNextTogglePlay'
-import useToggleDesktopLyric from '@renderer/utils/compositions/useToggleDesktopLyric'
 import { dialog } from '@renderer/plugins/Dialog'
 import { setMediaDeviceId } from '@renderer/plugins/player'
 import { appSetting, saveMediaDeviceId, setEnableAudioVisualization } from '@renderer/store/setting'
@@ -62,12 +56,6 @@ export default {
       nextTogglePlayName,
       toggleNextPlayMode,
     } = useNextTogglePlay()
-
-    const {
-      toggleDesktopLyricBtnTitle,
-      toggleDesktopLyric,
-      toggleLockDesktopLyric,
-    } = useToggleDesktopLyric()
 
     const isShowAddMusicTo = ref(false)
 
@@ -94,9 +82,6 @@ export default {
       toggleVisibleComment,
       nextTogglePlayName,
       toggleNextPlayMode,
-      toggleDesktopLyricBtnTitle,
-      toggleDesktopLyric,
-      toggleLockDesktopLyric,
       toggleAudioVisualization,
       isShowAddMusicTo,
       playMusicInfo,

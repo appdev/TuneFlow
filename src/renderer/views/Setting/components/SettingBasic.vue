@@ -6,10 +6,6 @@ dd
       base-checkbox(id="setting_show_animate" :model-value="appSetting['common.isShowAnimation']" :label="$t('setting__basic_show_animation')" @update:model-value="updateSetting({'common.isShowAnimation': $event})")
     .gap-top
       base-checkbox(id="setting_animate" :disabled="!appSetting['common.isShowAnimation']" :model-value="appSetting['common.randomAnimate']" :label="$t('setting__basic_animation')" @update:model-value="updateSetting({'common.randomAnimate': $event})")
-    .gap-top
-      base-checkbox(id="setting_start_in_fullscreen" :model-value="appSetting['common.startInFullscreen']" :label="$t('setting__basic_start_in_fullscreen')" @update:model-value="updateSetting({'common.startInFullscreen': $event})")
-    .gap-top
-      base-checkbox(id="setting_to_tray" :model-value="appSetting['tray.enable']" :label="$t('setting__basic_to_tray')" @update:model-value="updateSetting({'tray.enable': $event})")
     .p.gap-top
       base-btn.btn(min @click="isShowPlayTimeoutModal = true") {{ $t('setting__play_timeout')}} {{ timeLabel ? ` (${timeLabel})` : '' }}
 
@@ -17,21 +13,16 @@ dd
   h3#basic_theme {{ $t('setting__basic_theme') }}
   div
     ul(:class="$style.theme")
-      li(v-for="theme in themeList" :key="theme.id" :aria-label="theme.name" :style="theme.styles" :class="[$style.themeItem, {[$style.active]: themeId == theme.id}]" @click="toggleTheme(theme)" @contextmenu="handleEditTheme(theme)")
+      li(v-for="theme in themeList" :key="theme.id" :data-testid="`theme-${theme.id}`" :aria-label="theme.name" :style="theme.styles" :class="[$style.themeItem, {[$style.active]: themeId == theme.id}]" @click="toggleTheme(theme)")
         div(:class="$style.bg")
         span(:class="$style.label") {{ theme.name }}
-      li(v-if="showAllTheme || themeId == 'auto'" :aria-label="$t('theme_auto_tip')" :style="autoTheme" :class="[$style.themeItem, $style.auto, {[$style.active]: themeId == 'auto'}]" @click="handleSetThemeAuto" @contextmenu="isShowThemeSelectorModal = true")
+      li(v-if="showAllTheme || themeId == 'auto'" data-testid="theme-auto" :aria-label="$t('theme_auto_tip')" :style="autoTheme" :class="[$style.themeItem, $style.auto, {[$style.active]: themeId == 'auto'}]" @click="handleSetThemeAuto" @contextmenu="isShowThemeSelectorModal = true")
         div(:class="$style.bg")
           div(:class="$style.bgContent")
             div(:class="$style.light")
             div(:class="$style.dark")
         span(:class="$style.label") {{ $t('theme_auto') }}
-      li(v-if="showAllTheme" :aria-label="$t('theme_add')" :class="[$style.themeItem, $style.add]" @click="handleEditTheme()")
-        div(:class="$style.bg")
-          div(:class="$style.bgContent")
-            svg-icon(:class="$style.icon" name="plus")
-        span(:class="$style.label") {{ $t('theme_add') }}
-      li(v-if="!showAllTheme" :aria-label="$t('theme_more_btn_show')" :class="[$style.themeItem, $style.moreThme]" @click="showAllTheme = true")
+      li(v-if="!showAllTheme" data-testid="theme-more" :aria-label="$t('theme_more_btn_show')" :class="[$style.themeItem, $style.moreThme]" @click="showAllTheme = true")
         span(:class="$style.label") {{ $t('theme_more_btn_show') }}
         svg-icon(name="angle-right-solid" :class="$style.activeIcon")
 
@@ -50,21 +41,13 @@ dd
       base-btn.btn(min @click="isShowUserApiModal = true") {{ $t('setting__basic_source_user_api_btn') }}
 
 dd
-  h3#basic_window_size {{ $t('setting__basic_window_size') }}
-  div
-    base-checkbox.gap-left(
-      v-for="item in windowSizeList" :id="`setting_window_size_${item.id}`" :key="item.id"
-      name="setting_window_size" need :model-value="appSetting['common.windowSizeId']" :disabled="isFullscreen" :value="item.id" :label="$t('setting__basic_window_size_' + item.name)"
-      @update:model-value="updateSetting({'common.windowSizeId': $event})")
-
-dd
   h3#basic_font_size {{ $t('setting__basic_font_size') }}
   div
     //- base-selection.gap-teft(:list="fontSizeList" :model-value="appSetting['common.fontSize']" @update:model-value="updateSetting({'common.fontSize': $event})")
     base-checkbox.gap-left(
       v-for="item in fontSizeList" :id="`setting_basic_font_size_${item.id}`" :key="item.id"
       name="setting_basic_font_size" need :model-value="appSetting['common.fontSize']" :value="item.id"
-      :label="item.label" :disabled="isFullscreen" @update:model-value="updateSetting({'common.fontSize': $event})")
+      :label="item.label" @update:model-value="updateSetting({'common.fontSize': $event})")
 
 dd
   h3#basic_font {{ $t('setting__basic_font') }}
@@ -87,12 +70,6 @@ dd
       v-for="item in sourceNameTypes" :id="`setting_abasic_sourcename_${item.id}`" :key="item.id"
       name="setting_basic_sourcename" need :model-value="appSetting['common.sourceNameType']" :value="item.id" :label="item.label" @update:model-value="updateSetting({'common.sourceNameType': $event})")
 dd
-  h3#basic_control_btn_position {{ $t('setting__basic_control_btn_position') }}
-  div
-    base-checkbox.gap-left(
-      v-for="item in controlBtnPositionList" :id="`setting_basic_control_btn_position_${item.id}`" :key="item.id"
-      name="setting_basic_control_btn_position" need :model-value="appSetting['common.controlBtnPosition']" :value="item.id" :label="item.name" @update:model-value="updateSetting({'common.controlBtnPosition': $event})")
-dd
   h3#basic_playbar_progress_style {{ $t('setting__basic_playbar_progress_style') }}
   div
     base-checkbox.gap-left(
@@ -106,22 +83,19 @@ dd
       need :model-value="appSetting['common.playBarProgressStyle']" value="full" :label="$t('setting__basic_playbar_progress_style_full')" @update:model-value="updateSetting({'common.playBarProgressStyle': $event})")
 
 ThemeSelectorModal(v-model="isShowThemeSelectorModal")
-ThemeEditModal(v-model="isShowThemeEditModal" :theme-id="editThemeId" @submit="handleRefreshTheme")
 play-timeout-modal(v-model="isShowPlayTimeoutModal")
 user-api-modal(v-model="isShowUserApiModal")
 </template>
 
 <script>
 import { computed, ref, watch, reactive, shallowReactive } from '@common/utils/vueTools'
-import { windowSizeList, userApi, isFullscreen, themeId } from '@renderer/store'
+import { userApi, themeId } from '@renderer/store'
 import { langList, useI18n } from '@root/lang'
-import { getSystemFonts } from '@renderer/utils/ipc'
 import apiSourceInfo from '@renderer/utils/musicSdk/api-source-info'
 import { useTimeout } from '@renderer/core/player/timeoutStop'
 import { dialog } from '@renderer/plugins/Dialog'
 
 import ThemeSelectorModal from './ThemeSelectorModal.vue'
-import ThemeEditModal from './ThemeEditModal/index.vue'
 import PlayTimeoutModal from './PlayTimeoutModal.vue'
 import UserApiModal from './UserApiModal.vue'
 import { appSetting, updateSetting } from '@renderer/store/setting'
@@ -131,7 +105,6 @@ export default {
   name: 'SettingBasic',
   components: {
     ThemeSelectorModal,
-    ThemeEditModal,
     PlayTimeoutModal,
     UserApiModal,
   },
@@ -204,23 +177,6 @@ export default {
         updateAutoTheme(info)
       })
     }
-    const editThemeId = ref('')
-    const handleEditTheme = (theme) => {
-      // console.log(theme)
-      if (theme?.isDefault) return
-      if (!theme && userThemes.length >= 10) {
-        void dialog({
-          message: t('theme_max_tip'),
-          confirmButtonText: t('alert_button_text'),
-        })
-        return
-      }
-      editThemeId.value = theme ? theme.id : ''
-      isShowThemeEditModal.value = true
-    }
-    const handleRefreshTheme = () => {
-      init()
-    }
     init()
     const toggleTheme = (theme) => {
       if (themeId.value == theme.id) return
@@ -244,8 +200,6 @@ export default {
       }
       toggleTheme({ id: 'auto' })
     }
-    const isShowThemeEditModal = ref(false)
-
     const isShowPlayTimeoutModal = ref(false)
     const { timeLabel } = useTimeout()
 
@@ -285,21 +239,8 @@ export default {
         { id: 'alias', label: t('setting__basic_sourcename_alias') },
       ]
     })
-
-
-    const controlBtnPositionList = computed(() => {
-      return [
-        { id: 'left', name: t('setting__basic_control_btn_position_left') },
-        { id: 'right', name: t('setting__basic_control_btn_position_right') },
-      ]
-    })
-
-    const systemFontList = ref([])
     const fontList = computed(() => {
-      return [{ id: '', label: t('setting__desktop_lyric_font_default') }, ...systemFontList.value]
-    })
-    void getSystemFonts().then(fonts => {
-      systemFontList.value = fonts.map(f => ({ id: f, label: f.replace(/(^"|"$)/g, '') }))
+      return [{ id: '', label: t('default') }]
     })
 
     const fonts = computed(() => {
@@ -338,23 +279,16 @@ export default {
       // themes,
       // themeClassName,
       isShowThemeSelectorModal,
-      isShowThemeEditModal,
       handleSetThemeAuto,
       isShowPlayTimeoutModal,
       timeLabel,
       apiSources,
       isShowUserApiModal,
-      windowSizeList,
       langList,
       sourceNameTypes,
-      controlBtnPositionList,
       fontList,
-      isFullscreen,
       toggleTheme,
       themeId,
-      handleRefreshTheme,
-      editThemeId,
-      handleEditTheme,
       fontSizeList,
     }
   },

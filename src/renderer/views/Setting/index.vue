@@ -6,7 +6,8 @@
           <h2
             :class="[$style.tocH2, {[$style.active]: avtiveComponentName == h2.id }]"
             role="tab" :aria-selected="avtiveComponentName == h2.id"
-            :aria-label="h2.title" ignore-tip @click="toggleTab(h2.id)"
+            :aria-label="h2.title"
+            :data-testid="`settings-tab-${h2.id}`" ignore-tip @click="toggleTab(h2.id)"
           >
             <transition name="list-active">
               <svg-icon v-if="avtiveComponentName == h2.id" name="angle-right-solid" :class="$style.activeIcon" />
@@ -23,23 +24,19 @@
         </li>
       </ul>
     </div>
-    <div ref="dom_content_ref" class="scroll" :class="$style.setting">
+    <div ref="dom_content_ref" class="scroll" :class="$style.setting" data-testid="settings-content">
       <dl>
         <component :is="avtiveComponentName" />
         <!-- <SettingBasic />
         <SettingPlay />
         <SettingPlayDetail />
-        <SettingDesktopLyric />
         <SettingSearch />
         <SettingList />
         <SettingDownload />
-        <SettingSync />
         <SettingHotKey />
         <SettingNetwork />
         <SettingOdc />
-        <SettingBackup />
         <SettingOther />
-        <SettingUpdate />
         <SettingAbout /> -->
       </dl>
     </div>
@@ -47,7 +44,7 @@
 </template>
 
 <script>
-import { ref, computed, nextTick } from '@common/utils/vueTools'
+import { ref, computed, nextTick, watch } from '@common/utils/vueTools'
 // import { currentStting } from './setting'
 import { useI18n } from '@renderer/plugins/i18n'
 import { useRoute } from '@common/utils/vueRouter'
@@ -55,18 +52,13 @@ import { useRoute } from '@common/utils/vueRouter'
 import SettingBasic from './components/SettingBasic.vue'
 import SettingPlay from './components/SettingPlay.vue'
 import SettingPlayDetail from './components/SettingPlayDetail.vue'
-import SettingDesktopLyric from './components/SettingDesktopLyric.vue'
 import SettingSearch from './components/SettingSearch.vue'
 import SettingList from './components/SettingList.vue'
 import SettingDownload from './components/SettingDownload.vue'
-import SettingSync from './components/SettingSync/index.vue'
-import SettingOpenAPI from './components/SettingOpenAPI.vue'
 import SettingHotKey from './components/SettingHotKey.vue'
 import SettingNetwork from './components/SettingNetwork.vue'
 import SettingOdc from './components/SettingOdc.vue'
-import SettingBackup from './components/SettingBackup.vue'
 import SettingOther from './components/SettingOther.vue'
-import SettingUpdate from './components/SettingUpdate.vue'
 import SettingAbout from './components/SettingAbout.vue'
 
 export default {
@@ -75,18 +67,13 @@ export default {
     SettingBasic,
     SettingPlay,
     SettingPlayDetail,
-    SettingDesktopLyric,
     SettingSearch,
     SettingList,
     SettingDownload,
-    SettingSync,
-    SettingOpenAPI,
     SettingHotKey,
     SettingNetwork,
     SettingOdc,
-    SettingBackup,
     SettingOther,
-    SettingUpdate,
     SettingAbout,
   },
   setup() {
@@ -100,18 +87,13 @@ export default {
         { id: 'SettingBasic', title: t('setting__basic') },
         { id: 'SettingPlay', title: t('setting__play') },
         { id: 'SettingPlayDetail', title: t('setting__play_detail') },
-        { id: 'SettingDesktopLyric', title: t('setting__desktop_lyric') },
         { id: 'SettingSearch', title: t('setting__search') },
         { id: 'SettingList', title: t('setting__list') },
         { id: 'SettingDownload', title: t('setting__download') },
         { id: 'SettingHotKey', title: t('setting__hot_key') },
-        { id: 'SettingSync', title: t('setting__sync') },
-        { id: 'SettingOpenAPI', title: t('setting__open_api') },
         { id: 'SettingNetwork', title: t('setting__network') },
         { id: 'SettingOdc', title: t('setting__odc') },
-        { id: 'SettingBackup', title: t('setting__backup') },
         { id: 'SettingOther', title: t('setting__other') },
-        { id: 'SettingUpdate', title: t('setting__update') },
         { id: 'SettingAbout', title: t('setting__about') },
       ]
     })
@@ -119,6 +101,10 @@ export default {
     const avtiveComponentName = ref(route.query.name && tocList.value.some(t => t.id == route.query.name)
       ? route.query.name
       : tocList.value[0].id)
+
+    watch(() => route.query.name, name => {
+      if (typeof name == 'string' && tocList.value.some(item => item.id == name)) avtiveComponentName.value = name
+    })
 
     const toggleTab = id => {
       avtiveComponentName.value = id
@@ -208,12 +194,14 @@ export default {
     color: var(--color-primary);
   }
 }
+
 .activeIcon {
   height: .9em;
   width: .9em;
   margin-left: -0.45em;
   vertical-align: -0.05em;
 }
+
 // .tocH3 {
 //   font-size: 13px;
 //   opacity: .8;
@@ -288,6 +276,30 @@ export default {
   }
 }
 
+@media (max-width: 600px) {
+  .main {
+    flex-flow: column nowrap;
+  }
+  .toc {
+    flex: none;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .tocList {
+    display: flex;
+    min-width: max-content;
+  }
+  .tocH2 {
+    white-space: nowrap;
+    padding: 7px 12px;
+  }
+  .setting {
+    min-height: 0;
+    padding: 0 10px 10px;
+  }
+}
+
 // .btn-content {
 //   display: inline-block;
 //   transition: @transition-theme;
@@ -312,4 +324,3 @@ export default {
 // }
 
 </style>
-

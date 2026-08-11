@@ -1,0 +1,19 @@
+services:
+  lx-music-web:
+    build:
+      context: .
+    ports:
+      - "127.0.0.1:3124:3124"
+    volumes:
+      - lx-music-data:/data
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3124/api/v1/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+volumes:
+  lx-music-data:

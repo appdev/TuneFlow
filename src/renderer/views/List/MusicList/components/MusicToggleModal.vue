@@ -64,7 +64,7 @@
 
 <script>
 import { LIST_IDS } from '@common/constants'
-import { openUrl } from '@common/utils/electron'
+import { openUrl } from '@web-runtime/browser'
 import { playNext } from '@renderer/core/player'
 import { getSourceI18nPrefix } from '@renderer/store'
 import { addTempPlayList } from '@renderer/store/player/action'

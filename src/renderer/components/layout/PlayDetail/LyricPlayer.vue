@@ -40,10 +40,9 @@
 </template>
 
 <script>
-import { clipboardWriteText } from '@common/utils/electron'
+import { clipboardWriteText } from '@web-runtime/browser'
 import { lyric } from '@renderer/store/player/lyric'
 import { playProgress } from '@renderer/store/player/playProgress'
-import { isFullscreen } from '@renderer/store'
 import {
   isPlay,
   isShowLrcSelectContent,
@@ -87,7 +86,7 @@ export default {
 
     const dom_lrc_select_content = useSelectAllLrc()
 
-    watch([isFullscreen, isShowPlayComment], () => {
+    watch(isShowPlayComment, () => {
       setTimeout(handleScrollLrc, 400)
     })
 
@@ -139,7 +138,6 @@ export default {
     })
     const lrcFontSize = computed(() => {
       let size = appSetting['playDetail.style.fontSize'] / 100
-      if (isFullscreen.value) size = size *= 1.4
       return {
         '--playDetail-lrc-font-size': (isShowPlayComment.value ? size * 0.82 : size) + 'rem',
       }

@@ -15,7 +15,7 @@
 </template>
 
 <script>
-import { clipboardReadText } from '@common/utils/electron'
+import { clipboardReadText } from '@web-runtime/browser'
 
 export default {
   props: {

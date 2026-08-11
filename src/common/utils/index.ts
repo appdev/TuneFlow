@@ -1,4 +1,9 @@
-import log from 'electron-log/node'
+const log = {
+  debug: console.debug.bind(console),
+  info: console.info.bind(console),
+  warn: console.warn.bind(console),
+  error: console.error.bind(console),
+}
 
 
 export const isLinux = process.platform == 'linux'

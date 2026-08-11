@@ -1,6 +1,6 @@
 import { useRouter } from '@common/utils/vueRouter'
 import musicSdk from '@renderer/utils/musicSdk'
-import { openUrl, clipboardWriteText } from '@common/utils/electron'
+import { openUrl, clipboardWriteText } from '@web-runtime/browser'
 import { dialog } from '@renderer/plugins/Dialog'
 import { useI18n } from '@renderer/plugins/i18n'
 import { removeListMusics } from '@renderer/store/list/action'

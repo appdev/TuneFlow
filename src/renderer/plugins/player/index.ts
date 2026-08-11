@@ -1,3 +1,4 @@
+
 interface HTMLAudioElementChrome extends HTMLAudioElement {
   setSinkId: (id: string) => Promise<void>
 }
@@ -393,6 +394,9 @@ export const setPitchShifter = (val: number) => {
 export const hasInitedAdvancedAudioFeatures = (): boolean => audioContext != null
 
 export const setResource = (src: string) => {
+  if (new URL(src, window.location.origin).origin !== window.location.origin) {
+    throw new Error('Service playback requires a same-origin stream URL')
+  }
   if (audio) audio.src = src
 }
 

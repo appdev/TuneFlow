@@ -1,5 +1,5 @@
 <template>
-  <div id="container" class="view-container">
+  <div id="container" class="view-container web-runtime">
     <layout-aside id="left" />
     <div id="right">
       <layout-toolbar id="toolbar" />
@@ -7,11 +7,7 @@
       <layout-play-bar id="player" />
     </div>
     <layout-icons />
-    <layout-change-log-modal />
-    <layout-update-modal />
     <layout-pact-modal />
-    <layout-sync-mode-modal />
-    <layout-sync-auth-code-modal />
     <layout-play-detail />
   </div>
 </template>
@@ -112,15 +108,6 @@ body {
   //   margin-right: 5Px;
   // }
 }
-.fullscreen {
-  background-color: var(--color-content-background);
-
-  #right {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-  }
-}
-
 #container {
   position: relative;
   display: flex;
@@ -132,8 +119,29 @@ body {
   flex: none;
   width: @width-app-left;
 }
+.web-runtime {
+  #left {
+    width: 64px;
+
+    svg {
+      width: 28px;
+      height: 28px;
+    }
+  }
+}
+@media (max-width: 600px) {
+  .web-runtime #left {
+    width: 56px;
+
+    svg {
+      width: 24px;
+      height: 24px;
+    }
+  }
+}
 #right {
   flex: auto;
+  min-width: 0;
   display: flex;
   flex-flow: column nowrap;
   transition: background-color @transition-normal;
@@ -150,6 +158,7 @@ body {
 #view {
   position: relative;
   flex: auto;
+  min-width: 0;
   // display: flex;
   min-height: 0;
 }
@@ -165,4 +174,3 @@ body {
 }
 
 </style>
-

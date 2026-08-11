@@ -2,7 +2,7 @@ declare namespace LX {
   namespace Player {
     interface ProgressBarOptions {
       progress: number
-      mode?: Electron.ProgressBarOptions['mode']
+      mode?: 'none' | 'normal' | 'indeterminate' | 'error' | 'paused'
     }
 
     type StatusButtonActions = 'unCollect'

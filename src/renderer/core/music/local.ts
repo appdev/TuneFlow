@@ -1,17 +1,10 @@
-import { encodePath } from '@common/utils/common'
 import { updateListMusics } from '@renderer/store/list/action'
-import { saveLyric, saveMusicUrl } from '@renderer/utils/ipc'
-import { getLocalFilePath } from '@renderer/utils/music'
+import { saveLyric } from '@renderer/utils/ipc'
+import { fetchServiceLyric, fetchServicePicture } from '@web-runtime/lyrics'
 
 import {
   buildLyricInfo,
   getCachedLyricInfo,
-  getOnlineOtherSourceLyricByLocal,
-  getOnlineOtherSourceLyricInfo,
-  getOnlineOtherSourceMusicUrl,
-  getOnlineOtherSourceMusicUrlByLocal,
-  getOnlineOtherSourcePicByLocal,
-  getOnlineOtherSourcePicUrl,
   getOtherSource,
 } from './utils'
 
@@ -66,36 +59,13 @@ const getOtherSourceByLocal = async<T>(musicInfo: LX.Music.MusicInfoLocal, handl
   throw new Error('source not found')
 }
 
-export const getMusicUrl = async({ musicInfo, isRefresh, allowToggleSource = true, onToggleSource = () => {} }: {
+export const getMusicUrl = async({ musicInfo }: {
   musicInfo: LX.Music.MusicInfoLocal
   isRefresh: boolean
   allowToggleSource?: boolean
   onToggleSource?: (musicInfo?: LX.Music.MusicInfoOnline) => void
 }): Promise<string> => {
-  if (!isRefresh) {
-    const path = await getLocalFilePath(musicInfo)
-    if (path) return encodePath(path)
-  }
-
-  try {
-    return await getOnlineOtherSourceMusicUrlByLocal(musicInfo, isRefresh).then(({ url, quality, isFromCache }) => {
-      if (!isFromCache) void saveMusicUrl(musicInfo, quality, url)
-      return url
-    })
-  } catch {}
-
-  if (!allowToggleSource) throw new Error('failed')
-
-  onToggleSource()
-  return getOtherSourceByLocal(musicInfo, async(otherSource) => {
-    return getOnlineOtherSourceMusicUrl({ musicInfos: [...otherSource], onToggleSource, isRefresh }).then(({ url, quality: targetQuality, musicInfo: targetMusicInfo, isFromCache }) => {
-      // saveLyric(musicInfo, data.lyricInfo)
-      if (!isFromCache) void saveMusicUrl(targetMusicInfo, targetQuality, url)
-
-      // TODO: save url ?
-      return url
-    })
-  })
+  return `/api/v1/library/tracks/${encodeURIComponent(musicInfo.id)}/stream`
 }
 
 export const getPicUrl = async({ musicInfo, listId, isRefresh, onToggleSource = () => {} }: {
@@ -105,28 +75,24 @@ export const getPicUrl = async({ musicInfo, listId, isRefresh, onToggleSource = 
   onToggleSource?: (musicInfo?: LX.Music.MusicInfoOnline) => void
 }): Promise<string> => {
   if (!isRefresh) {
-    const pic = await window.lx.worker.main.getMusicFilePic(musicInfo.meta.filePath)
-    if (pic) return pic
-
     if (musicInfo.meta.picUrl) return musicInfo.meta.picUrl
   }
-
-  try {
-    return await getOnlineOtherSourcePicByLocal(musicInfo).then(({ url }) => {
-      return url
-    })
-  } catch {}
-
   onToggleSource()
   return getOtherSourceByLocal(musicInfo, async(otherSource) => {
-    return getOnlineOtherSourcePicUrl({ musicInfos: [...otherSource], onToggleSource, isRefresh }).then(({ url, musicInfo: targetMusicInfo, isFromCache }) => {
-      if (listId) {
-        musicInfo.meta.picUrl = url
-        void updateListMusics([{ id: listId, musicInfo }])
+    let lastError: unknown = new Error('picture source not found')
+    for (const target of otherSource) {
+      try {
+        const url = await fetchServicePicture(target)
+        if (listId) {
+          musicInfo.meta.picUrl = url
+          void updateListMusics([{ id: listId, musicInfo }])
+        }
+        return url
+      } catch (error) {
+        lastError = error
       }
-
-      return url
-    })
+    }
+    throw lastError
   })
 }
 
@@ -136,34 +102,22 @@ export const getLyricInfo = async({ musicInfo, isRefresh, onToggleSource = () =>
   onToggleSource?: (musicInfo?: LX.Music.MusicInfoOnline) => void
 }): Promise<LX.Player.LyricInfo> => {
   if (!isRefresh) {
-    const [lyricInfo, fileLyricInfo] = await Promise.all([getCachedLyricInfo(musicInfo), window.lx.worker.main.getMusicFileLyric(musicInfo.meta.filePath)])
-    // console.log(lyricInfo, fileLyricInfo)
-    if (lyricInfo?.lyric && lyricInfo.lyric != fileLyricInfo?.lyric) {
-      // 存在已编辑歌词
-      return buildLyricInfo({ ...lyricInfo, rawlrcInfo: fileLyricInfo ?? lyricInfo.rawlrcInfo })
-    }
-
-    if (fileLyricInfo) return buildLyricInfo(fileLyricInfo)
+    const lyricInfo = await getCachedLyricInfo(musicInfo)
     if (lyricInfo?.lyric) return buildLyricInfo(lyricInfo)
   }
-
-  try {
-    // eslint-disable-next-line @typescript-eslint/promise-function-async
-    return await getOnlineOtherSourceLyricByLocal(musicInfo, isRefresh).then(({ lyricInfo, isFromCache }) => {
-      if (!isFromCache) void saveLyric(musicInfo, lyricInfo)
-      return buildLyricInfo(lyricInfo)
-    })
-  } catch {}
-
   onToggleSource()
   return getOtherSourceByLocal(musicInfo, async(otherSource) => {
-    return getOnlineOtherSourceLyricInfo({ musicInfos: [...otherSource], onToggleSource, isRefresh }).then(async({ lyricInfo, musicInfo: targetMusicInfo, isFromCache }) => {
-      void saveLyric(musicInfo, lyricInfo)
-
-      if (isFromCache) return buildLyricInfo(lyricInfo)
-      void saveLyric(targetMusicInfo, lyricInfo)
-
-      return buildLyricInfo(lyricInfo)
-    })
+    let lastError: unknown = new Error('lyric source not found')
+    for (const target of otherSource) {
+      try {
+        const lyricInfo = await fetchServiceLyric(target)
+        void saveLyric(musicInfo, lyricInfo)
+        void saveLyric(target, lyricInfo)
+        return buildLyricInfo(lyricInfo)
+      } catch (error) {
+        lastError = error
+      }
+    }
+    throw lastError
   })
 }

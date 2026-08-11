@@ -2,7 +2,7 @@ import { appSetting } from '@renderer/store/setting'
 import { defaultList, loveList, userLists } from '@renderer/store/list/listManage'
 import { filterFileName } from '@common/utils/common'
 import { clipFileNameLength } from '@common/utils/tools'
-import { joinPath } from '@common/utils/nodejs'
+import { joinPath } from '@web-runtime/browser'
 
 export const buildSavePath = (musicInfo: LX.Download.ListItem) => {
   let savePath = appSetting['download.savePath']

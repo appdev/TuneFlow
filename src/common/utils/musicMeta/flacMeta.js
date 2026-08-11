@@ -1,6 +1,7 @@
 const fs = require('fs')
 const fsPromises = fs.promises
 const path = require('path')
+const { pipeline } = require('stream/promises')
 const getImgSize = require('image-size')
 const download = require('./downloader')
 
@@ -47,17 +48,16 @@ const writeMeta = async(filePath, meta, picPath) => {
   const flacProcessor = new FlacProcessor()
   flacProcessor.writeMeta(data)
 
-  reader.pipe(flacProcessor).pipe(writer).on('finish', () => {
-    fs.unlink(filePath, err => {
-      if (err) return console.log(err.message)
-      fs.rename(tempPath, filePath, err => {
-        if (err) console.log(err.message)
-      })
-    })
-  })
+  try {
+    await pipeline(reader, flacProcessor, writer)
+    await fsPromises.rename(tempPath, filePath)
+  } catch (error) {
+    await fsPromises.rm(tempPath, { force: true }).catch(() => {})
+    throw error
+  }
 }
 
-module.exports = (filePath, meta, proxy) => {
+module.exports = async(filePath, meta, proxy) => {
   if (!meta.APIC) return writeMeta(filePath, meta)
   let picUrl = meta.APIC
   delete meta.APIC
@@ -68,14 +68,11 @@ module.exports = (filePath, meta, proxy) => {
   let picPath = filePath.replace(/\.flac$/, '') + (ext ? ext.replace(extReg, '$1') : '.jpg')
 
   if (picUrl.includes('music.126.net')) picUrl += `${picUrl.includes('?') ? '&' : '?'}param=500y500`
-  download(picUrl, picPath, proxy).then(success => {
-    if (success) {
-      writeMeta(filePath, meta, picPath).finally(() => {
-        fs.unlink(picPath, err => {
-          if (err) console.log(err.message)
-        })
-      })
-    } else writeMeta(filePath, meta)
-  })
+  const success = await download(picUrl, picPath, proxy)
+  if (!success) return writeMeta(filePath, meta)
+  try {
+    await writeMeta(filePath, meta, picPath)
+  } finally {
+    await fsPromises.rm(picPath, { force: true })
+  }
 }
-

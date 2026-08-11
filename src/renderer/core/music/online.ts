@@ -13,6 +13,23 @@ import {
   handleGetOnlinePicUrl,
   getCachedLyricInfo,
 } from './utils'
+import { usesServicePlayback } from './runtime'
+import { fetchServiceLyric, fetchServicePicture } from '../../../web-runtime/lyrics'
+
+const isServiceWeb = (): boolean => usesServicePlayback()
+
+const resolveServiceTrack = async(musicInfo: LX.Music.MusicInfoOnline, quality: LX.Quality): Promise<string> => {
+  const response = await fetch('/api/v1/playback/tracks/resolve', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ source: musicInfo.source, quality, info: { type: quality, musicInfo } }),
+  })
+  const body = await response.json() as { data?: { url?: unknown }, error?: { message?: unknown } }
+  if (!response.ok || typeof body.data?.url !== 'string' || !body.data.url.startsWith('/api/v1/streams/')) {
+    throw new Error(typeof body.error?.message === 'string' ? body.error.message : 'Playback source request failed')
+  }
+  return body.data.url
+}
 
 /* export const setMusicUrl = ({ musicInfo, type, url }: {
   musicInfo: LX.Music.MusicInfo
@@ -52,6 +69,7 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
   //   // return Promise.reject(new Error('该歌曲没有可播放的音频'))
   // }
   const targetQuality = quality ?? getPlayQuality(appSetting['player.playQuality'], musicInfo)
+  if (isServiceWeb()) return resolveServiceTrack(musicInfo, targetQuality)
   const cachedUrl = await getStoreMusicUrl(musicInfo, targetQuality)
   if (cachedUrl && !isRefresh) return cachedUrl
 
@@ -70,6 +88,7 @@ export const getPicUrl = async({ musicInfo, listId, isRefresh, allowToggleSource
   onToggleSource?: (musicInfo?: LX.Music.MusicInfoOnline) => void
 }): Promise<string> => {
   if (musicInfo.meta.picUrl && !isRefresh) return musicInfo.meta.picUrl
+  if (isServiceWeb()) return fetchServicePicture(musicInfo)
   return handleGetOnlinePicUrl({ musicInfo, onToggleSource, isRefresh, allowToggleSource }).then(({ url, musicInfo: targetMusicInfo, isFromCache }) => {
     // picRequest = null
     if (listId) {
@@ -86,6 +105,7 @@ export const getLyricInfo = async({ musicInfo, isRefresh, allowToggleSource = tr
   allowToggleSource?: boolean
   onToggleSource?: (musicInfo?: LX.Music.MusicInfoOnline) => void
 }): Promise<LX.Player.LyricInfo> => {
+  if (isServiceWeb()) return buildLyricInfo(await fetchServiceLyric(musicInfo))
   if (!isRefresh) {
     const lyricInfo = await getCachedLyricInfo(musicInfo)
     if (lyricInfo) return buildLyricInfo(lyricInfo)

@@ -1,22 +1,23 @@
 import { onBeforeUnmount, watch } from '@common/utils/vueTools'
 import { useI18n } from '@renderer/plugins/i18n'
 import { onUserApiStatus, getUserApiList, sendUserApiRequest as sendUserApiRequestRemote, userApiRequestCancel, onShowUserApiUpdateAlert } from '@renderer/utils/ipc'
-import { openUrl } from '@common/utils/electron'
+import { openUrl } from '@web-runtime/browser'
 import { qualityList, userApi } from '@renderer/store'
 import { appSetting } from '@renderer/store/setting'
 import { dialog } from '@renderer/plugins/Dialog'
 import { setUserApi } from '@renderer/core/apiSource'
 
 const sendUserApiRequest: typeof sendUserApiRequestRemote = async(data) => {
-  let stop: () => void
-  return new Promise<void>((resolve, reject) => {
-    stop = watch(() => appSetting['common.apiSource'], () => {
-      reject(new Error('source changed'))
-    })
-    void sendUserApiRequestRemote(data).then(resolve).catch(reject)
-  }).finally(() => {
-    stop()
+  let rejectSourceChange: (reason: Error) => void = () => {}
+  const sourceChange = new Promise<never>((_resolve, reject) => {
+    rejectSourceChange = reject
   })
+  const stop = watch(() => appSetting['common.apiSource'], () => { rejectSourceChange(new Error('source changed')) })
+  try {
+    return await Promise.race([sendUserApiRequestRemote(data), sourceChange])
+  } finally {
+    stop()
+  }
 }
 
 export default () => {

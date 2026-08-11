@@ -46,7 +46,7 @@
             <div class="list-item-cell" style="flex: 0 0 10%;">{{ getTypeName(item.metadata.quality) }}</div>
             <div class="list-item-cell" style="flex: 0 0 13%; padding-left: 0; padding-right: 0;">
               <material-list-buttons
-                :index="index" :download-btn="false" :file-btn="item.status != downloadStatus.ERROR" remove-btn="remove-btn"
+                :index="index" :download-btn="false" remove-btn="remove-btn"
                 :start-btn="!item.isComplate && item.status != downloadStatus.WAITING && (item.status != downloadStatus.RUN)"
                 :pause-btn="!item.isComplate && (item.status == downloadStatus.RUN || item.status == downloadStatus.WAITING)"
                 :list-add-btn="false" :play-btn="item.status == downloadStatus.COMPLETED"
@@ -68,7 +68,7 @@
 </template>
 
 <script>
-// import { checkPath, openDirInExplorer, openUrl } from '@common/utils/electron'
+// import { checkPath, openDirInExplorer, openUrl } from '@web-runtime/browser'
 
 import { ref } from '@common/utils/vueTools'
 import useListInfo from './useListInfo'
@@ -114,7 +114,6 @@ export default {
       handleStartTask,
       handlePauseTask,
       handleRemoveTask,
-      handleOpenFile,
     } = useTaskActions({ list, removeAllSelect, selectedList })
 
     const {
@@ -134,7 +133,6 @@ export default {
       handleStartTask,
       handlePauseTask,
       handleRemoveTask,
-      handleOpenFile,
       handlePlayMusic,
       handlePlayMusicLater,
       handleShowMusicAddModal,
@@ -193,9 +191,6 @@ export default {
           break
         case 'remove':
           void handleRemoveTask(index, true)
-          break
-        case 'file':
-          void handleOpenFile(index)
           break
         case 'search':
           handleSearch(index)
@@ -303,4 +298,3 @@ export default {
 }
 
 </style>
-

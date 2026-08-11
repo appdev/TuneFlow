@@ -4,6 +4,11 @@ import { setUserApi as setUserApiAction } from '@renderer/utils/ipc'
 import musicSdk from '@renderer/utils/musicSdk'
 import apiSourceInfo from '@renderer/utils/musicSdk/api-source-info'
 
+const ignoreUnsupportedIpc = (error: unknown) => {
+  if (typeof error == 'object' && error != null && 'code' in error && error.code == 'UNSUPPORTED_IPC') return
+  throw error
+}
+
 let prevId = ''
 export const setUserApi = async(apiId: string) => {
   if (prevId == apiId) return
@@ -39,7 +44,7 @@ export const setUserApi = async(apiId: string) => {
     // @ts-expect-error
     qualityList.value = musicSdk.supportQuality[apiId] ?? {}
     apiSource.value = apiId
-    void setUserApiAction(apiId)
+    void setUserApiAction(apiId).catch(ignoreUnsupportedIpc)
     if (!window.lx.apiInitPromise[1]) window.lx.apiInitPromise[2](true)
   }
 

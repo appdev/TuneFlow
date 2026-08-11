@@ -67,22 +67,6 @@ export const savePlaybackRate = (rate: number) => {
 
 
 /**
- * 设置是否开启桌面歌词
- * @param enabled
- */
-export const setVisibleDesktopLyric = (enabled: boolean) => {
-  updateSetting({ 'desktopLyric.enable': enabled })
-}
-
-/**
- * 设置是否锁定桌面歌词
- * @param isLock
- */
-export const setLockDesktopLyric = (isLock: boolean) => {
-  updateSetting({ 'desktopLyric.isLock': isLock })
-}
-
-/**
  * 设置切歌模式
  * @param mode
  */
