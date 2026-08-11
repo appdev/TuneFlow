@@ -6,7 +6,7 @@ import mg from './mg/index'
 import bd from './bd/index'
 import xm from './xm'
 import { supportQuality } from './api-source'
-import { rendererInvoke } from '@web-runtime/rendererIpc'
+import { rendererInvoke } from '@common/rendererIpc'
 import { WIN_MAIN_RENDERER_EVENT_NAME } from '@common/ipcNames'
 
 

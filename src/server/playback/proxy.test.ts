@@ -169,6 +169,28 @@ describe('same-origin playback proxy', () => {
     })
   })
 
+  it('preserves the upstream failure when the active source does not support a fallback provider', async() => {
+    const upstreamError = Object.assign(new Error('source endpoint DNS lookup failed'), { code: 'SOURCE_NETWORK_ERROR' })
+    const requestSource = vi.fn().mockRejectedValue(upstreamError)
+    const sources = {
+      list: () => [{
+        id: 'user_api_fixture',
+        active: true,
+        sources: { kw: { type: 'music', actions: ['musicUrl'], qualitys: ['128k'] } },
+      }],
+      requestSource,
+    } as unknown as SourcesService
+    const findAlternatives = vi.fn(async() => [{ source: 'wy', songmid: 'unsupported-fallback' }])
+    const resolver = new PlaybackResolver(sources, new TokenStore(), findAlternatives)
+
+    await expect(resolver.resolveTrack({
+      source: 'kw',
+      quality: '128k' as LX.Quality,
+      info: { name: '晚风', singer: '伍佰', source: 'kw' },
+    })).rejects.toBe(upstreamError)
+    expect(requestSource).toHaveBeenCalledTimes(1)
+  })
+
   it('streams a full GET without leaking its target URL', async() => {
     const upstream = await startUpstream()
     const store = new TokenStore()

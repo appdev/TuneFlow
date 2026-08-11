@@ -7,11 +7,10 @@ import { dialog } from '@renderer/plugins/Dialog'
 import { setMediaDeviceId } from '@renderer/plugins/player'
 import { isPlay } from '@renderer/store/player/state'
 import { appSetting, saveMediaDeviceId } from '@renderer/store/setting'
+import { enumerateAudioOutputDevices, getBrowserMediaDevices, subscribeToMediaDeviceChanges } from '@renderer/utils/mediaDevices'
 
-const getDevices = async() => {
-  const devices = await navigator.mediaDevices.enumerateDevices()
-  return devices.filter(({ kind }) => kind == 'audiooutput')
-}
+const mediaDevices = getBrowserMediaDevices()
+const getDevices = async() => enumerateAudioOutputDevices(mediaDevices)
 
 let isShowingTipAlert = false
 
@@ -83,11 +82,9 @@ export default () => {
 
   void getMediaDevice(appSetting['player.mediaDeviceId']).then(async({ deviceId, label }) => setMediaDevice(deviceId, label))
 
-  // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  navigator.mediaDevices.addEventListener('devicechange', handleMediaListChange)
+  const unsubscribe = subscribeToMediaDeviceChanges(mediaDevices, handleMediaListChange)
 
   onBeforeUnmount(() => {
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    navigator.mediaDevices.removeEventListener('devicechange', handleMediaListChange)
+    unsubscribe()
   })
 }

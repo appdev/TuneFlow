@@ -2,6 +2,7 @@ import http from 'node:http'
 import { afterEach, expect, it } from 'vitest'
 import { search } from './index'
 import { proxy } from './rendererStoreShim'
+import { decodeLyric } from '../../renderer/utils/musicSdk/kw/util'
 
 let server: http.Server | undefined
 const originalWindow = (globalThis as { window?: unknown }).window
@@ -67,4 +68,8 @@ it('executes the bundled KW provider through an HTTP fixture boundary', async() 
     total: 1,
     list: [{ songmid: 'fixture-2', name: 'Fixture provider', meta: { _qualitys: { '320k': { size: '8M' } } } }],
   })
+})
+
+it('uses the Service lyric decoder when the bundled provider requests native decoding', async() => {
+  await expect(decodeLyric({ lrcBase64: Buffer.from('not a lyric').toString('base64'), isGetLyricx: false })).resolves.toBe('')
 })

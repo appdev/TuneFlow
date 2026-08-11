@@ -47,6 +47,7 @@ import { dialog } from '@renderer/plugins/Dialog'
 import { useI18n } from '@renderer/plugins/i18n'
 import { appSetting, saveMediaDeviceId, updateSetting } from '@renderer/store/setting'
 import { TRY_QUALITYS_LIST } from '@renderer/core/music/utils'
+import { enumerateAudioOutputDevices, getBrowserMediaDevices, subscribeToMediaDeviceChanges } from '@renderer/utils/mediaDevices'
 
 
 export default {
@@ -56,17 +57,16 @@ export default {
     const playQualityList = [...TRY_QUALITYS_LIST, '128k'].reverse()
 
     const mediaDevices = ref([])
+    const browserMediaDevices = getBrowserMediaDevices()
     const getMediaDevice = async() => {
-      const devices = await navigator.mediaDevices.enumerateDevices()
-      let audioDevices = devices.filter(device => device.kind === 'audiooutput')
-      mediaDevices.value = audioDevices
+      mediaDevices.value = await enumerateAudioOutputDevices(browserMediaDevices)
       // console.log(this.mediaDevices)
     }
     void getMediaDevice()
 
-    navigator.mediaDevices.addEventListener('devicechange', getMediaDevice)
+    const unsubscribe = subscribeToMediaDeviceChanges(browserMediaDevices, getMediaDevice)
     onBeforeUnmount(() => {
-      navigator.mediaDevices.removeEventListener('devicechange', getMediaDevice)
+      unsubscribe()
     })
 
     const mediaDeviceId = ref(appSetting['player.mediaDeviceId'])

@@ -41,6 +41,11 @@ export const resolveSourceMusicUrl = async(
   const originalInfo = typeof input.info === 'object' && input.info != null && 'musicInfo' in input.info
     ? (input.info as { musicInfo: unknown }).musicInfo
     : input.info
+  const activeSource = sources.list().find(source => source.id === sourceId && source.active)
+  const supportsMusicUrl = (musicSource: string): boolean => {
+    if (activeSource?.sources == null) return true
+    return activeSource.sources[musicSource]?.actions.includes('musicUrl') ?? false
+  }
   try {
     return await requestMusicUrl(input.source, input.info)
   } catch (originalError) {
@@ -50,16 +55,14 @@ export const resolveSourceMusicUrl = async(
     } catch {
       throw originalError
     }
-    let lastError: unknown = originalError
     for (const alternative of alternatives) {
       if (typeof alternative.source !== 'string' || alternative.source === input.source) continue
+      if (!supportsMusicUrl(alternative.source)) continue
       try {
         return await requestMusicUrl(alternative.source, alternative)
-      } catch (error) {
-        lastError = error
-      }
+      } catch {}
     }
-    throw lastError
+    throw originalError
   }
 }
 
