@@ -98,8 +98,12 @@ export class DownloadManager {
     if (options.autoStart !== false) queueMicrotask(() => { this.pump() })
   }
 
-  list(): DownloadDto[] { return [...this.records.values()].map(record => this.dto(record)) }
-  get(id: string): DownloadDto | undefined { const record = this.records.get(id); return record == null ? undefined : this.dto(record) }
+  list(): DownloadDto[] {
+    let queuePosition = 0
+    return [...this.records.values()].map(record => this.dto(record, record.status === 'waiting' ? ++queuePosition : null))
+  }
+
+  get(id: string): DownloadDto | undefined { return this.list().find(record => record.id === id) }
 
   async create(input: DownloadCreateInput): Promise<DownloadDto> {
     if (this.closed) throw new Error('Download manager is closed')
@@ -141,7 +145,7 @@ export class DownloadManager {
     this.persist(record)
     this.publish()
     if (this.options.autoStart !== false) this.pump()
-    return this.dto(record)
+    return this.get(id)!
   }
 
   async start(id: string): Promise<void> {
@@ -473,7 +477,7 @@ export class DownloadManager {
   private publish(): void { this.options.publish?.(this.list()) }
   private now(): number { return this.options.now?.() ?? Date.now() }
 
-  private dto(record: DownloadJobRecord): DownloadDto {
+  private dto(record: DownloadJobRecord, queuePosition: number | null): DownloadDto {
     return {
       id: record.id,
       status: record.status,
@@ -484,6 +488,9 @@ export class DownloadManager {
       downloaded: record.downloaded,
       total: record.total,
       progress: record.total > 0 ? Math.min(100, record.downloaded / record.total * 100) : 0,
+      queuePosition,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
       warning: record.warning,
       error: record.error,
       listId: record.listId,

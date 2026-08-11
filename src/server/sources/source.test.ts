@@ -192,12 +192,18 @@ window.lx.send(window.lx.EVENT_NAMES.inited, { sources: { fixture: { type: 'musi
       page: 1,
       source: 'fixture',
     })).toEqual({
-      list: [{ songmid: '42', name: '42', singer: '', source: 'fixture', interval: '03:35', _types: { '320k': { size: '8M' } }, types: [{ type: '320k', size: '8M' }], meta: { _qualitys: { '320k': { size: '8M' } }, qualitys: [{ type: '320k', size: '8M' }] } }],
+      list: [{ id: '42', songmid: '42', name: '42', singer: '', source: 'fixture', interval: '03:35', _types: { '320k': { size: '8M' } }, types: [{ type: '320k', size: '8M' }], meta: { _qualitys: { '320k': { size: '8M' } }, qualitys: [{ type: '320k', size: '8M' }] } }],
       total: 1,
       limit: 20,
       page: 1,
       source: 'fixture',
     })
+  })
+
+  it('rejects search items without a stable track id', () => {
+    expect(() => SourceWorkerHost.normalizeSearchResult({
+      list: [{ name: 'Missing id' }], total: 1, limit: 20, page: 1, source: 'fixture',
+    })).toThrowError(expect.objectContaining({ code: 'SOURCE_PROTOCOL_ERROR' }))
   })
 
   it('does not expose the worker host process to a source script', async() => {

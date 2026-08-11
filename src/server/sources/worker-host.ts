@@ -277,6 +277,7 @@ export class SourceWorkerHost {
       const qualitys = Array.isArray(music.types) ? music.types : Array.isArray(originalMeta.qualitys) ? originalMeta.qualitys : []
       return {
         ...music,
+        id: String(music.id ?? music.songmid ?? ''),
         songmid: String(music.songmid ?? music.id ?? ''),
         name: String(music.name ?? ''),
         singer: String(music.singer ?? ''),
@@ -287,6 +288,7 @@ export class SourceWorkerHost {
         meta: { ...originalMeta, _qualitys: typeof originalMeta._qualitys === 'object' && originalMeta._qualitys != null && !Array.isArray(originalMeta._qualitys) ? originalMeta._qualitys : qualityTypes, qualitys },
       }
     })
+    if (list.some(item => item.id.length === 0)) throw new SourceServiceError('SOURCE_PROTOCOL_ERROR', 'Search result is missing a track id')
     return { list, total: Number(result.total ?? list.length), limit: Number(result.limit ?? list.length), page: Number(result.page ?? 1), source: result.source }
   }
 }

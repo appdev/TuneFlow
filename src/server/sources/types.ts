@@ -41,6 +41,28 @@ export interface SearchResult {
   source: string
 }
 
+export type CatalogSearchKind = 'track' | 'playlist' | 'album'
+
+export interface CatalogCollection {
+  id: string
+  kind: Exclude<CatalogSearchKind, 'track'>
+  name: string
+  source: string
+  author?: string
+  total?: number
+  img?: string | null
+  description?: string
+  [key: string]: unknown
+}
+
+export interface CollectionSearchResult {
+  list: CatalogCollection[]
+  total: number
+  limit: number
+  page: number
+  source: string
+}
+
 export class SourceServiceError extends Error {
   constructor(readonly code: string, message = code) {
     super(message)

@@ -46,6 +46,9 @@ export interface DownloadDto {
   downloaded: number
   total: number
   progress: number
+  queuePosition: number | null
+  createdAt: number
+  updatedAt: number
   warning?: string
   error?: string
   listId?: string

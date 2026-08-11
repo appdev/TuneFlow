@@ -3,6 +3,7 @@ import { apis } from '../api-source'
 import getLyric from './lyric'
 import getMusicInfo from './musicInfo'
 import musicSearch from './musicSearch'
+import albumSearch from './albumSearch'
 import songList from './songList'
 import hotSearch from './hotSearch'
 import comment from './comment'
@@ -12,6 +13,7 @@ const wy = {
   // tipSearch,
   leaderboard,
   musicSearch,
+  albumSearch,
   songList,
   hotSearch,
   comment,

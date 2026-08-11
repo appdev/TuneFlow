@@ -16,6 +16,39 @@ export const Track = Type.Object({
   meta: Type.Optional(Type.Object({}, { additionalProperties: true })),
 }, { additionalProperties: true })
 
+export const CatalogTrack = Type.Object({
+  id: Identifier,
+  songmid: Identifier,
+  name: Type.String(),
+  singer: Type.String(),
+  source: Identifier,
+  interval: Type.String(),
+  albumId: Type.Optional(Type.Union([Type.String(), Type.Number()])),
+  albumName: Type.Optional(Type.String()),
+  img: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  types: Type.Optional(Type.Array(Type.Unknown())),
+  _types: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+  meta: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+}, { additionalProperties: true })
+
+export const CatalogCollection = Type.Object({
+  id: Identifier,
+  kind: Type.Union([Type.Literal('album'), Type.Literal('playlist')]),
+  name: Type.String(),
+  source: Identifier,
+  author: Type.Optional(Type.String()),
+  total: Type.Optional(Type.Number()),
+  img: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  description: Type.Optional(Type.String()),
+}, { additionalProperties: true })
+
+export const CatalogLyrics = Type.Object({
+  lyric: Type.String(),
+  tlyric: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  rlyric: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  lxlyric: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+}, { additionalProperties: false })
+
 export const Playlist = Type.Object({
   id: Identifier,
   name: Type.String({ minLength: 1 }),
@@ -54,6 +87,9 @@ export const Download = Type.Object({
   downloaded: Type.Number(),
   total: Type.Number(),
   progress: Type.Number(),
+  queuePosition: Type.Union([Type.Integer({ minimum: 1 }), Type.Null()]),
+  createdAt: Type.Number(),
+  updatedAt: Type.Number(),
   warning: Type.Optional(Type.String()),
   error: Type.Optional(Type.String()),
   listId: Type.Optional(Type.String()),
