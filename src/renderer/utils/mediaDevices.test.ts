@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { enumerateAudioOutputDevices, subscribeToMediaDeviceChanges } from './mediaDevices'
+import { enumerateAudioOutputDevices, resolveAudioOutputDevice, subscribeToMediaDeviceChanges } from './mediaDevices'
 
 describe('optional browser media-device support', () => {
   it('returns no outputs when the browser does not expose mediaDevices', async() => {
@@ -13,5 +13,12 @@ describe('optional browser media-device support', () => {
 
     expect(unsubscribe).toEqual(expect.any(Function))
     expect(() => { unsubscribe() }).not.toThrow()
+  })
+
+  it('uses the browser default output without reporting an empty device list when enumeration is unavailable', async() => {
+    await expect(resolveAudioOutputDevice(undefined, 'previous-device')).resolves.toEqual({
+      device: { deviceId: 'default', label: '' },
+      shouldReportEmpty: false,
+    })
   })
 })

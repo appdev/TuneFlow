@@ -7,10 +7,9 @@ import { dialog } from '@renderer/plugins/Dialog'
 import { setMediaDeviceId } from '@renderer/plugins/player'
 import { isPlay } from '@renderer/store/player/state'
 import { appSetting, saveMediaDeviceId } from '@renderer/store/setting'
-import { enumerateAudioOutputDevices, getBrowserMediaDevices, subscribeToMediaDeviceChanges } from '@renderer/utils/mediaDevices'
+import { getBrowserMediaDevices, resolveAudioOutputDevice, subscribeToMediaDeviceChanges } from '@renderer/utils/mediaDevices'
 
 const mediaDevices = getBrowserMediaDevices()
-const getDevices = async() => enumerateAudioOutputDevices(mediaDevices)
 
 let isShowingTipAlert = false
 
@@ -19,14 +18,8 @@ export default () => {
   let prevDeviceId = ''
 
   const getMediaDevice = async(deviceId: string) => {
-    const devices = await getDevices()
-    let device = devices.find(device => device.deviceId === deviceId)
-    if (!device) {
-      deviceId = 'default'
-      device = devices.find(device => device.deviceId === deviceId)
-    }
-
-    if (!device && !devices.length && !isShowingTipAlert) {
+    const resolved = await resolveAudioOutputDevice(mediaDevices, deviceId)
+    if (resolved.shouldReportEmpty && !isShowingTipAlert) {
       isShowingTipAlert = true
       void dialog({
         message: window.i18n.t('media_device__empty_device_tip'),
@@ -35,7 +28,7 @@ export default () => {
         isShowingTipAlert = false
       })
     }
-    return device ? { label: device.label, deviceId: device.deviceId } : { label: '', deviceId: '' }
+    return resolved.device
   }
   const setMediaDevice = async(deviceId: string, label: string) => {
     prevDeviceLabel = label
