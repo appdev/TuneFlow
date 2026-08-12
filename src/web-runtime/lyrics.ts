@@ -1,11 +1,11 @@
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
 interface LyricResponse {
-  data?: LX.Music.LyricInfo
+  data?: TuneFlow.Music.LyricInfo
   error?: { message?: unknown }
 }
 
-export const fetchServiceLyric = async(musicInfo: unknown, fetchImpl: FetchLike = fetch): Promise<LX.Music.LyricInfo> => {
+export const fetchServiceLyric = async(musicInfo: unknown, fetchImpl: FetchLike = fetch): Promise<TuneFlow.Music.LyricInfo> => {
   const source = typeof musicInfo === 'object' && musicInfo != null && 'source' in musicInfo ? musicInfo.source : null
   if (typeof source !== 'string') throw new Error('Invalid lyric music source')
   const response = await fetchImpl('/api/v1/catalog/tracks/lyrics', {

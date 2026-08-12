@@ -8,14 +8,14 @@ import { activateSource, requestLyric } from './isolated-api.mjs'
 import { waitForHealth } from './wait-for-health.mjs'
 
 const root = process.cwd()
-const isolatedRoot = mkdtempSync(path.join(os.tmpdir(), 'lx-service-isolated-'))
+const isolatedRoot = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-service-isolated-'))
 const fixtureScript = `/*
  * @name Isolated runtime fixture
  * @description Validates the packaged worker without parent dependencies
  * @version 1.0.0
  */
-window.lx.on(window.lx.EVENT_NAMES.request, async () => ({ lyric: 'fixture' }))
-window.lx.send(window.lx.EVENT_NAMES.inited, { sources: { fixture: { type: 'music', actions: ['lyric'], qualitys: [] } } })`
+window.tuneflow.on(window.tuneflow.EVENT_NAMES.request, async () => ({ lyric: 'fixture' }))
+window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, { sources: { fixture: { type: 'music', actions: ['lyric'], qualitys: [] } } })`
 
 const listen = async(server) => await new Promise((resolve, reject) => {
   server.once('error', reject)
@@ -42,11 +42,11 @@ try {
     cwd: isolatedRoot,
     env: {
       ...process.env,
-      LX_HOST: '127.0.0.1',
-      LX_PORT: String(port),
-      LX_STORAGE_ROOT: path.join(isolatedRoot, 'storage'),
-      LX_WEB_ROOT: path.join(isolatedRoot, 'web'),
-      LX_SERVICE_NODE_MODULES: path.join(isolatedRoot, 'server/node_modules'),
+      TUNEFLOW_HOST: '127.0.0.1',
+      TUNEFLOW_PORT: String(port),
+      TUNEFLOW_STORAGE_ROOT: path.join(isolatedRoot, 'storage'),
+      TUNEFLOW_WEB_ROOT: path.join(isolatedRoot, 'web'),
+      TUNEFLOW_SERVICE_NODE_MODULES: path.join(isolatedRoot, 'server/node_modules'),
     },
     stdio: ['ignore', 'inherit', 'inherit'],
   })

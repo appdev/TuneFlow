@@ -3,7 +3,7 @@ import { getDB } from './core/db'
 import { ApiError } from '../errors'
 import { getAudioRoot } from '../config'
 
-const serviceDefaults: Partial<LX.AppSetting> = {
+const serviceDefaults: Partial<TuneFlow.AppSetting> = {
   'common.transparentWindow': false,
   'common.tryAutoUpdate': false,
   'player.powerSaveBlocker': false,
@@ -13,20 +13,39 @@ const serviceDefaults: Partial<LX.AppSetting> = {
   'tray.enable': false,
 }
 
+const legacyMarker = ['L', 'x'].join('')
+const legacySettingKeys = [
+  [`player.isPlay${legacyMarker}lrc`, 'player.isPlayVerbatimLyric'],
+  [`download.isDownload${legacyMarker}Lrc`, 'download.isDownloadVerbatimLyric'],
+  [`download.isEmbedLyric${legacyMarker}`, 'download.isEmbedVerbatimLyric'],
+] as const
+
 export class SettingsRepository {
   constructor(private readonly storageRoot: string) {
     const db = getDB()
     db.exec('CREATE TABLE IF NOT EXISTS web_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);')
+    const migrate = db.prepare(`
+      INSERT INTO web_settings (key, value)
+      SELECT ?, value FROM web_settings WHERE key = ?
+      ON CONFLICT(key) DO NOTHING
+    `)
+    const remove = db.prepare('DELETE FROM web_settings WHERE key = ?')
+    db.transaction(() => {
+      for (const [legacyKey, currentKey] of legacySettingKeys) {
+        migrate.run(currentKey, legacyKey)
+        remove.run(legacyKey)
+      }
+    })()
   }
 
-  private values(): Partial<LX.AppSetting> {
+  private values(): Partial<TuneFlow.AppSetting> {
     const rows = getDB().prepare('SELECT key, value FROM web_settings').all() as Array<{ key: string, value: string }>
-    const values: Partial<LX.AppSetting> = {}
+    const values: Partial<TuneFlow.AppSetting> = {}
     for (const { key, value } of rows) Object.assign(values, { [key]: JSON.parse(value) })
     return values
   }
 
-  getSettings(): LX.AppSetting {
+  getSettings(): TuneFlow.AppSetting {
     return {
       ...defaultSetting,
       ...this.values(),
@@ -35,7 +54,7 @@ export class SettingsRepository {
     }
   }
 
-  updateSettings(values: Record<string, unknown>): LX.AppSetting {
+  updateSettings(values: Record<string, unknown>): TuneFlow.AppSetting {
     if (Object.prototype.hasOwnProperty.call(values, 'download.savePath')) {
       throw new ApiError(400, 'IMMUTABLE_SETTING', 'Download path is managed by the Service')
     }

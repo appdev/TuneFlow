@@ -3,7 +3,7 @@ import type { ApiFastifyInstance } from '../api/types'
 import { ApiSuccess, ErrorResponses } from '../api/schemas/common'
 import { CatalogCollection, CatalogLyrics, CatalogTrack } from '../api/schemas/domain'
 import { ApiError } from '../errors'
-import { catalogCapabilities, getLyric, getPicture, search, searchCollections } from '../lxSdk'
+import { catalogCapabilities, getLeaderboardTracks, getLeaderboards, getLyric, getPicture, search, searchCollections } from '../tuneFlowSdk'
 import type { SourcesService } from './sources'
 
 const TrackInput = Type.Object({
@@ -16,6 +16,16 @@ const SearchInput = Type.Object({
   text: Type.String(),
   page: Type.Integer({ minimum: 1 }),
   pageSize: Type.Integer({ minimum: 1, maximum: 100 }),
+}, { additionalProperties: false })
+
+const LeaderboardInput = Type.Object({
+  source: Type.String({ minLength: 1 }),
+}, { additionalProperties: false })
+
+const LeaderboardTracksInput = Type.Object({
+  source: Type.String({ minLength: 1 }),
+  boardId: Type.String({ minLength: 1 }),
+  page: Type.Integer({ minimum: 1 }),
 }, { additionalProperties: false })
 
 const searchResult = (item: typeof CatalogTrack | typeof CatalogCollection) => Type.Object({
@@ -31,7 +41,18 @@ const CatalogCapabilities = Type.Object({
     id: Type.String(),
     name: Type.String(),
     searchKinds: Type.Array(Type.Union([Type.Literal('track'), Type.Literal('playlist'), Type.Literal('album')])),
+    leaderboards: Type.Boolean(),
   }, { additionalProperties: false })),
+}, { additionalProperties: false })
+
+const LeaderboardPage = Type.Object({
+  list: Type.Array(Type.Object({
+    id: Type.String({ minLength: 1 }),
+    providerId: Type.String({ minLength: 1 }),
+    name: Type.String({ minLength: 1 }),
+    source: Type.String({ minLength: 1 }),
+  }, { additionalProperties: false })),
+  source: Type.String({ minLength: 1 }),
 }, { additionalProperties: false })
 
 const sourceFailure = (error: unknown, message: string): never => {
@@ -65,6 +86,31 @@ export const registerCatalogRoutes = (app: ApiFastifyInstance, sources?: Sources
   }, async(request) => {
     const { source, text, page, pageSize } = request.body
     try { return { data: await search({ source, text, page, limit: pageSize }) } } catch (error) { return sourceFailure(error, 'Track search failed') }
+  })
+
+  app.post('/api/v1/catalog/leaderboards', {
+    schema: {
+      operationId: 'getCatalogLeaderboards',
+      tags: ['Catalog'],
+      summary: 'List leaderboards from a built-in provider',
+      body: LeaderboardInput,
+      response: { 200: ApiSuccess(LeaderboardPage), ...ErrorResponses },
+    },
+  }, async(request) => {
+    try { return { data: await getLeaderboards(request.body.source) } } catch (error) { return sourceFailure(error, 'Leaderboard lookup failed') }
+  })
+
+  app.post('/api/v1/catalog/leaderboards/tracks', {
+    schema: {
+      operationId: 'getCatalogLeaderboardTracks',
+      tags: ['Catalog'],
+      summary: 'List tracks in a built-in provider leaderboard',
+      body: LeaderboardTracksInput,
+      response: { 200: ApiSuccess(searchResult(CatalogTrack)), ...ErrorResponses },
+    },
+  }, async(request) => {
+    const { source, boardId, page } = request.body
+    try { return { data: await getLeaderboardTracks(source, boardId, page) } } catch (error) { return sourceFailure(error, 'Leaderboard track lookup failed') }
   })
 
   for (const kind of ['playlists', 'albums'] as const) {

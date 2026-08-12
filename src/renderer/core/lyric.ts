@@ -69,7 +69,7 @@ export const setLyric = () => {
     if (appSetting['player.isSwapLyricTranslationAndRoma']) extendedLyrics.reverse()
 
     lrc.setLyric(
-      appSetting['player.isPlayLxlrc'] && musicInfo.lxlrc ? musicInfo.lxlrc : musicInfo.lrc,
+      appSetting['player.isPlayVerbatimLyric'] && musicInfo.verbatimLyric ? musicInfo.verbatimLyric : musicInfo.lrc,
       extendedLyrics,
     )
   }

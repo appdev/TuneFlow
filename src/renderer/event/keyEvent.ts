@@ -2,8 +2,8 @@ import keyBind from '../utils/keyBind'
 import Event from './Event'
 
 declare class keyEventTypes extends Event {
-  on(event: string, listener: (event: LX.KeyDownEevent) => any): void
-  off(event: string, listener: (event: LX.KeyDownEevent) => any): void
+  on(event: string, listener: (event: TuneFlow.KeyDownEevent) => any): void
+  off(event: string, listener: (event: TuneFlow.KeyDownEevent) => any): void
 }
 
 export type KeyEventTypes = keyEventTypes
@@ -12,8 +12,8 @@ export const createKeyEventHub = (): keyEventTypes => {
   return new Event()
 }
 
-window.lx.isEditingHotKey = false
-// let appHotKeyConfig: LX.HotKeyConfigAll = window.lx.appHotKeyConfig
+window.tuneflow.isEditingHotKey = false
+// let appHotKeyConfig: TuneFlow.HotKeyConfigAll = window.tuneflow.appHotKeyConfig
 
 export const registerKeyEvent = () => {
   keyBind.bindKey((key, eventKey, type, event, keys, isEditing) => {
@@ -21,13 +21,13 @@ export const registerKeyEvent = () => {
     window.app_event.keyDown({ event, keys, key, eventKey, type })
     // console.log(event, key)
     // console.log(key, eventKey, type, event, keys)
-    if (window.lx.isEditingHotKey || (isEditing && type == 'down') || event?.lx_handled) return
-    if (event && window.lx.appHotKeyConfig.local.enable && window.lx.appHotKeyConfig.local.keys[key] && (key != 'escape' || !((event.target as HTMLElement).classList.contains('ignore-esc')))) {
+    if (window.tuneflow.isEditingHotKey || (isEditing && type == 'down') || event?.tuneFlow_handled) return
+    if (event && window.tuneflow.appHotKeyConfig.local.enable && window.tuneflow.appHotKeyConfig.local.keys[key] && (key != 'escape' || !((event.target as HTMLElement).classList.contains('ignore-esc')))) {
       // console.log(key, eventKey, type, keys, isEditing)
       event.preventDefault()
       if (type == 'up') return
 
-      window.key_event.emit(window.lx.appHotKeyConfig.local.keys[key].action)
+      window.key_event.emit(window.tuneflow.appHotKeyConfig.local.keys[key].action)
       return
     }
     // console.log(`key_${key}_${type}`)

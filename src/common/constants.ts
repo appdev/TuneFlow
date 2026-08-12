@@ -1,4 +1,4 @@
-export const URL_SCHEME_RXP = /^lxmusic:\/\//
+export const URL_SCHEME_RXP = /^tuneflow:\/\//
 
 export const SPLIT_CHAR = {
   DISLIKE_NAME: '@',
@@ -24,6 +24,7 @@ export const APP_EVENT_NAMES = {
 export const LIST_IDS = {
   DEFAULT: 'default',
   LOVE: 'love',
+  LOCAL: 'local',
   TEMP: 'temp',
   DOWNLOAD: 'download',
   PLAY_LATER: null,

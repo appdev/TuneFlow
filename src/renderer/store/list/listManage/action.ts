@@ -10,18 +10,18 @@ import { overwriteListPosition, overwriteListUpdateInfo, removeListPosition, rem
 import { LIST_IDS } from '@common/constants'
 import { arrPush, arrUnshift } from '@common/utils/common'
 
-export const setUserLists = (lists: LX.List.UserListInfo[]) => {
+export const setUserLists = (lists: TuneFlow.List.UserListInfo[]) => {
   userLists.splice(0, userLists.length, ...lists)
   return userLists
 }
 
-export const setMusicList = (listId: string, musicList: LX.Music.MusicInfo[]) => {
+export const setMusicList = (listId: string, musicList: TuneFlow.Music.MusicInfo[]) => {
   const list = markRawList(musicList)
   allMusicList.set(listId, list)
   return list
 }
 
-const overwriteMusicList = (id: string, list: LX.Music.MusicInfo[]) => {
+const overwriteMusicList = (id: string, list: TuneFlow.Music.MusicInfo[]) => {
   // console.log(id, list)
   markRawList(list)
   let targetList = allMusicList.get(id)
@@ -42,7 +42,7 @@ const createUserList = ({
   source,
   sourceListId,
   locationUpdateTime,
-}: LX.List.UserListInfo, position: number) => {
+}: TuneFlow.List.UserListInfo, position: number) => {
   if (position < 0 || position >= userLists.length) {
     userLists.push({
       name,
@@ -69,7 +69,7 @@ const updateList = ({
   sourceListId,
   meta,
   locationUpdateTime,
-}: LX.List.UserListInfo & { meta?: { id?: string } }) => {
+}: TuneFlow.List.UserListInfo & { meta?: { id?: string } }) => {
   let targetList
   switch (id) {
     case defaultList.id:
@@ -96,7 +96,7 @@ const removeUserList = (id: string) => {
   // removeMusicList(id)
 }
 
-const overwriteUserList = (lists: LX.List.UserListInfo[]) => {
+const overwriteUserList = (lists: TuneFlow.List.UserListInfo[]) => {
   userLists.splice(0, userLists.length, ...lists)
 }
 
@@ -106,7 +106,7 @@ const overwriteUserList = (lists: LX.List.UserListInfo[]) => {
 // }
 
 
-export const listDataOverwrite = ({ defaultList, loveList, userList, tempList }: MakeOptional<LX.List.ListDataFull, 'tempList'>): string[] => {
+export const listDataOverwrite = ({ defaultList, loveList, userList, tempList }: MakeOptional<TuneFlow.List.ListDataFull, 'tempList'>): string[] => {
   const updatedListIds: string[] = []
   const newUserIds: string[] = []
   const newUserListInfos = userList.map(({ list, ...listInfo }) => {
@@ -146,13 +146,13 @@ export const listDataOverwrite = ({ defaultList, loveList, userList, tempList }:
 export const userListCreate = ({ name, id, source, sourceListId, position, locationUpdateTime }: {
   name: string
   id: string
-  source?: LX.OnlineSource
+  source?: TuneFlow.OnlineSource
   sourceListId?: string
   position: number
   locationUpdateTime: number | null
 }) => {
   if (userLists.some(item => item.id == id)) return
-  const newList: LX.List.UserListInfo = {
+  const newList: TuneFlow.List.UserListInfo = {
     name,
     id,
     source,
@@ -176,7 +176,7 @@ export const userListsRemove = (ids: string[]) => {
   return changedIds
 }
 
-export const userListsUpdate = (listInfos: LX.List.UserListInfo[]) => {
+export const userListsUpdate = (listInfos: TuneFlow.List.UserListInfo[]) => {
   for (const info of listInfos) {
     updateList(info)
   }
@@ -187,10 +187,10 @@ export const userListsUpdatePosition = (position: number, ids: string[]) => {
 
   // console.log(position, ids)
 
-  const updateLists: LX.List.UserListInfo[] = []
+  const updateLists: TuneFlow.List.UserListInfo[] = []
 
   // const targetItem = list[position]
-  const map = new Map<string, LX.List.UserListInfo>()
+  const map = new Map<string, TuneFlow.List.UserListInfo>()
   for (const item of newUserLists) map.set(item.id, item)
   for (const id of ids) {
     const listInfo = map.get(id)!
@@ -204,7 +204,7 @@ export const userListsUpdatePosition = (position: number, ids: string[]) => {
   setUserLists(newUserLists)
 }
 
-export const listMusicOverwrite = (listId: string, musicInfos: LX.Music.MusicInfo[]): string[] => {
+export const listMusicOverwrite = (listId: string, musicInfos: TuneFlow.Music.MusicInfo[]): string[] => {
   const isExist = allMusicList.has(listId)
   overwriteMusicList(listId, musicInfos)
   return isExist || listId == loveList.id ? [listId] : []
@@ -221,7 +221,7 @@ export const listMusicClear = (ids: string[]): string[] => {
   return changedIds
 }
 
-export const listMusicAdd = (id: string, musicInfos: LX.Music.MusicInfo[], addMusicLocationType: LX.AddMusicLocationType): string[] => {
+export const listMusicAdd = (id: string, musicInfos: TuneFlow.Music.MusicInfo[], addMusicLocationType: TuneFlow.AddMusicLocationType): string[] => {
   const targetList = allMusicList.get(id)
   if (!targetList) return id == loveList.id ? [id] : []
 
@@ -246,7 +246,7 @@ export const listMusicAdd = (id: string, musicInfos: LX.Music.MusicInfo[], addMu
   return [id]
 }
 
-export const listMusicMove = (fromId: string, toId: string, musicInfos: LX.Music.MusicInfo[], addMusicLocationType: LX.AddMusicLocationType): string[] => {
+export const listMusicMove = (fromId: string, toId: string, musicInfos: TuneFlow.Music.MusicInfo[], addMusicLocationType: TuneFlow.AddMusicLocationType): string[] => {
   return [
     ...listMusicRemove(fromId, musicInfos.map(musicInfo => musicInfo.id)),
     ...listMusicAdd(toId, musicInfos, addMusicLocationType),
@@ -265,14 +265,14 @@ export const listMusicRemove = (listId: string, ids: string[]): string[] => {
   return [listId]
 }
 
-export const listMusicUpdateInfo = (musicInfos: LX.List.ListActionMusicUpdate): string[] => {
+export const listMusicUpdateInfo = (musicInfos: TuneFlow.List.ListActionMusicUpdate): string[] => {
   const updateListIds = new Set<string>()
   for (const { id, musicInfo } of musicInfos) {
     const targetList = allMusicList.get(id)
     if (!targetList) continue
     const index = targetList.findIndex(l => l.id == musicInfo.id)
     if (index < 0) continue
-    const info: LX.Music.MusicInfo = { ...targetList[index] }
+    const info: TuneFlow.Music.MusicInfo = { ...targetList[index] }
     Object.assign(info, {
       name: musicInfo.name,
       singer: musicInfo.singer,
@@ -302,7 +302,7 @@ export const listMusicUpdatePosition = async(listId: string, position: number, i
 
   // console.time('ts')
 
-  const list = await window.lx.worker.main.createSortedList(toRaw(targetList), position, ids)
+  const list = await window.tuneflow.worker.main.createSortedList(toRaw(targetList), position, ids)
   markRawList(list)
   targetList.splice(0, targetList.length)
   arrPush(targetList, list)

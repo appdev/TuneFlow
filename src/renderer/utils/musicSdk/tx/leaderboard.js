@@ -8,7 +8,7 @@ export default {
   limit: 300,
   list: [
     {
-      id: 'txlxzsb',
+      id: 'tx-popularity-index',
       name: '流行榜',
       bangid: 4,
     },

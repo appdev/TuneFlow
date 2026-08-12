@@ -3,7 +3,7 @@ import { setTempList } from '@renderer/store/list/action'
 import { tempList, tempListMeta } from '@renderer/store/list/state'
 import { getListDetail, getListDetailAll } from '@renderer/store/songList/action'
 
-const getListPlayIndex = (list: LX.Music.MusicInfoOnline[], index?: number) => {
+const getListPlayIndex = (list: TuneFlow.Music.MusicInfoOnline[], index?: number) => {
   if (index == null) {
     index = 1
   } else {
@@ -14,7 +14,7 @@ const getListPlayIndex = (list: LX.Music.MusicInfoOnline[], index?: number) => {
 }
 
 export default () => {
-  const playSongListDetail = async(source: LX.OnlineSource, link: string, playIndex?: number) => {
+  const playSongListDetail = async(source: TuneFlow.OnlineSource, link: string, playIndex?: number) => {
     // console.log(source, link, playIndex)
     if (link == null) return
     let isPlayingList = false
@@ -35,7 +35,7 @@ export default () => {
     }
   }
 
-  return async(source: LX.OnlineSource, link: string, playIndex?: number) => {
+  return async(source: TuneFlow.OnlineSource, link: string, playIndex?: number) => {
     try {
       await playSongListDetail(source, link, playIndex)
     } catch (err) {

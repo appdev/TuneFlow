@@ -7,13 +7,15 @@ import { getAudioRoot, isPathInside } from '../config'
 import { getExt, getMusicType, makeDirectoryName, makeFileName, reserveFileName } from './filenames'
 import { applyDownloadMetadata } from './metadata'
 import type { DownloadCreateInput, DownloadDto, DownloadJobRecord, DownloadStatus, ResolvedDownload } from './types'
+import { isSameMusic } from './matching'
+import { migrateLegacyDatabaseFiles } from '../db/databasePath'
 
 interface DownloadManagerOptions {
   storageRoot: string
-  getSettings: () => LX.AppSetting
+  getSettings: () => TuneFlow.AppSetting
   resolve: (job: DownloadJobRecord, signal: AbortSignal) => Promise<ResolvedDownload>
   publish?: (jobs: DownloadDto[]) => void
-  metadata?: (filePath: string, job: DownloadJobRecord, settings: LX.AppSetting) => Promise<void>
+  metadata?: (filePath: string, job: DownloadJobRecord, settings: TuneFlow.AppSetting) => Promise<void>
   resolveListName?: (listId: string) => string | undefined
   finalizationCheckpoint?: (
     point: 'before-marker' | 'after-marker' | 'after-rename' | 'after-publication',
@@ -58,7 +60,7 @@ export class DownloadManager {
       this.db = getDB()
       this.ownsDb = false
     } catch {
-      this.db = new Database(path.join(options.storageRoot, 'lx.data.db'))
+      this.db = new Database(migrateLegacyDatabaseFiles(options.storageRoot))
       this.db.pragma('journal_mode = WAL')
       this.ownsDb = true
     }
@@ -104,6 +106,16 @@ export class DownloadManager {
   }
 
   get(id: string): DownloadDto | undefined { return this.list().find(record => record.id === id) }
+
+  findCompletedFile(musicInfo: unknown): string | undefined {
+    const records = [...this.records.values()].reverse()
+    for (const record of records) {
+      if (record.status !== 'completed' || record.finalMissing === true || !isSameMusic(record.musicInfo, musicInfo)) continue
+      const filePath = this.resolveFinal(record.finalRelativePath)
+      if (existsSync(filePath)) return filePath
+    }
+    return undefined
+  }
 
   async create(input: DownloadCreateInput): Promise<DownloadDto> {
     if (this.closed) throw new Error('Download manager is closed')

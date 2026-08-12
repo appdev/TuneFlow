@@ -1,6 +1,7 @@
 import defaultSetting from '../common/defaultSetting'
 import defaultHotKey from '../common/defaultHotKey'
 import { CMMON_EVENT_NAME, DISLIKE_EVENT_NAME, PLAYER_EVENT_NAME, WIN_MAIN_RENDERER_EVENT_NAME } from '../common/ipcNames'
+import { LIST_IDS } from '../common/constants'
 import { getWebCapabilities } from './capabilities'
 import { WebEventTransport, type EventSourceConstructor } from './events'
 import { createRequest } from './http'
@@ -119,10 +120,10 @@ export const createWebRuntime = (dependencies: WebRuntimeDependencies = {}): Web
   }
   const readAppData = async<T>(path: string): Promise<T | null> => request<T | null>('GET', `/api/v1/client-data/${encodeURIComponent(path)}`)
   const lyricKey = (kind: 'raw' | 'edited', id: unknown): string => `web.lyric.${kind}.${String(id)}`
-  const emptyLyric = (): LX.Music.LyricInfo => ({ lyric: '' })
-  const getLyric = async(kind: 'raw' | 'edited', id: unknown): Promise<LX.Music.LyricInfo> => (await readAppData<LX.Music.LyricInfo>(lyricKey(kind, id))) ?? emptyLyric()
+  const emptyLyric = (): TuneFlow.Music.LyricInfo => ({ lyric: '' })
+  const getLyric = async(kind: 'raw' | 'edited', id: unknown): Promise<TuneFlow.Music.LyricInfo> => (await readAppData<TuneFlow.Music.LyricInfo>(lyricKey(kind, id))) ?? emptyLyric()
   const normalizeDislikeRules = (rules: string): string => Array.from(new Set(rules.split('\n').map(rule => rule.trim()).filter(Boolean))).join('\n')
-  const getDislikeInfo = async(): Promise<LX.Dislike.DislikeInfo> => {
+  const getDislikeInfo = async(): Promise<TuneFlow.Dislike.DislikeInfo> => {
     const rules = (await readAppData<string>('web.dislike.rules')) ?? ''
     const names = new Set<string>()
     const musicNames = new Set<string>()
@@ -152,11 +153,15 @@ export const createWebRuntime = (dependencies: WebRuntimeDependencies = {}): Web
     }],
     [PLAYER_EVENT_NAME.list_get, async() => request('GET', '/api/v1/playlists')],
     [PLAYER_EVENT_NAME.list_music_get, async id => {
-      const list = await request<{ tracks: LX.Music.MusicInfo[] }>('GET', `/api/v1/playlists/${encodeURIComponent(String(id))}`)
+      if (id === LIST_IDS.LOCAL) {
+        const tracks = await request<Array<TuneFlow.Music.MusicInfo & { musicInfo?: TuneFlow.Music.MusicInfo }>>('GET', '/api/v1/library/tracks')
+        return tracks.map(track => track.musicInfo ?? track)
+      }
+      const list = await request<{ tracks: TuneFlow.Music.MusicInfo[] }>('GET', `/api/v1/playlists/${encodeURIComponent(String(id))}`)
       return list.tracks
     }],
     [PLAYER_EVENT_NAME.list_add, async params => {
-      const value = params as LX.List.ListActionAdd
+      const value = params as TuneFlow.List.ListActionAdd
       return request('POST', '/api/v1/playlists', { position: value.position, playlists: value.listInfos })
     }],
     [PLAYER_EVENT_NAME.list_remove, async params => {
@@ -166,17 +171,17 @@ export const createWebRuntime = (dependencies: WebRuntimeDependencies = {}): Web
     [PLAYER_EVENT_NAME.list_update, async params => request('PATCH', '/api/v1/playlists', { playlists: params })],
     [PLAYER_EVENT_NAME.list_update_position, async params => request('POST', '/api/v1/playlists/reorder', params)],
     [PLAYER_EVENT_NAME.list_music_add, async params => {
-      const value = params as LX.List.ListActionMusicAdd
+      const value = params as TuneFlow.List.ListActionMusicAdd
       return request('POST', `/api/v1/playlists/${encodeURIComponent(value.id)}/tracks`, { tracks: value.musicInfos, position: value.addMusicLocationType })
     }],
     [PLAYER_EVENT_NAME.list_music_move, async params => request('POST', '/api/v1/playlists/tracks/move', params)],
     [PLAYER_EVENT_NAME.list_music_remove, async params => {
-      const value = params as LX.List.ListActionMusicRemove
+      const value = params as TuneFlow.List.ListActionMusicRemove
       return request('POST', `/api/v1/playlists/${encodeURIComponent(value.listId)}/tracks/remove`, { trackIds: value.ids })
     }],
     [PLAYER_EVENT_NAME.list_music_update, async params => {
-      const grouped = new Map<string, LX.Music.MusicInfo[]>()
-      for (const update of params as LX.List.ListActionMusicUpdate) {
+      const grouped = new Map<string, TuneFlow.Music.MusicInfo[]>()
+      for (const update of params as TuneFlow.List.ListActionMusicUpdate) {
         const tracks = grouped.get(update.id) ?? []
         tracks.push(update.musicInfo)
         grouped.set(update.id, tracks)
@@ -184,17 +189,17 @@ export const createWebRuntime = (dependencies: WebRuntimeDependencies = {}): Web
       return Promise.all([...grouped].map(async([id, tracks]) => request('PATCH', `/api/v1/playlists/${encodeURIComponent(id)}/tracks`, { tracks })))
     }],
     [PLAYER_EVENT_NAME.list_music_update_position, async params => {
-      const value = params as LX.List.ListActionMusicUpdatePosition
+      const value = params as TuneFlow.List.ListActionMusicUpdatePosition
       return request('POST', `/api/v1/playlists/${encodeURIComponent(value.listId)}/tracks/reorder`, { position: value.position, trackIds: value.ids })
     }],
     [PLAYER_EVENT_NAME.list_music_overwrite, async params => {
-      const value = params as LX.List.ListActionMusicOverwrite
+      const value = params as TuneFlow.List.ListActionMusicOverwrite
       return request('PUT', `/api/v1/playlists/${encodeURIComponent(value.listId)}/tracks`, { tracks: value.musicInfos })
     }],
     [PLAYER_EVENT_NAME.list_music_clear, async params => Promise.all((params as string[]).map(async id => request('DELETE', `/api/v1/playlists/${encodeURIComponent(id)}/tracks`)))],
     [PLAYER_EVENT_NAME.list_data_overwire, async params => request('POST', '/api/v1/playlists/import', params)],
     [PLAYER_EVENT_NAME.list_music_check_exist, async params => {
-      const value = params as LX.List.ListActionCheckMusicExistList
+      const value = params as TuneFlow.List.ListActionCheckMusicExistList
       return request('GET', `/api/v1/playlists/${encodeURIComponent(value.listId)}/tracks/${encodeURIComponent(value.musicInfoId)}/exists`)
     }],
     [PLAYER_EVENT_NAME.list_music_get_list_ids, async params => request('GET', `/api/v1/tracks/${encodeURIComponent(String(params))}/playlists`)],
@@ -242,9 +247,9 @@ export const createWebRuntime = (dependencies: WebRuntimeDependencies = {}): Web
       if (search == null || search.kind !== 'provider-search' || typeof search.source !== 'string' || typeof search.text !== 'string' || !Number.isInteger(search.page) || !Number.isInteger(search.limit)) throw unsupported(WIN_MAIN_RENDERER_EVENT_NAME.handle_request, 'UNSUPPORTED_IPC')
       return request('POST', '/api/v1/catalog/tracks/search', { source: search.source, text: search.text, page: search.page, pageSize: search.limit })
     }],
-    [WIN_MAIN_RENDERER_EVENT_NAME.get_sound_effect_eq_preset, async() => (await readAppData<LX.SoundEffect.EQPreset[]>('web.soundEffect.eqPresets')) ?? []],
+    [WIN_MAIN_RENDERER_EVENT_NAME.get_sound_effect_eq_preset, async() => (await readAppData<TuneFlow.SoundEffect.EQPreset[]>('web.soundEffect.eqPresets')) ?? []],
     [WIN_MAIN_RENDERER_EVENT_NAME.save_sound_effect_eq_preset, async params => writeAppData('web.soundEffect.eqPresets', params)],
-    [WIN_MAIN_RENDERER_EVENT_NAME.get_sound_effect_convolution_preset, async() => (await readAppData<LX.SoundEffect.ConvolutionPreset[]>('web.soundEffect.convolutionPresets')) ?? []],
+    [WIN_MAIN_RENDERER_EVENT_NAME.get_sound_effect_convolution_preset, async() => (await readAppData<TuneFlow.SoundEffect.ConvolutionPreset[]>('web.soundEffect.convolutionPresets')) ?? []],
     [WIN_MAIN_RENDERER_EVENT_NAME.save_sound_effect_convolution_preset, async params => writeAppData('web.soundEffect.convolutionPresets', params)],
     [WIN_MAIN_RENDERER_EVENT_NAME.get_lyric_raw, async id => getLyric('raw', id)],
     [WIN_MAIN_RENDERER_EVENT_NAME.get_lyric_edited, async id => getLyric('edited', id)],
@@ -253,23 +258,23 @@ export const createWebRuntime = (dependencies: WebRuntimeDependencies = {}): Web
       return edited.lyric ? { ...edited, rawlrcInfo: raw } : { ...raw, rawlrcInfo: raw }
     }],
     [WIN_MAIN_RENDERER_EVENT_NAME.save_lyric_raw, async params => {
-      const { id, lyrics } = params as LX.Music.LyricInfoSave
+      const { id, lyrics } = params as TuneFlow.Music.LyricInfoSave
       return writeAppData(lyricKey('raw', id), lyrics)
     }],
     [WIN_MAIN_RENDERER_EVENT_NAME.save_lyric_edited, async params => {
-      const { id, lyrics } = params as LX.Music.LyricInfoSave
+      const { id, lyrics } = params as TuneFlow.Music.LyricInfoSave
       return writeAppData(lyricKey('edited', id), lyrics)
     }],
     [WIN_MAIN_RENDERER_EVENT_NAME.remove_lyric_edited, async id => writeAppData(lyricKey('edited', id), null)],
     [WIN_MAIN_RENDERER_EVENT_NAME.get_music_url, async id => (await readAppData<string>(`web.musicUrl.${String(id)}`)) ?? ''],
     [WIN_MAIN_RENDERER_EVENT_NAME.save_music_url, async params => {
-      const { id, url } = params as LX.Music.MusicUrlInfo
+      const { id, url } = params as TuneFlow.Music.MusicUrlInfo
       return writeAppData(`web.musicUrl.${id}`, url)
     }],
     [DISLIKE_EVENT_NAME.get_dislike_music_infos, getDislikeInfo],
     [DISLIKE_EVENT_NAME.add_dislike_music_infos, async params => {
       const current = await getDislikeInfo()
-      const added = (params as LX.Dislike.DislikeMusicInfo[]).map(info => `${info.name ?? ''}@${info.singer ?? ''}`)
+      const added = (params as TuneFlow.Dislike.DislikeMusicInfo[]).map(info => `${info.name ?? ''}@${info.singer ?? ''}`)
       const rules = normalizeDislikeRules([current.rules, ...added].filter(Boolean).join('\n'))
       await writeAppData('web.dislike.rules', rules)
       emitLocal(DISLIKE_EVENT_NAME.add_dislike_music_infos, params)
@@ -350,16 +355,16 @@ export async function rendererInvoke<T, V>(name: string, params?: T): Promise<V>
   return getWebRuntime().invoke<V>(name, params)
 }
 
-export function rendererOn(name: string, listener: LX.IpcRendererEventListener): void
-export function rendererOn<T>(name: string, listener: LX.IpcRendererEventListenerParams<T>): void
-export function rendererOn<T>(name: string, listener: LX.IpcRendererEventListenerParams<T>): void {
+export function rendererOn(name: string, listener: TuneFlow.IpcRendererEventListener): void
+export function rendererOn<T>(name: string, listener: TuneFlow.IpcRendererEventListenerParams<T>): void
+export function rendererOn<T>(name: string, listener: TuneFlow.IpcRendererEventListenerParams<T>): void {
   getWebRuntime().on(name, listener as WebRuntimeListener<T>)
 }
 
-export function rendererOnce(name: string, listener: LX.IpcRendererEventListener): void
-export function rendererOnce<T>(name: string, listener: LX.IpcRendererEventListenerParams<T>): void
-export function rendererOnce<T>(name: string, listener: LX.IpcRendererEventListenerParams<T>): void {
-  const wrapped: LX.IpcRendererEventListenerParams<T> = payload => {
+export function rendererOnce(name: string, listener: TuneFlow.IpcRendererEventListener): void
+export function rendererOnce<T>(name: string, listener: TuneFlow.IpcRendererEventListenerParams<T>): void
+export function rendererOnce<T>(name: string, listener: TuneFlow.IpcRendererEventListenerParams<T>): void {
+  const wrapped: TuneFlow.IpcRendererEventListenerParams<T> = payload => {
     getWebRuntime().off(name, wrapped as WebRuntimeListener<T>)
     listener(payload)
   }

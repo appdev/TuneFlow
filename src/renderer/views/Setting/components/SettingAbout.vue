@@ -2,14 +2,14 @@
 dt#about {{ $t('setting__about') }}
 dd
   .p.small
-    | 本软件完全免费，代码已开源。开源地址：
-    span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/lyswhut/lx-music-desktop#readme')") https://github.com/lyswhut/lx-music-desktop
+    | 本项目开源地址：
+    span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/appdev/TuneFlow#readme')") https://github.com/appdev/TuneFlow
   .p.small
-    | 最新版下载地址：
-    span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/lyswhut/lx-music-desktop/releases')") GitHub Releases
+    | 最新版发布地址：
+    span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/appdev/TuneFlow/releases')") GitHub Releases
   .p.small
     | 软件的常见问题可转至：
-    span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://lyswhut.github.io/lx-music-doc/desktop/faq')") 桌面版常见问题
+    span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/appdev/TuneFlow/blob/main/FAQ.md')") TuneFlow 常见问题
   .p.small
     strong 本软件没有客服
     | ，但我们整理了一些常见的使用问题。
@@ -17,7 +17,7 @@ dd
     | 地阅读常见问题后，
   .p.small
     | 仍有问题可到&nbsp;GitHub&nbsp;
-    span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/lyswhut/lx-music-desktop/issues?q=is%3Aissue+')") 提交&nbsp;Issue
+    span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/appdev/TuneFlow/issues?q=is%3Aissue+')") 提交&nbsp;Issue
     | 。
   br
   .p.small 由于软件开发的初衷仅是为了对新技术的学习与研究，因此软件直至停止维护都将会一直保持纯净。
@@ -32,13 +32,13 @@ dd
     | 你已签署本软件的
     base-btn(min @click="handleShowPact") 许可协议
     | ，协议的在线版本在
-    strong.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/lyswhut/lx-music-desktop#%E9%A1%B9%E7%9B%AE%E5%8D%8F%E8%AE%AE')") 这里
+    strong.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/appdev/TuneFlow#%E9%A1%B9%E7%9B%AE%E5%8D%8F%E8%AE%AE')") 这里
     | 。
   br
 
   .p.small
     | By:&nbsp;
-    strong 落雪无痕
+    strong TuneFlow contributors
 </template>
 
 <script>

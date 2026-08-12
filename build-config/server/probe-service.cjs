@@ -6,7 +6,7 @@ const os = require('node:os')
 const path = require('node:path')
 
 const root = process.cwd()
-const storageRoot = mkdtempSync(path.join(os.tmpdir(), 'lx-service-runtime-'))
+const storageRoot = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-service-runtime-'))
 const webRoot = path.join(storageRoot, 'web')
 mkdirSync(webRoot)
 writeFileSync(path.join(webRoot, 'index.html'), '<!doctype html>')
@@ -59,7 +59,7 @@ const run = async() => {
   const port = await getFreePort()
   const service = spawn(process.execPath, [path.join(root, 'dist/server/index.cjs')], {
     cwd: path.join(root, 'dist/server'),
-    env: { ...process.env, LX_STORAGE_ROOT: storageRoot, LX_WEB_ROOT: webRoot, LX_HOST: '127.0.0.1', LX_PORT: String(port) },
+    env: { ...process.env, TUNEFLOW_STORAGE_ROOT: storageRoot, TUNEFLOW_WEB_ROOT: webRoot, TUNEFLOW_HOST: '127.0.0.1', TUNEFLOW_PORT: String(port) },
     stdio: 'pipe',
   })
   try {

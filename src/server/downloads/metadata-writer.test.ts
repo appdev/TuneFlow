@@ -3,12 +3,12 @@ import defaultSetting from '../../common/defaultSetting'
 import { applyDownloadMetadata } from './metadata'
 import type { DownloadJobRecord } from './types'
 
-const settings: LX.AppSetting = {
+const settings: TuneFlow.AppSetting = {
   ...defaultSetting,
   'download.isEmbedPic': false,
   'download.isEmbedLyric': true,
   'download.isDownloadLrc': false,
-  'download.isEmbedLyricLx': false,
+  'download.isEmbedVerbatimLyric': false,
   'download.isEmbedLyricT': true,
   'download.isEmbedLyricR': false,
 }

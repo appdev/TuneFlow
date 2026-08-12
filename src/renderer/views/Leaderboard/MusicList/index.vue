@@ -20,7 +20,7 @@ import useList from './useList'
 
 
 const props = defineProps<{
-  source: LX.OnlineSource
+  source: TuneFlow.OnlineSource
   boardId?: string
 }>()
 

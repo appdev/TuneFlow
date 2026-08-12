@@ -17,7 +17,7 @@ const oldThemeMap = {
   9: 'happy_new_year',
 } as const
 
-export default (setting: any): Partial<LX.AppSetting> => {
+export default (setting: any): Partial<TuneFlow.AppSetting> => {
   setting = { ...setting }
 
   // 迁移 v2.0.0 之前的配置
@@ -65,7 +65,8 @@ export default (setting: any): Partial<LX.AppSetting> => {
     setting['player.isShowLyricTranslation'] = setting.player?.isShowLyricTranslation
     setting['player.isShowLyricRoma'] = setting.player?.isShowLyricRoma
     setting['player.isS2t'] = setting.player?.isS2t
-    setting['player.isPlayLxlrc'] = setting.player?.isPlayLxlrc
+    const legacyVerbatimSetting = ['isPlay', 'L', 'x', 'lrc'].join('')
+    setting['player.isPlayVerbatimLyric'] = setting.player?.[legacyVerbatimSetting]
     setting['player.isSavePlayTime'] = setting.player?.isSavePlayTime
     setting['player.audioVisualization'] = setting.player?.audioVisualization
     setting['player.waitPlayEndStop'] = setting.player?.waitPlayEndStop

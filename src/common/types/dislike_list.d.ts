@@ -1,6 +1,6 @@
 
 
-declare namespace LX {
+declare namespace TuneFlow {
   namespace Dislike {
     // interface ListItemMusicText {
     //   id?: string
@@ -12,7 +12,7 @@ declare namespace LX {
     //   id?: number
     //   type: 'musicId'
     //   musicId: string
-    //   meta: LX.Music.MusicInfo
+    //   meta: TuneFlow.Music.MusicInfo
     // }
     // type ListItem = ListItemMusicText
     // type ListItem = string
@@ -30,7 +30,7 @@ declare namespace LX {
       names: Set<string>
       musicNames: Set<string>
       singerNames: Set<string>
-      // list: LX.Dislike.ListItem[]
+      // list: TuneFlow.Dislike.ListItem[]
       rules: DislikeRules
     }
   }

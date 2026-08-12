@@ -122,16 +122,16 @@ export default {
       let lyric = props.lyricInfo.lyric
       let tlyric = props.lyricInfo.tlyric
       let rlyric = props.lyricInfo.rlyric
-      let lxlyric = props.lyricInfo.lxlyric
+      let verbatimLyric = props.lyricInfo.verbatimLyric
       if (offsetTagRxp.test(lyric)) {
         lyric = lyric.replace(offsetTagAllRxp, `$1[offset:${offset}]`)
         tlyric &&= tlyric.replace(offsetTagAllRxp, `$1[offset:${offset}]`)
-        lxlyric &&= lxlyric.replace(offsetTagAllRxp, `$1[offset:${offset}]`)
+        verbatimLyric &&= verbatimLyric.replace(offsetTagAllRxp, `$1[offset:${offset}]`)
         rlyric &&= rlyric.replace(offsetTagAllRxp, `$1[offset:${offset}]`)
       } else {
         lyric &&= `[offset:${offset}]\n` + lyric
         tlyric &&= `[offset:${offset}]\n` + tlyric
-        lxlyric &&= `[offset:${offset}]\n` + lxlyric
+        verbatimLyric &&= `[offset:${offset}]\n` + verbatimLyric
         rlyric &&= `[offset:${offset}]\n` + rlyric
       }
 
@@ -144,7 +144,7 @@ export default {
           lyric,
           tlyric,
           rlyric,
-          lxlyric,
+          verbatimLyric,
         })
       }
 
@@ -152,7 +152,7 @@ export default {
         lyric,
         tlyric,
         rlyric,
-        lxlyric,
+        verbatimLyric,
         offset,
       })
     }

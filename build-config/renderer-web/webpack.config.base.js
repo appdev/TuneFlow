@@ -148,6 +148,7 @@ module.exports = {
     new HTMLPlugin({
       filename: 'index.html',
       template: path.join(webRuntime, 'index.html'),
+      favicon: path.join(__dirname, '../../TuneFlow.png'),
       isProd: process.env.NODE_ENV == 'production',
       browser: process.browser,
       __dirname,
@@ -159,7 +160,7 @@ module.exports = {
     }),
     new ESLintPlugin({
       extensions: ['js', 'vue'],
-      formatter: require('eslint-formatter-friendly'),
+      formatter: 'stylish',
     }),
     new webpack.ProvidePlugin({
       Buffer: ['buffer', 'Buffer'],

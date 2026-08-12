@@ -24,7 +24,7 @@ export default () => {
     }
   })
 
-  const toggleNextPlayMode = (mode: LX.AppSetting['player.togglePlayMethod']) => {
+  const toggleNextPlayMode = (mode: TuneFlow.AppSetting['player.togglePlayMethod']) => {
     if (mode == appSetting['player.togglePlayMethod']) return
     // let index = playNextModes.indexOf(appSetting['player.togglePlayMethod'])
     // if (++index >= playNextModes.length) index = 0

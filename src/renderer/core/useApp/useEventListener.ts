@@ -4,13 +4,13 @@ import { isShowAnimation, mergeSetting } from '@renderer/store/setting'
 import { openUrl } from '@web-runtime/browser'
 import { clearDownKeys } from '@renderer/event'
 
-const handleKeyDown = ({ event, type, key }: LX.KeyDownEevent) => {
-  if (key !== 'escape' || event == null || event.repeat || type === 'up' || window.lx.isEditingHotKey ||
-    (event.target as HTMLElement)?.classList.contains('ignore-esc') || event.lx_handled) return
+const handleKeyDown = ({ event, type, key }: TuneFlow.KeyDownEevent) => {
+  if (key !== 'escape' || event == null || event.repeat || type === 'up' || window.tuneflow.isEditingHotKey ||
+    (event.target as HTMLElement)?.classList.contains('ignore-esc') || event.tuneFlow_handled) return
   if ((event.target as HTMLElement).tagName !== 'INPUT') return
   ;(event.target as HTMLInputElement).value = ''
   ;(event.target as HTMLInputElement).blur()
-  event.lx_handled = true
+  event.tuneFlow_handled = true
 }
 
 const handleBodyClick = (event: MouseEvent) => {
@@ -21,7 +21,7 @@ const handleBodyClick = (event: MouseEvent) => {
   if (/^https?:\/\//.test(target.href)) void openUrl(target.href)
 }
 
-const handleSelection = (event: LX.KeyDownEevent) => {
+const handleSelection = (event: TuneFlow.KeyDownEevent) => {
   event.event?.preventDefault()
 }
 

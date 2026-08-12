@@ -1,11 +1,11 @@
 
-declare namespace LX {
+declare namespace TuneFlow {
   namespace Player {
     interface PlayMusicInfo {
       /**
        * 当前播放歌曲的列表 id
        */
-      musicInfo: LX.Download.ListItem | LX.Music.MusicInfo
+      musicInfo: TuneFlow.Download.ListItem | TuneFlow.Music.MusicInfo
       /**
         * 当前播放歌曲的列表 id
         */
@@ -39,7 +39,7 @@ declare namespace LX {
       /**
        * 歌曲信息
        */
-      musicInfo: LX.Music.MusicInfo | LX.Download.ListItem
+      musicInfo: TuneFlow.Music.MusicInfo | TuneFlow.Download.ListItem
       /**
        * 是否添加到列表顶部
        */

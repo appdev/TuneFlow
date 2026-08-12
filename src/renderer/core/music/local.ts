@@ -9,8 +9,8 @@ import {
 } from './utils'
 
 
-const getOtherSourceByLocal = async<T>(musicInfo: LX.Music.MusicInfoLocal, handler: (infos: LX.Music.MusicInfoOnline[]) => Promise<T>) => {
-  let result: LX.Music.MusicInfoOnline[] = []
+const getOtherSourceByLocal = async<T>(musicInfo: TuneFlow.Music.MusicInfoLocal, handler: (infos: TuneFlow.Music.MusicInfoOnline[]) => Promise<T>) => {
+  let result: TuneFlow.Music.MusicInfoOnline[] = []
   result = await getOtherSource(musicInfo)
   if (result.length) try { return await handler(result) } catch {}
   if (musicInfo.name.includes('-')) {
@@ -28,7 +28,7 @@ const getOtherSourceByLocal = async<T>(musicInfo: LX.Music.MusicInfoLocal, handl
     }, true)
     if (result.length) try { return await handler(result) } catch {}
   }
-  let fileName = musicInfo.meta.filePath.split(/\/|\\/).at(-1)
+  let fileName = musicInfo.meta.filePath?.split(/\/|\\/).at(-1)
   if (fileName) {
     fileName = fileName.substring(0, fileName.lastIndexOf('.'))
     if (fileName != musicInfo.name) {
@@ -60,19 +60,19 @@ const getOtherSourceByLocal = async<T>(musicInfo: LX.Music.MusicInfoLocal, handl
 }
 
 export const getMusicUrl = async({ musicInfo }: {
-  musicInfo: LX.Music.MusicInfoLocal
+  musicInfo: TuneFlow.Music.MusicInfoLocal
   isRefresh: boolean
   allowToggleSource?: boolean
-  onToggleSource?: (musicInfo?: LX.Music.MusicInfoOnline) => void
+  onToggleSource?: (musicInfo?: TuneFlow.Music.MusicInfoOnline) => void
 }): Promise<string> => {
   return `/api/v1/library/tracks/${encodeURIComponent(musicInfo.id)}/stream`
 }
 
 export const getPicUrl = async({ musicInfo, listId, isRefresh, onToggleSource = () => {} }: {
-  musicInfo: LX.Music.MusicInfoLocal
+  musicInfo: TuneFlow.Music.MusicInfoLocal
   listId?: string | null
   isRefresh: boolean
-  onToggleSource?: (musicInfo?: LX.Music.MusicInfoOnline) => void
+  onToggleSource?: (musicInfo?: TuneFlow.Music.MusicInfoOnline) => void
 }): Promise<string> => {
   if (!isRefresh) {
     if (musicInfo.meta.picUrl) return musicInfo.meta.picUrl
@@ -97,10 +97,10 @@ export const getPicUrl = async({ musicInfo, listId, isRefresh, onToggleSource = 
 }
 
 export const getLyricInfo = async({ musicInfo, isRefresh, onToggleSource = () => {} }: {
-  musicInfo: LX.Music.MusicInfoLocal
+  musicInfo: TuneFlow.Music.MusicInfoLocal
   isRefresh: boolean
-  onToggleSource?: (musicInfo?: LX.Music.MusicInfoOnline) => void
-}): Promise<LX.Player.LyricInfo> => {
+  onToggleSource?: (musicInfo?: TuneFlow.Music.MusicInfoOnline) => void
+}): Promise<TuneFlow.Player.LyricInfo> => {
   if (!isRefresh) {
     const lyricInfo = await getCachedLyricInfo(musicInfo)
     if (lyricInfo?.lyric) return buildLyricInfo(lyricInfo)

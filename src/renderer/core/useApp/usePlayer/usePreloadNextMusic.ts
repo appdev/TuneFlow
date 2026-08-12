@@ -49,7 +49,7 @@ const checkMusicUrl = async(url: string): Promise<boolean> => {
 const preloadMusicInfo = {
   isLoading: false,
   preProgress: 0,
-  info: null as LX.Player.PlayMusicInfo | null,
+  info: null as TuneFlow.Player.PlayMusicInfo | null,
 }
 const resetPreloadInfo = () => {
   preloadMusicInfo.preProgress = 0

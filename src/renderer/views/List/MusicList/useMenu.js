@@ -2,10 +2,12 @@ import { computed, ref, shallowReactive, reactive, nextTick } from '@common/util
 import musicSdk from '@renderer/utils/musicSdk'
 import { useI18n } from '@renderer/plugins/i18n'
 import { hasDislike } from '@renderer/core/dislikeList'
+import { LIST_IDS } from '@common/constants'
 
 export default ({
   assertApiSupport,
   emit,
+  props,
 
   handleShowDownloadModal,
   handlePlayMusic,
@@ -104,10 +106,15 @@ export default ({
   })
 
   const showMenu = (event, musicInfo) => {
+    const isReadOnly = props.listId == LIST_IDS.LOCAL
     itemMenuControl.sourceDetail = !!musicSdk[musicInfo.source]?.getMusicDetailPageUrl
     // itemMenuControl.play =
     //   itemMenuControl.playLater =
     itemMenuControl.download = assertApiSupport(musicInfo.source) && musicInfo.source != 'local'
+    itemMenuControl.moveTo = !isReadOnly
+    itemMenuControl.sort = !isReadOnly
+    itemMenuControl.toggleSource = !isReadOnly
+    itemMenuControl.remove = !isReadOnly
 
     itemMenuControl.dislike = !hasDislike(musicInfo)
 

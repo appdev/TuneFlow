@@ -28,7 +28,7 @@ export interface Options {
   onFail?: (response: http.IncomingMessage) => void
   onStart?: () => void
   onStop?: () => void
-  onProgress?: (progress: LX.Download.ProgressInfo) => void
+  onProgress?: (progress: TuneFlow.Download.ProgressInfo) => void
 }
 const noop = () => {}
 export const createDownload = ({

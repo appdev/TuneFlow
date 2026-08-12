@@ -79,7 +79,7 @@ const installAudioProbe = async(page: Page): Promise<void> => {
   await page.addInitScript(() => {
     const NativeAudio = window.Audio
     const audios: HTMLAudioElement[] = []
-    Object.defineProperty(window, '__lxSmokeAudios', { value: audios })
+    Object.defineProperty(window, '__tuneFlowSmokeAudios', { value: audios })
     const TrackingAudio = function(this: unknown, src?: string): HTMLAudioElement {
       const audio = new NativeAudio(src)
       audios.push(audio)
@@ -91,7 +91,7 @@ const installAudioProbe = async(page: Page): Promise<void> => {
 }
 
 const audioState = async(page: Page): Promise<{ currentTime: number, duration: number, paused: boolean, src: string }> => page.evaluate(() => {
-  const audios = (window as unknown as { __lxSmokeAudios: HTMLAudioElement[] }).__lxSmokeAudios
+  const audios = (window as unknown as { __tuneFlowSmokeAudios: HTMLAudioElement[] }).__tuneFlowSmokeAudios
   const audio = audios.find(item => {
     const src = item.currentSrc || item.src
     return src.includes('/api/v1/streams/') || src.includes('/api/v1/library/')
@@ -101,7 +101,7 @@ const audioState = async(page: Page): Promise<{ currentTime: number, duration: n
 })
 
 describe('Task 5 production Web prepared Service playback UI smoke', () => {
-  const root = mkdtempSync(path.join(os.tmpdir(), 'lx-task5-ui-'))
+  const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-task5-ui-'))
   const storageRoot = path.join(root, 'storage')
   let sourceServer: http.Server | undefined
   let providerProxy: http.Server | undefined
@@ -114,13 +114,13 @@ describe('Task 5 production Web prepared Service playback UI smoke', () => {
       env: {
         ...process.env,
         NODE_ENV: 'test',
-        LX_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS: '1',
+        TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS: '1',
         HTTP_PROXY: `http://127.0.0.1:${proxyPort}`,
-        LX_HOST: '127.0.0.1',
-        LX_PORT: String(originPort),
-        LX_STORAGE_ROOT: storageRoot,
-        LX_WEB_ROOT: path.join(process.cwd(), 'dist/web'),
-        LX_SERVICE_NODE_MODULES: path.join(process.cwd(), 'dist/server/node_modules'),
+        TUNEFLOW_HOST: '127.0.0.1',
+        TUNEFLOW_PORT: String(originPort),
+        TUNEFLOW_STORAGE_ROOT: storageRoot,
+        TUNEFLOW_WEB_ROOT: path.join(process.cwd(), 'dist/web'),
+        TUNEFLOW_SERVICE_NODE_MODULES: path.join(process.cwd(), 'dist/server/node_modules'),
       },
       stdio: 'ignore',
     })
@@ -188,12 +188,12 @@ describe('Task 5 production Web prepared Service playback UI smoke', () => {
     const audioPort = await listen(audioServer)
 
     const fixtureSource = `/*\n * @name Task5 playback smoke\n * @description Deterministic source for the prepared Service UI smoke\n * @version 1.0.0\n */
-window.lx.on(window.lx.EVENT_NAMES.request, async ({ source, action, info }) => {
+window.tuneflow.on(window.tuneflow.EVENT_NAMES.request, async ({ source, action, info }) => {
   if (source !== 'kw' || action !== 'musicUrl') throw new Error('unexpected source request')
   const id = info && info.musicInfo && info.musicInfo.songmid === 'fixture-two' ? 'two' : 'one'
   return 'http://127.0.0.1:${audioPort}/audio/' + id + '.wav'
 })
-window.lx.send(window.lx.EVENT_NAMES.inited, {
+window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
   sources: { kw: { type: 'music', actions: ['musicUrl'], qualitys: ['128k'] } },
 })`
 

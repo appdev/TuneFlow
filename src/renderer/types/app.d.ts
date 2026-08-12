@@ -2,12 +2,12 @@
 import { type AppEventTypes, type KeyEventTypes } from '@renderer/event'
 import { type MainTypes, type DownloadTypes } from '@web-runtime/workers'
 import { type I18n } from '@renderer/plugins/i18n'
-interface Lx {
-  // appSetting: LX.AppSetting
+interface TuneFlowRuntime {
+  // appSetting: TuneFlow.AppSetting
   isEditingHotKey: boolean
   isPlayedStop: boolean
-  appHotKeyConfig: LX.HotKeyConfigAll
-  restorePlayInfo: LX.Player.SavedPlayInfo | null
+  appHotKeyConfig: TuneFlow.HotKeyConfigAll
+  restorePlayInfo: TuneFlow.Player.SavedPlayInfo | null
   worker: {
     main: MainTypes
     download: DownloadTypes
@@ -28,12 +28,12 @@ declare global {
   interface Window {
     dt: boolean
     shouldUseDarkColors: boolean
-    lx: Lx
+    tuneflow: TuneFlowRuntime
     app_event: AppEventTypes
     key_event: KeyEventTypes
     i18n: I18n
 
-    lxData: any
+    tuneFlowData: any
 
     dom_style: HTMLStyleElement
     setTheme: (colors: Record<string, string>) => void
@@ -49,7 +49,7 @@ declare global {
   // const ENVIRONMENT: NodeJS.ProcessEnv
 
 
-  namespace LX {
+  namespace TuneFlow {
     interface KeyDownEevent {
       /**
        * 原始事件
@@ -85,7 +85,7 @@ declare global {
       /**
        * 此事件是否标记为 已被处理，如果设置为`true`，则停止触发key event事件
        */
-      lx_handled?: boolean
+      tuneFlow_handled?: boolean
     }
   }
 

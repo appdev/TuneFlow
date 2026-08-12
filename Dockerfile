@@ -30,11 +30,11 @@ COPY --from=build --chown=node:node /app/LICENSE /app/README.md ./
 COPY --from=build --chown=node:node /app/docs/server-web.md ./docs/server-web.md
 
 ENV NODE_ENV=production \
-    LX_HOST=0.0.0.0 \
-    LX_PORT=3124 \
-    LX_STORAGE_ROOT=/data \
-    LX_WEB_ROOT=/app/dist/web \
-    LX_SERVICE_NODE_MODULES=/app/dist/server/node_modules
+    TUNEFLOW_HOST=0.0.0.0 \
+    TUNEFLOW_PORT=3124 \
+    TUNEFLOW_STORAGE_ROOT=/data \
+    TUNEFLOW_WEB_ROOT=/app/dist/web \
+    TUNEFLOW_SERVICE_NODE_MODULES=/app/dist/server/node_modules
 
 USER node
 EXPOSE 3124

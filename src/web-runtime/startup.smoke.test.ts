@@ -6,8 +6,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createServer } from '../server/app'
 
 const distRoot = resolve(process.cwd(), 'dist/web')
-const storageRoot = mkdtempSync(path.join(os.tmpdir(), 'lx-web-smoke-'))
-process.env.LX_SERVICE_NODE_MODULES = path.join(process.cwd(), 'dist/server/node_modules')
+const storageRoot = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-web-smoke-'))
+process.env.TUNEFLOW_SERVICE_NODE_MODULES = path.join(process.cwd(), 'dist/server/node_modules')
 let server: Awaited<ReturnType<typeof createServer>>
 let origin = ''
 

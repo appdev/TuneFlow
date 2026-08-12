@@ -14,14 +14,14 @@ const productionWorkerConsumers = async(): Promise<string[]> => {
       }
       if (!entry.isFile() || !/\.(?:ts|js|vue)$/.test(entry.name) || /\.test\.(?:ts|js)$/.test(entry.name)) continue
       const source = await readFile(file, 'utf8')
-      for (const match of source.matchAll(/window\.lx\.worker\.main\.([A-Za-z\d_]+)/g)) operations.add(match[1])
+      for (const match of source.matchAll(/window\.tuneflow\.worker\.main\.([A-Za-z\d_]+)/g)) operations.add(match[1])
     }
   }
   await visit(path.join(process.cwd(), 'src/renderer'))
   return [...operations].sort()
 }
 
-const track = (id: string, name: string, singer = 'Artist', albumName = 'Album', interval = '03:00'): LX.Music.MusicInfo => ({
+const track = (id: string, name: string, singer = 'Artist', albumName = 'Album', interval = '03:00'): TuneFlow.Music.MusicInfo => ({
   id,
   name,
   singer,

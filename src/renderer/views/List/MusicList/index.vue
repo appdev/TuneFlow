@@ -225,6 +225,7 @@ export default {
     } = useMenu({
       assertApiSupport,
       emit,
+      props,
 
       handleShowDownloadModal,
       handlePlayMusic,

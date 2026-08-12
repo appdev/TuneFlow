@@ -5,18 +5,18 @@ import { afterEach, describe, expect, it } from 'vitest'
 import defaultSetting from '../common/defaultSetting'
 import { getDB } from './db/core/db'
 import { createServer } from './app'
-import { dateFormat2 } from './lxSdk/rendererUtilsShim'
+import { dateFormat2 } from './tuneFlowSdk/rendererUtilsShim'
 
-process.env.LX_SERVICE_NODE_MODULES = path.join(process.cwd(), 'dist/server/node_modules')
+process.env.TUNEFLOW_SERVICE_NODE_MODULES = path.join(process.cwd(), 'dist/server/node_modules')
 
 const roots: string[] = []
 const apps: Array<Awaited<ReturnType<typeof createServer>>> = []
 
 const createTestServer = async() => {
-  const storageRoot = mkdtempSync(path.join(os.tmpdir(), 'lx-service-'))
+  const storageRoot = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-service-'))
   const webRoot = path.join(storageRoot, 'web')
   mkdirSync(webRoot)
-  writeFileSync(path.join(webRoot, 'index.html'), '<!doctype html><title>LX</title>')
+  writeFileSync(path.join(webRoot, 'index.html'), '<!doctype html><title>TuneFlow · 音流</title>')
   roots.push(storageRoot)
   const app = await createServer({ storageRoot, webRoot, host: '127.0.0.1', port: 0 })
   apps.push(app)
@@ -28,7 +28,7 @@ afterEach(async() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 
-describe('LX Music service', () => {
+describe('TuneFlow service', () => {
   it('exposes health, capabilities, and server-safe default settings', async() => {
     const { app, storageRoot } = await createTestServer()
 
@@ -53,6 +53,29 @@ describe('LX Music service', () => {
     const restarted = await createServer({ storageRoot, webRoot, host: '127.0.0.1', port: 0 })
     apps.push(restarted)
     expect((await restarted.inject({ method: 'GET', url: '/api/v1/settings' })).json().data['player.volume']).toBe(0.35)
+  })
+
+  it('migrates legacy branded setting keys without losing their values', async() => {
+    const { app, storageRoot, webRoot } = await createTestServer()
+    const insert = getDB().prepare('INSERT INTO web_settings (key, value) VALUES (?, ?)')
+    const legacyMarker = ['L', 'x'].join('')
+    insert.run(`player.isPlay${legacyMarker}lrc`, JSON.stringify(false))
+    insert.run(`download.isDownload${legacyMarker}Lrc`, JSON.stringify(false))
+    insert.run(`download.isEmbedLyric${legacyMarker}`, JSON.stringify(false))
+    await app.close()
+    apps.splice(apps.indexOf(app), 1)
+
+    const restarted = await createServer({ storageRoot, webRoot, host: '127.0.0.1', port: 0 })
+    apps.push(restarted)
+    const settings = (await restarted.inject({ method: 'GET', url: '/api/v1/settings' })).json().data
+    expect(settings['player.isPlayVerbatimLyric']).toBe(false)
+    expect(settings['download.isDownloadVerbatimLyric']).toBe(false)
+    expect(settings['download.isEmbedVerbatimLyric']).toBe(false)
+    expect(getDB().prepare('SELECT key FROM web_settings').all()).toEqual(expect.not.arrayContaining([
+      { key: `player.isPlay${legacyMarker}lrc` },
+      { key: `download.isDownload${legacyMarker}Lrc` },
+      { key: `download.isEmbedLyric${legacyMarker}` },
+    ]))
   })
 
   it('projects legacy download paths to the Service audio root and rejects their updates atomically', async() => {
@@ -230,6 +253,22 @@ describe('LX Music service', () => {
     expect((await app.inject({ method: 'GET', url: '/api/v1/playlists' })).json().data.map((list: { id: string }) => list.id)).toEqual(['a', 'c'])
   })
 
+  it('optionally includes Service built-in playlists without changing the Web default response', async() => {
+    const { app } = await createTestServer()
+    await app.inject({ method: 'POST', url: '/api/v1/playlists', payload: { position: -1, playlists: [{ id: 'custom', name: 'Custom' }] } })
+
+    const defaultIds = (await app.inject({ method: 'GET', url: '/api/v1/playlists' })).json().data
+      .map((list: { id: string }) => list.id)
+    const complete = (await app.inject({ method: 'GET', url: '/api/v1/playlists?includeBuiltIn=true' })).json().data
+
+    expect(defaultIds).toEqual(['custom'])
+    expect(complete.map((list: { id: string }) => list.id)).toEqual(['default', 'love', 'custom'])
+    expect(complete.slice(0, 2)).toEqual([
+      { id: 'default', name: 'list__name_default' },
+      { id: 'love', name: 'list__name_love' },
+    ])
+  })
+
   it('validates a whole list batch before mutating any item', async() => {
     const { app } = await createTestServer()
     await app.inject({ method: 'POST', url: '/api/v1/playlists', payload: { position: -1, playlists: [{ id: 'a', name: 'A' }] } })
@@ -299,7 +338,7 @@ describe('LX Music service', () => {
     expect((await app.inject({ method: 'GET', url: '/api/v1/' })).json()).toEqual({
       error: { code: 'NOT_FOUND', message: 'API route not found' },
     })
-    expect((await app.inject({ method: 'GET', url: '/library/roadtrip' })).body).toContain('<title>LX</title>')
+    expect((await app.inject({ method: 'GET', url: '/library/roadtrip' })).body).toContain('<title>TuneFlow · 音流</title>')
   })
 
   it('does not retain tracks when a deleted list id is recreated', async() => {

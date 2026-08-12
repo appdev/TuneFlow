@@ -102,7 +102,7 @@ export default {
       this.checked = checked
     },
     handleToggle(event) {
-      event.lx_handled = true
+      event.tuneFlow_handled = true
       if (this.need) {
         if (this.$refs.dom_input.checked) return
         this.$refs.dom_input.checked = true

@@ -1,7 +1,7 @@
 // import defaultSetting from '@common/defaultSetting'
 import { createWebWorkers } from '@web-runtime/workers'
 
-window.lx = {
+window.tuneflow = {
   // appSetting: defaultSetting,
   isEditingHotKey: false,
   isPlayedStop: false,
@@ -29,4 +29,4 @@ window.lx = {
   apiInitPromise: [Promise.resolve(false), true, () => {}],
 }
 
-window.lxData = {}
+window.tuneFlowData = {}

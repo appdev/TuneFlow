@@ -27,23 +27,27 @@ import { Identifier, IdParams, Playlist, PlaylistDetail, PlaylistTrackParams, Tr
 interface ListBody {
   id?: string
   name?: string
-  source?: LX.OnlineSource
+  source?: TuneFlow.OnlineSource
   sourceListId?: string
   locationUpdateTime?: number | null
 }
 
 interface TracksBody {
-  tracks?: LX.Music.MusicInfo[]
-  position?: LX.AddMusicLocationType
+  tracks?: TuneFlow.Music.MusicInfo[]
+  position?: TuneFlow.AddMusicLocationType
 }
 
-const getList = (id: string): LX.List.UserListInfo => {
+const getList = (id: string): TuneFlow.List.UserListInfo => {
   const list = getAllUserList().find(list => list.id === id)
   if (list == null) throw new ApiError(404, 'LIST_NOT_FOUND', `List not found: ${id}`)
   return list
 }
 
 const builtInListIds = new Set<string>([LIST_IDS.DEFAULT, LIST_IDS.LOVE, LIST_IDS.TEMP, LIST_IDS.DOWNLOAD])
+const libraryBuiltInLists = [
+  { id: LIST_IDS.DEFAULT, name: 'list__name_default' },
+  { id: LIST_IDS.LOVE, name: 'list__name_love' },
+]
 
 const ensureListId = (id: unknown): string => {
   if (typeof id !== 'string' || id.length === 0) throw new ApiError(400, 'INVALID_LIST', 'List id is required')
@@ -58,19 +62,19 @@ const ensureStringArray = (value: unknown, message: string): string[] => {
   return value
 }
 
-const ensureMusicArray = (value: unknown): LX.Music.MusicInfo[] => {
+const ensureMusicArray = (value: unknown): TuneFlow.Music.MusicInfo[] => {
   if (!Array.isArray(value) || value.some(info => typeof info !== 'object' || info == null || typeof (info as { id?: unknown }).id !== 'string')) {
     throw new ApiError(400, 'INVALID_TRACKS', 'Tracks must be an array of music records')
   }
-  return value as LX.Music.MusicInfo[]
+  return value as TuneFlow.Music.MusicInfo[]
 }
 
-const ensureUserListInfo = (value: unknown): LX.List.UserListInfo => {
-  const list = value as Partial<LX.List.UserListInfo> | null
+const ensureUserListInfo = (value: unknown): TuneFlow.List.UserListInfo => {
+  const list = value as Partial<TuneFlow.List.UserListInfo> | null
   if (list == null || typeof list !== 'object' || typeof list.id !== 'string' || list.id.length === 0 || typeof list.name !== 'string' || list.name.length === 0) {
     throw new ApiError(400, 'INVALID_LIST', 'List id and name are required')
   }
-  return list as LX.List.UserListInfo
+  return list as TuneFlow.List.UserListInfo
 }
 
 const playlistResponses = { 400: ErrorResponses[400], 404: ErrorResponses[404], 409: ErrorResponses[409], 500: ErrorResponses[500] }
@@ -82,9 +86,14 @@ export const registerListRoutes = (app: ApiFastifyInstance, events?: ServiceEven
       operationId: 'listPlaylists',
       tags: ['Playlists'],
       summary: 'List playlists',
+      querystring: Type.Object({ includeBuiltIn: Type.Optional(Type.Boolean()) }, { additionalProperties: false }),
       response: { 200: ApiSuccess(Type.Array(Playlist)), ...playlistResponses },
     },
-  }, async() => ({ data: getAllUserList() }))
+  }, async(request) => ({
+    data: request.query.includeBuiltIn
+      ? [...libraryBuiltInLists, ...getAllUserList()]
+      : getAllUserList(),
+  }))
 
   app.post('/api/v1/playlists', {
     schema: {
@@ -224,7 +233,7 @@ export const registerListRoutes = (app: ApiFastifyInstance, events?: ServiceEven
       response: { 200: ApiSuccess(Type.Array(Playlist)), ...playlistResponses },
     },
   }, async(request) => {
-    const body = request.body as Partial<LX.List.ListActionUpdatePosition> | null
+    const body = request.body as Partial<TuneFlow.List.ListActionUpdatePosition> | null
     if (body == null || !Number.isInteger(body.position)) throw new ApiError(400, 'INVALID_LIST', 'List position is required')
     const ids = ensureStringArray(body.ids, 'List ids must be an array')
     for (const id of ids) getList(id)
@@ -242,7 +251,7 @@ export const registerListRoutes = (app: ApiFastifyInstance, events?: ServiceEven
       response: { 200: ApiSuccess(Type.Null()), ...playlistResponses },
     },
   }, async(request) => {
-    const body = request.body as Partial<LX.List.ListActionMusicMove> | null
+    const body = request.body as Partial<TuneFlow.List.ListActionMusicMove> | null
     const fromId = ensureListId(body?.fromId)
     const toId = ensureListId(body?.toId)
     const musicInfos = ensureMusicArray(body?.musicInfos)
@@ -264,7 +273,7 @@ export const registerListRoutes = (app: ApiFastifyInstance, events?: ServiceEven
   }, async(request) => {
     const listId = ensureListId((request.params as { id: string }).id)
     const tracks = ensureMusicArray((request.body as { tracks?: unknown }).tracks)
-    const updates = tracks.map(musicInfo => ({ id: listId, musicInfo })) as LX.List.ListActionMusicUpdate
+    const updates = tracks.map(musicInfo => ({ id: listId, musicInfo })) as TuneFlow.List.ListActionMusicUpdate
     musicsUpdate(updates)
     events?.publish('playlist.tracks.updated', updates)
     return { data: getListMusics(listId) }
@@ -337,7 +346,7 @@ export const registerListRoutes = (app: ApiFastifyInstance, events?: ServiceEven
       response: { 200: ApiSuccess(Type.Null()), ...playlistResponses },
     },
   }, async(request) => {
-    const body = request.body as Partial<LX.List.ListActionDataOverwrite> | null
+    const body = request.body as Partial<TuneFlow.List.ListActionDataOverwrite> | null
     if (body == null || !Array.isArray(body.defaultList) || !Array.isArray(body.loveList) || !Array.isArray(body.userList)) {
       throw new ApiError(400, 'INVALID_LIST', 'Full list data is required')
     }
@@ -348,7 +357,7 @@ export const registerListRoutes = (app: ApiFastifyInstance, events?: ServiceEven
     ensureMusicArray(body.defaultList)
     ensureMusicArray(body.loveList)
     if (body.tempList != null) ensureMusicArray(body.tempList)
-    listDataOverwrite(request.body as LX.List.ListActionDataOverwrite)
+    listDataOverwrite(request.body as TuneFlow.List.ListActionDataOverwrite)
     events?.publish('playlists.imported', request.body)
     return { data: null }
   })

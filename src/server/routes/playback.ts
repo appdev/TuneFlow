@@ -12,18 +12,24 @@ interface PlaybackRouteOptions extends PlaybackProxyOptions {
   tokenStore?: TokenStore
   resolveTrack?: (input: ResolveTrackInput) => Promise<ResolvedTrack>
   sources?: SourcesService
+  findLocalTrack?: (musicInfo: unknown) => Promise<string | undefined> | string | undefined
 }
 
 export const registerPlaybackRoutes = (app: ApiFastifyInstance, options: PlaybackRouteOptions = {}): void => {
   const store = options.tokenStore ?? new TokenStore()
-  const playbackResolver = options.sources == null ? undefined : new PlaybackResolver(options.sources, store)
+  const playbackResolver = options.sources == null ? undefined : new PlaybackResolver(options.sources, store, undefined, options.findLocalTrack)
   const resolver = options.resolveTrack ?? playbackResolver?.resolveTrack.bind(playbackResolver)
   app.post('/api/v1/playback/tracks/resolve', {
     schema: {
       operationId: 'resolvePlaybackTrack',
       tags: ['Playback'],
       summary: 'Resolve a track to an opaque stream URL',
-      body: Type.Object({ source: Type.String({ minLength: 1 }), info: Type.Unknown(), quality: Type.String({ minLength: 1 }) }, { additionalProperties: false }),
+      body: Type.Object({
+        source: Type.String({ minLength: 1 }),
+        info: Type.Unknown(),
+        quality: Type.String({ minLength: 1 }),
+        preferLocal: Type.Optional(Type.Boolean()),
+      }, { additionalProperties: false }),
       response: { 200: ApiSuccess(Type.Object({ url: Type.String(), quality: Type.String(), expiresAt: Type.Number() }, { additionalProperties: false })), ...ErrorResponses, 503: ErrorResponses[500] },
     },
   }, async(request) => {

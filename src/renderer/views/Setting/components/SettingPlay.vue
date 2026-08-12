@@ -19,8 +19,8 @@ dd
   .gap-top
     base-checkbox(id="setting_player_lyric_s2t" :model-value="appSetting['player.isS2t']" :label="$t('setting__play_lyric_s2t')" @update:model-value="updateSetting({'player.isS2t': $event})")
   .gap-top
-    base-checkbox(id="setting_player_lyric_play_lxlrc" :model-value="appSetting['player.isPlayLxlrc']" :label="$t('setting__play_lyric_lxlrc')" @update:model-value="updateSetting({'player.isPlayLxlrc': $event})")
-    svg-icon(class="help-icon" name="help-circle-outline" :aria-label="$t('setting__play_lyric_lxlrc_tip')")
+    base-checkbox(id="setting_player_lyric_play_verbatim" :model-value="appSetting['player.isPlayVerbatimLyric']" :label="$t('setting__play_lyric_verbatim')" @update:model-value="updateSetting({'player.isPlayVerbatimLyric': $event})")
+    svg-icon(class="help-icon" name="help-circle-outline" :aria-label="$t('setting__play_lyric_verbatim_tip')")
   .gap-top
     base-checkbox(id="setting_player_isMaxOutputChannelCount" :model-value="isMaxOutputChannelCount" :label="$t('setting__play_max_output_channel_count')" @update:model-value="handleUpdateMaxOutputChannelCount")
   .gap-top

@@ -1,4 +1,4 @@
-declare namespace LX {
+declare namespace TuneFlow {
   namespace UserApi {
     type UserApiSourceInfoType = 'music'
     type UserApiSourceInfoActions = 'musicUrl' | 'lyric' | 'pic'
@@ -7,10 +7,10 @@ declare namespace LX {
       name: string
       type: UserApiSourceInfoType
       actions: UserApiSourceInfoActions[]
-      qualitys: LX.Quality[]
+      qualitys: TuneFlow.Quality[]
     }
 
-    type UserApiSources = Record<LX.Source, UserApiSourceInfo>
+    type UserApiSources = Record<TuneFlow.Source, UserApiSourceInfo>
 
 
     interface UserApiInfoFull {

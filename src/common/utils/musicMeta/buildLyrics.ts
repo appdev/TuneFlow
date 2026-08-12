@@ -61,7 +61,7 @@ const parseLrcTimeLabel = (lrc: string) => {
   return linesSet
 }
 
-const buildAwlyric = (lrcData: LX.Music.LyricInfo) => {
+const buildAwlyric = (lrcData: TuneFlow.Music.LyricInfo) => {
   let lrc: string[] = []
   if (lrcData.lyric) {
     lrc.push(`lrc:${Buffer.from(lrcData.lyric.trim(), 'utf-8').toString('base64')}`)
@@ -72,14 +72,14 @@ const buildAwlyric = (lrcData: LX.Music.LyricInfo) => {
   if (lrcData.rlyric) {
     lrc.push(`rlrc:${Buffer.from(lrcData.rlyric.trim(), 'utf-8').toString('base64')}`)
   }
-  if (lrcData.lxlyric) {
-    lrc.push(`awlrc:${Buffer.from(lrcData.lxlyric.trim(), 'utf-8').toString('base64')}`)
+  if (lrcData.verbatimLyric) {
+    lrc.push(`awlrc:${Buffer.from(lrcData.verbatimLyric.trim(), 'utf-8').toString('base64')}`)
   }
   return lrc.length ? `[awlrc:${lrc.join(',')}]` : ''
 }
 
-export const buildLyrics = (lrcData: LX.Music.LyricInfo, downloadAwlrc: boolean, downloadTlrc: boolean, downloadRlrc: boolean) => {
-  if (!lrcData.tlyric && !lrcData.rlyric && !lrcData.lxlyric) return lrcData.lyric
+export const buildLyrics = (lrcData: TuneFlow.Music.LyricInfo, downloadAwlrc: boolean, downloadTlrc: boolean, downloadRlrc: boolean) => {
+  if (!lrcData.tlyric && !lrcData.rlyric && !lrcData.verbatimLyric) return lrcData.lyric
 
   const lrcTimeLabels = parseLrcTimeLabel(lrcData.lyric)
 

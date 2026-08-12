@@ -13,11 +13,11 @@ import { playMusicInfo } from '@renderer/store/player/state'
 
 const initPrevPlayInfo = async() => {
   const info = await getPlayInfo()
-  window.lx.restorePlayInfo = null
+  window.tuneflow.restorePlayInfo = null
   if (!info?.listId || info.index < 0) return
   const list = await getListMusics(info.listId)
   if (!list[info.index]) return
-  window.lx.restorePlayInfo = info
+  window.tuneflow.restorePlayInfo = info
   playList(info.listId, info.index)
 
   if (appSetting['player.startupAutoPlay']) {
@@ -40,7 +40,7 @@ const initServiceLibrary = async() => {
     source: 'local' as const,
     interval: typeof item.interval === 'string' ? item.interval : '00:00',
     meta: item.meta != null && typeof item.meta === 'object' ? item.meta : {},
-  })) as LX.Music.MusicInfo[]
+  })) as TuneFlow.Music.MusicInfo[]
   const defaultTracks = await getListMusics(LIST_IDS.DEFAULT)
   const registryIds = new Set(tracks.map(track => track.id))
   const stale = defaultTracks.filter(track => track.source === 'local' && !registryIds.has(track.id)).map(track => track.id)
@@ -67,7 +67,7 @@ export default () => {
     unregister = registerAction((ids) => {
       window.app_event.myListUpdate(ids)
     })
-    window.lxData.userLists = await getUserLists() // 获取用户列表
+    window.tuneFlowData.userLists = await getUserLists() // 获取用户列表
     await initServiceLibrary()
     await initPrevPlayInfo().catch(err => {
       log.error(err)

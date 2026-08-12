@@ -9,7 +9,7 @@ export default () => {
 
   const t = useI18n()
 
-  const handleUpdateSourceList = (listInfo: LX.List.UserListInfo) => {
+  const handleUpdateSourceList = (listInfo: TuneFlow.List.UserListInfo) => {
     void dialog.confirm({
       message: t('lists__sync_confirm_tip', { name: listInfo.name }),
       confirmButtonText: t('lists__remove_tip_button'),

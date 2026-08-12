@@ -4,7 +4,7 @@ import { getListDetailAll } from '@renderer/store/songList/action'
 import { getListDetailAll as getBoardListAll } from '@renderer/store/leaderboard/action'
 import { dateFormat } from '@common/utils/common'
 
-const fetchList = async(id: string, source: LX.OnlineSource, sourceListId: string) => {
+const fetchList = async(id: string, source: TuneFlow.OnlineSource, sourceListId: string) => {
   setFetchingListStatus(id, true)
 
   let promise
@@ -19,7 +19,7 @@ const fetchList = async(id: string, source: LX.OnlineSource, sourceListId: strin
   })
 }
 
-export default async(targetListInfo: LX.List.UserListInfo) => {
+export default async(targetListInfo: TuneFlow.List.UserListInfo) => {
   // console.log(targetListInfo)
   if (!targetListInfo.source || !targetListInfo.sourceListId) return
   const list = await fetchList(targetListInfo.id, targetListInfo.source, targetListInfo.sourceListId)

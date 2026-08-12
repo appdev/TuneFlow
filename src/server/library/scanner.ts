@@ -36,6 +36,11 @@ export class LibraryScanner {
 
   list(): LibraryTrackDto[] { return [...this.entries.values()].map(entry => entry.dto) }
   get(id: string): PrivateEntry | undefined { return this.entries.get(id) }
+  findByFilePath(filePath: string): LibraryTrackDto | undefined {
+    let target: string
+    try { target = realpathSync(filePath) } catch { return undefined }
+    return [...this.entries.values()].find(entry => entry.filePath === target)?.dto
+  }
 
   async refresh(): Promise<LibraryTrackDto[]> {
     const entries = new Map<string, PrivateEntry>()
@@ -54,7 +59,7 @@ export class LibraryScanner {
   private async scanDirectory(root: string, directory: string, entries: Map<string, PrivateEntry>): Promise<void> {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const candidate = path.join(directory, entry.name)
-      if (entry.name.endsWith('.part') || entry.name.endsWith('.lxmtemp')) continue
+      if (entry.name.endsWith('.part') || entry.name.endsWith('.tuneflowtmp')) continue
       if (entry.isSymbolicLink()) continue
       if (entry.isDirectory()) {
         await this.scanDirectory(root, candidate, entries)

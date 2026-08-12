@@ -76,7 +76,7 @@ const hotKey = {
 for (const type of Object.keys(hotKey) as Array<keyof typeof hotKey>) {
   let keys = hotKey[type]
   for (const key of Object.keys(keys) as Array<keyof typeof keys>) {
-    const keyInfo: LX.HotKey = keys[key]
+    const keyInfo: TuneFlow.HotKey = keys[key]
     keyInfo.action = `${type}_${keyInfo.action}`
     keyInfo.name = `${type}_${keyInfo.name}`
     keyInfo.type = keyName[type] as keyof typeof hotKey

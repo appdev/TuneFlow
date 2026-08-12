@@ -4,6 +4,7 @@ export {
   allMusicList,
   defaultList,
   loveList,
+  localList,
   tempList,
   userLists,
 } from '@renderer/store/list/listManage'
@@ -13,19 +14,19 @@ export {
 
 // export const isInitedList: Ref<boolean> = ref(false)
 
-// export const allList: Map<string, LX.Music.MusicInfo[]> = window.lxData.allList = markRaw(new Map())
+// export const allList: Map<string, TuneFlow.Music.MusicInfo[]> = window.tuneFlowData.allList = markRaw(new Map())
 
-// export const defaultList: Omit<LX.List.MyDefaultListInfo, 'list'> = reactive({
+// export const defaultList: Omit<TuneFlow.List.MyDefaultListInfo, 'list'> = reactive({
 //   id: 'default',
 //   name: '试听列表',
 // })
 
-// export const loveList: Omit<LX.List.MyLoveListInfo, 'list'> = reactive({
+// export const loveList: Omit<TuneFlow.List.MyLoveListInfo, 'list'> = reactive({
 //   id: 'love',
 //   name: '我的收藏',
 // })
 
-// export const tempList: Omit<LX.List.MyTempListInfo, 'list'> = reactive({
+// export const tempList: Omit<TuneFlow.List.MyTempListInfo, 'list'> = reactive({
 //   id: 'temp',
 //   name: '临时列表',
 //   meta: {},
@@ -36,7 +37,7 @@ export const tempListMeta = {
 }
 
 
-// export const userLists: LX.List.UserListInfo[] = window.lxData.userLists = reactive([])
+// export const userLists: TuneFlow.List.UserListInfo[] = window.tuneFlowData.userLists = reactive([])
 
 export const fetchingListStatus = reactive<Record<string, boolean>>({})
 

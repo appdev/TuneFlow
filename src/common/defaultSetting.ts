@@ -4,7 +4,7 @@ import os from 'node:os'
 const isMac = process.platform == 'darwin'
 const isWin = process.platform == 'win32'
 
-const defaultSetting: LX.AppSetting = {
+const defaultSetting: TuneFlow.AppSetting = {
   version: '2.1.0',
 
   'common.windowSizeId': 3,
@@ -40,7 +40,7 @@ const defaultSetting: LX.AppSetting = {
   'player.isShowLyricRoma': false,
   'player.isSwapLyricTranslationAndRoma': false,
   'player.isS2t': false,
-  'player.isPlayLxlrc': !isMac,
+  'player.isPlayVerbatimLyric': !isMac,
   'player.isSavePlayTime': false,
   'player.audioVisualization': false,
   'player.waitPlayEndStop': true,
@@ -116,13 +116,13 @@ const defaultSetting: LX.AppSetting = {
   'download.maxDownloadNum': 3,
   'download.skipExistFile': true,
   'download.isDownloadLrc': false,
-  'download.isDownloadLxLrc': true,
+  'download.isDownloadVerbatimLyric': true,
   'download.isDownloadTLrc': false,
   'download.isDownloadRLrc': false,
   'download.lrcFormat': 'utf8',
   'download.isEmbedPic': true,
   'download.isEmbedLyric': false,
-  'download.isEmbedLyricLx': true,
+  'download.isEmbedVerbatimLyric': true,
   'download.isEmbedLyricT': false,
   'download.isEmbedLyricR': false,
   'download.isUseOtherSource': false,

@@ -60,7 +60,7 @@ watch(() => props.visible, (visible) => {
   if (!visible || !dom_content.value || !props.btnEl) return
   const rect = props.btnEl.getBoundingClientRect()
   const maxHeight = document.body.clientHeight
-  const elTop = rect.top - window.lx.rootOffset
+  const elTop = rect.top - window.tuneflow.rootOffset
   const bottomTopVal = elTop + rect.height
   const contentHeight = dom_content.value.scrollHeight + arrowHeight + sidePadding
   if (bottomTopVal + contentHeight < maxHeight || (contentHeight > elTop && elTop <= maxHeight - bottomTopVal)) {
@@ -76,7 +76,7 @@ watch(() => props.visible, (visible) => {
 
   const maxWidth = document.body.clientWidth - 20
   let center = dom_content.value.clientWidth / 2
-  let left = rect.left + rect.width / 2 - window.lx.rootOffset - center
+  let left = rect.left + rect.width / 2 - window.tuneflow.rootOffset - center
   if (left < sidePadding) {
     center -= sidePadding - left
     left = sidePadding

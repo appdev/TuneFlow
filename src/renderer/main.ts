@@ -39,7 +39,7 @@ router.afterEach((to) => {
 })
 
 void getSetting().then(setting => {
-  // window.lx.appSetting = setting
+  // window.tuneflow.appSetting = setting
   // Set language automatically
   if (!setting['common.langId'] || !window.i18n.availableLocales.includes(setting['common.langId'])) {
     let langId: I18n['locale'] | null = null

@@ -3,17 +3,17 @@ export type DownloadExtension = 'ape' | 'flac' | 'wav' | 'mp3'
 export type DownloadFileNamePattern = '歌名 - 歌手' | '歌手 - 歌名' | '歌名'
 
 export interface DownloadCreateInput {
-  musicInfo: LX.Music.MusicInfoOnline
-  quality: LX.Quality
-  qualityList?: LX.QualityList
+  musicInfo: TuneFlow.Music.MusicInfoOnline
+  quality: TuneFlow.Quality
+  qualityList?: TuneFlow.QualityList
   listId?: string
 }
 
 export interface DownloadJobRecord {
   id: string
   status: DownloadStatus
-  musicInfo: LX.Music.MusicInfoOnline
-  quality: LX.Quality
+  musicInfo: TuneFlow.Music.MusicInfoOnline
+  quality: TuneFlow.Quality
   extension: DownloadExtension
   fileName: string
   finalRelativePath: string
@@ -39,8 +39,8 @@ export interface DownloadJobRecord {
 export interface DownloadDto {
   id: string
   status: DownloadStatus
-  musicInfo: LX.Music.MusicInfoOnline
-  quality: LX.Quality
+  musicInfo: TuneFlow.Music.MusicInfoOnline
+  quality: TuneFlow.Quality
   extension: DownloadExtension
   fileName: string
   downloaded: number

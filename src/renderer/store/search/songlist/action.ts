@@ -9,7 +9,7 @@ interface SearchResult {
   list: ListInfoItem[]
   limit: number
   total: number
-  source: LX.OnlineSource
+  source: TuneFlow.OnlineSource
 }
 
 
@@ -31,7 +31,7 @@ const handleSortList = (list: ListInfoItem[], keyword: string) => {
 }
 
 
-let maxTotals: Partial<Record<LX.OnlineSource, number>> = {
+let maxTotals: Partial<Record<TuneFlow.OnlineSource, number>> = {
 
 }
 const setLists = (results: SearchResult[], page: number, text: string): ListInfoItem[] => {
@@ -71,7 +71,7 @@ const setList = (datas: SearchResult, page: number, text: string): ListInfoItem[
   return listInfo.list
 }
 
-export const resetListInfo = (sourceId: LX.OnlineSource | 'all'): [] => {
+export const resetListInfo = (sourceId: TuneFlow.OnlineSource | 'all'): [] => {
   let listInfo = listInfos[sourceId]
   if (!listInfo) return []
   listInfo.page = 1
@@ -85,7 +85,7 @@ export const resetListInfo = (sourceId: LX.OnlineSource | 'all'): [] => {
   return []
 }
 
-export const search = async(text: string, page: number, sourceId: LX.OnlineSource | 'all'): Promise<ListInfoItem[]> => {
+export const search = async(text: string, page: number, sourceId: TuneFlow.OnlineSource | 'all'): Promise<ListInfoItem[]> => {
   const listInfo = listInfos[sourceId]!
   if (!text) return resetListInfo(sourceId)
   const key = `${page}__${sourceId}__${text}`

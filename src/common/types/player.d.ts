@@ -1,4 +1,4 @@
-declare namespace LX {
+declare namespace TuneFlow {
   namespace Player {
     interface ProgressBarOptions {
       progress: number
@@ -15,8 +15,8 @@ declare namespace LX {
     | 'volume'
     | 'mute'
 
-    interface LyricInfo extends LX.Music.LyricInfo {
-      rawlrcInfo: LX.Music.LyricInfo
+    interface LyricInfo extends TuneFlow.Music.LyricInfo {
+      rawlrcInfo: TuneFlow.Music.LyricInfo
     }
 
     interface Status {
@@ -33,7 +33,7 @@ declare namespace LX {
       lyric: string
       tlyric: string
       rlyric: string
-      lxlyric: string
+      verbatimLyric: string
       collect: boolean
       volume: number
       mute: boolean

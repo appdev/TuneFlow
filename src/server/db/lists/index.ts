@@ -20,8 +20,8 @@ import {
   updateUserLists as updateUserListsFromDB,
 } from './dbHelper'
 
-let userLists: LX.DBService.UserListInfo[] | undefined
-let musicLists = new Map<string, LX.Music.MusicInfo[]>()
+let userLists: TuneFlow.DBService.UserListInfo[] | undefined
+let musicLists = new Map<string, TuneFlow.Music.MusicInfo[]>()
 
 /** Clears process-local list state when the backing database is closed. */
 export const resetListCache = (): void => {
@@ -29,7 +29,7 @@ export const resetListCache = (): void => {
   musicLists.clear()
 }
 
-const toDBMusicInfo = (musicInfos: LX.Music.MusicInfo[], listId: string, offset: number = 0): LX.DBService.MusicInfo[] => {
+const toDBMusicInfo = (musicInfos: TuneFlow.Music.MusicInfo[], listId: string, offset: number = 0): TuneFlow.DBService.MusicInfo[] => {
   return musicInfos.map((info, index) => {
     return {
       ...info,
@@ -44,7 +44,7 @@ const toDBMusicInfo = (musicInfos: LX.Music.MusicInfo[], listId: string, offset:
  * 获取所有用户列表
  * @returns
  */
-export const getAllUserList = (): LX.List.UserListInfo[] => {
+export const getAllUserList = (): TuneFlow.List.UserListInfo[] => {
   userLists ??= queryAllUserList()
 
   return userLists.map(list => {
@@ -58,11 +58,11 @@ export const getAllUserList = (): LX.List.UserListInfo[] => {
  * @param position 列表位置
  * @param lists 列表信息
  */
-export const createUserLists = (position: number, lists: LX.List.UserListInfo[]) => {
+export const createUserLists = (position: number, lists: TuneFlow.List.UserListInfo[]) => {
   userLists ??= queryAllUserList()
   if (position < 0 || position >= userLists.length) {
     const startPosition = userLists.length
-    const newLists: LX.DBService.UserListInfo[] = lists.map((list, index) => {
+    const newLists: TuneFlow.DBService.UserListInfo[] = lists.map((list, index) => {
       return {
         ...list,
         position: startPosition + index,
@@ -86,8 +86,8 @@ export const createUserLists = (position: number, lists: LX.List.UserListInfo[])
  * 覆盖列表
  * @param lists 列表信息
  */
-// const setUserLists = (lists: LX.List.UserListInfo[]) => {
-//   const newUserLists: LX.DBService.UserListInfo[] = lists.map((list, index) => {
+// const setUserLists = (lists: TuneFlow.List.UserListInfo[]) => {
+//   const newUserLists: TuneFlow.DBService.UserListInfo[] = lists.map((list, index) => {
 //     return {
 //       ...list,
 //       position: index,
@@ -111,13 +111,13 @@ export const removeUserLists = (ids: string[]) => {
  * 批量更新列表信息
  * @param lists 列表信息
  */
-export const updateUserLists = (lists: LX.List.UserListInfo[]) => {
+export const updateUserLists = (lists: TuneFlow.List.UserListInfo[]) => {
   userLists ??= queryAllUserList()
   const positionMap = new Map<string, number>()
   for (const list of userLists) {
     positionMap.set(list.id, list.position)
   }
-  const dbList: LX.DBService.UserListInfo[] = lists.map(list => {
+  const dbList: TuneFlow.DBService.UserListInfo[] = lists.map(list => {
     const position = positionMap.get(list.id)
     if (position == null) return null
     return {
@@ -126,7 +126,7 @@ export const updateUserLists = (lists: LX.List.UserListInfo[]) => {
       sourceListId: list.sourceListId,
       position,
     }
-  }).filter(Boolean) as LX.DBService.UserListInfo[]
+  }).filter(Boolean) as TuneFlow.DBService.UserListInfo[]
   updateUserListsFromDB(dbList)
   userLists &&= queryAllUserList()
 }
@@ -141,7 +141,7 @@ export const updateUserListsPosition = (position: number, ids: string[]) => {
 
   const newUserLists = [...userLists]
 
-  const updateLists: LX.DBService.UserListInfo[] = []
+  const updateLists: TuneFlow.DBService.UserListInfo[] = []
 
   for (let i = newUserLists.length - 1; i >= 0; i--) {
     if (ids.includes(newUserLists[i].id)) {
@@ -165,8 +165,8 @@ export const updateUserListsPosition = (position: number, ids: string[]) => {
  * @param listId 列表ID
  * @returns 列表内歌曲
  */
-export const getListMusics = (listId: string): LX.Music.MusicInfo[] => {
-  let targetList: LX.Music.MusicInfo[] | undefined = musicLists.get(listId)
+export const getListMusics = (listId: string): TuneFlow.Music.MusicInfo[] => {
+  let targetList: TuneFlow.Music.MusicInfo[] | undefined = musicLists.get(listId)
   if (targetList == null) {
     targetList = queryMusicInfoByListId(listId).map(info => {
       return {
@@ -189,7 +189,7 @@ export const getListMusics = (listId: string): LX.Music.MusicInfo[] => {
  * @param listId 列表id
  * @param musicInfos 歌曲列表
  */
-export const musicOverwrite = (listId: string, musicInfos: LX.Music.MusicInfo[]) => {
+export const musicOverwrite = (listId: string, musicInfos: TuneFlow.Music.MusicInfo[]) => {
   let targetList = getListMusics(listId)
   overwriteMusicInfo(listId, toDBMusicInfo(musicInfos, listId))
   if (targetList) {
@@ -204,7 +204,7 @@ export const musicOverwrite = (listId: string, musicInfos: LX.Music.MusicInfo[])
  * @param musicInfos 添加的歌曲信息
  * @param addMusicLocationType 添加在到列表的位置
  */
-export const musicsAdd = (listId: string, musicInfos: LX.Music.MusicInfo[], addMusicLocationType: LX.AddMusicLocationType) => {
+export const musicsAdd = (listId: string, musicInfos: TuneFlow.Music.MusicInfo[], addMusicLocationType: TuneFlow.AddMusicLocationType) => {
   let targetList = getListMusics(listId)
 
   const set = new Set<string>()
@@ -248,7 +248,7 @@ export const musicsRemove = (listId: string, ids: string[]) => {
  * @param musicInfos 添加的歌曲信息
  * @param addMusicLocationType 添加在到列表的位置
  */
-export const musicsMove = (fromId: string, toId: string, musicInfos: LX.Music.MusicInfo[], addMusicLocationType: LX.AddMusicLocationType) => {
+export const musicsMove = (fromId: string, toId: string, musicInfos: TuneFlow.Music.MusicInfo[], addMusicLocationType: TuneFlow.AddMusicLocationType) => {
   let fromList = getListMusics(fromId)
   let toList = getListMusics(toId)
 
@@ -282,7 +282,7 @@ export const musicsMove = (fromId: string, toId: string, musicInfos: LX.Music.Mu
  * 批量更新歌曲信息
  * @param musicInfos 歌曲&列表信息
  */
-export const musicsUpdate = (musicInfos: LX.List.ListActionMusicUpdate) => {
+export const musicsUpdate = (musicInfos: TuneFlow.List.ListActionMusicUpdate) => {
   updateMusicInfos(musicInfos.map(({ id, musicInfo }) => {
     return {
       ...musicInfo,
@@ -329,8 +329,8 @@ export const musicsPositionUpdate = (listId: string, position: number, ids: stri
 
   let newTargetList = [...targetList]
 
-  const infos: LX.Music.MusicInfo[] = []
-  const map = new Map<string, LX.Music.MusicInfo>()
+  const infos: TuneFlow.Music.MusicInfo[] = []
+  const map = new Map<string, TuneFlow.Music.MusicInfo>()
   for (const item of newTargetList) map.set(item.id, item)
   for (const id of ids) {
     infos.push(map.get(id)!)
@@ -353,14 +353,14 @@ export const musicsPositionUpdate = (listId: string, position: number, ids: stri
  * 覆盖所有列表数据
  * @param myListData 完整列表数据
  */
-export const listDataOverwrite = (myListData: MakeOptional<LX.List.ListDataFull, 'tempList'>) => {
-  const dbLists: LX.DBService.UserListInfo[] = []
-  const listData: LX.List.ListDataFull = {
+export const listDataOverwrite = (myListData: MakeOptional<TuneFlow.List.ListDataFull, 'tempList'>) => {
+  const dbLists: TuneFlow.DBService.UserListInfo[] = []
+  const listData: TuneFlow.List.ListDataFull = {
     ...myListData,
     tempList: myListData.tempList ?? getListMusics(LIST_IDS.TEMP),
   }
 
-  const dbMusicInfos: LX.DBService.MusicInfo[] = [
+  const dbMusicInfos: TuneFlow.DBService.MusicInfo[] = [
     ...toDBMusicInfo(listData.defaultList, LIST_IDS.DEFAULT),
     ...toDBMusicInfo(listData.loveList, LIST_IDS.LOVE),
     ...toDBMusicInfo(listData.tempList, LIST_IDS.TEMP),

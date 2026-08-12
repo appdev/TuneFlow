@@ -6,11 +6,11 @@ import { sortInsert, similar } from '@common/utils/common'
 import { sources, maxPages, listInfos } from './state'
 
 interface SearchResult {
-  list: LX.Music.MusicInfo[]
+  list: TuneFlow.Music.MusicInfo[]
   allPage: number
   limit: number
   total: number
-  source: LX.OnlineSource
+  source: TuneFlow.OnlineSource
 }
 
 
@@ -20,7 +20,7 @@ interface SearchResult {
  * @param keyword 搜索关键词
  * @returns 排序后的列表
  */
-const handleSortList = (list: LX.Music.MusicInfo[], keyword: string) => {
+const handleSortList = (list: TuneFlow.Music.MusicInfo[], keyword: string) => {
   let arr: any[] = []
   for (const item of list) {
     sortInsert(arr, {
@@ -32,7 +32,7 @@ const handleSortList = (list: LX.Music.MusicInfo[], keyword: string) => {
 }
 
 
-const setLists = (results: SearchResult[], page: number, text: string): LX.Music.MusicInfo[] => {
+const setLists = (results: SearchResult[], page: number, text: string): TuneFlow.Music.MusicInfo[] => {
   let pages = []
   let totals = []
   let limit = 0
@@ -59,7 +59,7 @@ const setLists = (results: SearchResult[], page: number, text: string): LX.Music
   return listInfo.list
 }
 
-const setList = (datas: SearchResult, page: number, text: string): LX.Music.MusicInfo[] => {
+const setList = (datas: SearchResult, page: number, text: string): TuneFlow.Music.MusicInfo[] => {
   // console.log(datas.source, datas.list)
   let listInfo = listInfos[datas.source]!
   listInfo.list = deduplicationList(datas.list.map(s => markRaw(toNewMusicInfo(s))))
@@ -73,7 +73,7 @@ const setList = (datas: SearchResult, page: number, text: string): LX.Music.Musi
   return listInfo.list
 }
 
-export const resetListInfo = (sourceId: LX.OnlineSource | 'all'): [] => {
+export const resetListInfo = (sourceId: TuneFlow.OnlineSource | 'all'): [] => {
   let listInfo = listInfos[sourceId]
   if (!listInfo) return []
   listInfo.list = []
@@ -84,7 +84,7 @@ export const resetListInfo = (sourceId: LX.OnlineSource | 'all'): [] => {
   return []
 }
 
-export const search = async(text: string, page: number, sourceId: LX.OnlineSource | 'all'): Promise<LX.Music.MusicInfo[]> => {
+export const search = async(text: string, page: number, sourceId: TuneFlow.OnlineSource | 'all'): Promise<TuneFlow.Music.MusicInfo[]> => {
   const listInfo = listInfos[sourceId]
   if (!text) return resetListInfo(sourceId)
   const key = `${page}__${text}`

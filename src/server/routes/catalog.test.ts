@@ -10,10 +10,11 @@ describe('catalog routes', () => {
     const response = await app.inject({ method: 'GET', url: '/api/v1/catalog/capabilities' })
 
     expect(response.statusCode).toBe(200)
-    const providers = response.json().data.sources as Array<{ id: string, searchKinds: string[] }>
+    const providers = response.json().data.sources as Array<{ id: string, searchKinds: string[], leaderboards: boolean }>
     expect(providers.find(provider => provider.id === 'kw')?.searchKinds).toEqual(expect.arrayContaining(['track', 'playlist']))
     expect(providers.find(provider => provider.id === 'kw')?.searchKinds).not.toContain('album')
     expect(providers.find(provider => provider.id === 'wy')?.searchKinds).toEqual(expect.arrayContaining(['track', 'playlist', 'album']))
+    expect(providers.find(provider => provider.id === 'wy')?.leaderboards).toBe(true)
     await app.close()
   })
 

@@ -23,7 +23,7 @@ import { addDislikeInfo } from '@renderer/core/dislikeList'
 // import { checkMusicFileAvailable } from '@renderer/utils/music'
 
 let gettingUrlId = ''
-const createGettingUrlId = (musicInfo: LX.Music.MusicInfo | LX.Download.ListItem) => {
+const createGettingUrlId = (musicInfo: TuneFlow.Music.MusicInfo | TuneFlow.Download.ListItem) => {
   const tInfo = 'progress' in musicInfo ? musicInfo.metadata.musicInfo.meta.toggleMusicInfo : musicInfo.meta.toggleMusicInfo
   return `${musicInfo.id}_${tInfo?.id ?? ''}`
 }
@@ -41,7 +41,7 @@ const createDelayNextTimeout = (delay: number) => {
     clearDelayNextTimeout()
     timeout = setTimeout(() => {
       timeout = null
-      if (window.lx.isPlayedStop) return
+      if (window.tuneflow.isPlayedStop) return
       console.warn('delay next timeout timeout', delay)
       void playNext(true)
     }, delay)
@@ -58,13 +58,13 @@ const { addDelayNextTimeout: addLoadTimeout, clearDelayNextTimeout: clearLoadTim
 /**
  * 检查音乐信息是否已更改
  */
-const diffCurrentMusicInfo = (curMusicInfo: LX.Music.MusicInfo | LX.Download.ListItem): boolean => {
+const diffCurrentMusicInfo = (curMusicInfo: TuneFlow.Music.MusicInfo | TuneFlow.Download.ListItem): boolean => {
   // return curMusicInfo !== playMusicInfo.musicInfo || isPlay.value
   return gettingUrlId != createGettingUrlId(curMusicInfo) || curMusicInfo.id != playMusicInfo.musicInfo?.id || isPlay.value
 }
 
 let cancelDelayRetry: (() => void) | null = null
-const delayRetry = async(musicInfo: LX.Music.MusicInfo | LX.Download.ListItem, isRefresh = false): Promise<string | null> => {
+const delayRetry = async(musicInfo: TuneFlow.Music.MusicInfo | TuneFlow.Download.ListItem, isRefresh = false): Promise<string | null> => {
   // if (cancelDelayRetry) cancelDelayRetry()
   return new Promise<string | null>((resolve, reject) => {
     const time = getRandom(2, 6)
@@ -85,7 +85,7 @@ const delayRetry = async(musicInfo: LX.Music.MusicInfo | LX.Download.ListItem, i
     }
   })
 }
-const getMusicPlayUrl = async(musicInfo: LX.Music.MusicInfo | LX.Download.ListItem, isRefresh = false, isRetryed = false): Promise<string | null> => {
+const getMusicPlayUrl = async(musicInfo: TuneFlow.Music.MusicInfo | TuneFlow.Download.ListItem, isRefresh = false, isRetryed = false): Promise<string | null> => {
   // this.musicInfo.url = await getMusicPlayUrl(targetSong, type)
   setAllStatus(window.i18n.t('player__getting_url'))
   if (appSetting['player.autoSkipOnError']) addLoadTimeout()
@@ -107,13 +107,13 @@ const getMusicPlayUrl = async(musicInfo: LX.Music.MusicInfo | LX.Download.ListIt
       },
     })
   }).then(url => {
-    if (window.lx.isPlayedStop || diffCurrentMusicInfo(musicInfo)) return null
+    if (window.tuneflow.isPlayedStop || diffCurrentMusicInfo(musicInfo)) return null
 
     return url
   // eslint-disable-next-line @typescript-eslint/promise-function-async
   }).catch(err => {
     // console.log('err', err.message)
-    if (window.lx.isPlayedStop ||
+    if (window.tuneflow.isPlayedStop ||
       diffCurrentMusicInfo(musicInfo) ||
       err.message == requestMsg.cancelRequest) return null
 
@@ -125,7 +125,7 @@ const getMusicPlayUrl = async(musicInfo: LX.Music.MusicInfo | LX.Download.ListIt
   })
 }
 
-export const setMusicUrl = (musicInfo: LX.Music.MusicInfo | LX.Download.ListItem, isRefresh?: boolean) => {
+export const setMusicUrl = (musicInfo: TuneFlow.Music.MusicInfo | TuneFlow.Download.ListItem, isRefresh?: boolean) => {
   // if (appSetting['player.autoSkipOnError']) addLoadTimeout()
   if (!diffCurrentMusicInfo(musicInfo)) return
   if (cancelDelayRetry) cancelDelayRetry()
@@ -147,7 +147,7 @@ export const setMusicUrl = (musicInfo: LX.Music.MusicInfo | LX.Download.ListItem
 }
 
 // 恢复上次播放的状态
-const handleRestorePlay = async(restorePlayInfo: LX.Player.SavedPlayInfo) => {
+const handleRestorePlay = async(restorePlayInfo: TuneFlow.Player.SavedPlayInfo) => {
   const musicInfo = playMusicInfo.musicInfo
   if (!musicInfo) return
 
@@ -169,7 +169,7 @@ const handleRestorePlay = async(restorePlayInfo: LX.Player.SavedPlayInfo) => {
     setMusicInfo({
       lrc: lyricInfo.lyric,
       tlrc: lyricInfo.tlyric,
-      lxlrc: lyricInfo.lxlyric,
+      verbatimLyric: lyricInfo.verbatimLyric,
       rlrc: lyricInfo.rlyric,
       rawlrc: lyricInfo.rawlrcInfo.lyric,
     })
@@ -180,18 +180,18 @@ const handleRestorePlay = async(restorePlayInfo: LX.Player.SavedPlayInfo) => {
     setAllStatus(window.i18n.t('lyric__load_error'))
   })
 
-  if (appSetting['player.togglePlayMethod'] == 'random' && !playMusicInfo.isTempPlay) addPlayedList({ ...playMusicInfo as LX.Player.PlayMusicInfo })
+  if (appSetting['player.togglePlayMethod'] == 'random' && !playMusicInfo.isTempPlay) addPlayedList({ ...playMusicInfo as TuneFlow.Player.PlayMusicInfo })
 }
 
 
 // 处理音乐播放
 const handlePlay = () => {
-  window.lx.isPlayedStop &&= false
+  window.tuneflow.isPlayedStop &&= false
 
   resetRandomNextMusicInfo()
-  if (window.lx.restorePlayInfo) {
-    void handleRestorePlay(window.lx.restorePlayInfo)
-    window.lx.restorePlayInfo = null
+  if (window.tuneflow.restorePlayInfo) {
+    void handleRestorePlay(window.tuneflow.restorePlayInfo)
+    window.tuneflow.restorePlayInfo = null
     return
   }
   const musicInfo = playMusicInfo.musicInfo
@@ -205,7 +205,7 @@ const handlePlay = () => {
   clearLoadTimeout()
 
 
-  if (appSetting['player.togglePlayMethod'] == 'random' && !playMusicInfo.isTempPlay) addPlayedList({ ...(playMusicInfo as LX.Player.PlayMusicInfo) })
+  if (appSetting['player.togglePlayMethod'] == 'random' && !playMusicInfo.isTempPlay) addPlayedList({ ...(playMusicInfo as TuneFlow.Player.PlayMusicInfo) })
 
   setMusicUrl(musicInfo)
 
@@ -220,7 +220,7 @@ const handlePlay = () => {
     setMusicInfo({
       lrc: lyricInfo.lyric,
       tlrc: lyricInfo.tlyric,
-      lxlrc: lyricInfo.lxlyric,
+      verbatimLyric: lyricInfo.verbatimLyric,
       rlrc: lyricInfo.rlyric,
       rawlrc: lyricInfo.rawlrcInfo.lyric,
     })
@@ -272,7 +272,7 @@ const handleToggleStop = () => {
 }
 
 const randomNextMusicInfo = {
-  info: null as LX.Player.PlayMusicInfo | null,
+  info: null as TuneFlow.Player.PlayMusicInfo | null,
   // index: -1,
 }
 export const resetRandomNextMusicInfo = () => {
@@ -282,7 +282,7 @@ export const resetRandomNextMusicInfo = () => {
   }
 }
 
-export const getNextPlayMusicInfo = async(): Promise<LX.Player.PlayMusicInfo | null> => {
+export const getNextPlayMusicInfo = async(): Promise<TuneFlow.Player.PlayMusicInfo | null> => {
   if (tempPlayList.length) { // 如果稍后播放列表存在歌曲则直接播放改列表的歌曲
     const playMusicInfo = tempPlayList[0]
     return playMusicInfo
@@ -364,7 +364,7 @@ export const getNextPlayMusicInfo = async(): Promise<LX.Player.PlayMusicInfo | n
   return nextPlayMusicInfo
 }
 
-const handlePlayNext = (playMusicInfo: LX.Player.PlayMusicInfo) => {
+const handlePlayNext = (playMusicInfo: TuneFlow.Player.PlayMusicInfo) => {
   // pause()
   setPlayMusicInfo(playMusicInfo.listId, playMusicInfo.musicInfo, playMusicInfo.isTempPlay)
   handlePlay()
@@ -581,7 +581,7 @@ export const playPrev = async(isAutoToggle = false): Promise<void> => {
  * 恢复播放
  */
 export const play = () => {
-  window.lx.isPlayedStop &&= false
+  window.tuneflow.isPlayedStop &&= false
   if (playMusicInfo.musicInfo == null) return
   if (isEmpty()) {
     if (createGettingUrlId(playMusicInfo.musicInfo) != gettingUrlId) setMusicUrl(playMusicInfo.musicInfo)
@@ -611,7 +611,7 @@ export const stop = () => {
  * 播放、暂停播放切换
  */
 export const togglePlay = () => {
-  window.lx.isPlayedStop &&= false
+  window.tuneflow.isPlayedStop &&= false
   if (isPlay.value) {
     pause()
   } else {

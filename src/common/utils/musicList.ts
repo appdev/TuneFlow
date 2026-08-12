@@ -1,6 +1,6 @@
 import { arrPushByPosition, arrShuffle, similar, sortInsert } from './common'
 
-const intervalSeconds = (musicInfo: LX.Music.MusicInfo): number => {
+const intervalSeconds = (musicInfo: TuneFlow.Music.MusicInfo): number => {
   if (!musicInfo.interval) return 0
   const parts = musicInfo.interval.split(':')
   let seconds = 0
@@ -16,11 +16,11 @@ export type SortFieldName = 'name' | 'singer' | 'albumName' | 'interval' | 'sour
 export type SortFieldType = 'up' | 'down' | 'random'
 
 export const sortListMusicInfo = async(
-  list: LX.Music.MusicInfo[],
+  list: TuneFlow.Music.MusicInfo[],
   sortType: SortFieldType,
   fieldName: SortFieldName,
   localeId: string,
-): Promise<LX.Music.MusicInfo[]> => {
+): Promise<TuneFlow.Music.MusicInfo[]> => {
   if (sortType === 'random') {
     arrShuffle(list)
     return list
@@ -41,10 +41,10 @@ const variantPattern = /(\(|（).+(\)|）)/g
 const punctuationPattern = /\s|'|\.|,|，|&|"|、|\(|\)|（|）|`|~|-|<|>|\||\/|\]|\[/g
 
 export const filterDuplicateMusic = async(
-  list: LX.Music.MusicInfo[],
+  list: TuneFlow.Music.MusicInfo[],
   filterVariants = true,
-): Promise<Array<{ id: string, index: number, musicInfo: LX.Music.MusicInfo }>> => {
-  interface Entry { id: string, index: number, musicInfo: LX.Music.MusicInfo }
+): Promise<Array<{ id: string, index: number, musicInfo: TuneFlow.Music.MusicInfo }>> => {
+  interface Entry { id: string, index: number, musicInfo: TuneFlow.Music.MusicInfo }
   const groups = new Map<string, Entry[]>()
   const duplicates = new Set<string>()
   for (const [index, musicInfo] of list.entries()) {
@@ -62,10 +62,10 @@ export const filterDuplicateMusic = async(
   return [...duplicates].sort((left, right) => left.localeCompare(right)).flatMap(name => groups.get(name)!)
 }
 
-export const searchListMusic = (list: LX.Music.MusicInfo[], text: string): LX.Music.MusicInfo[] => {
-  const nameMatches = new Set<LX.Music.MusicInfo>()
-  const singerMatches = new Set<LX.Music.MusicInfo>()
-  const albumMatches = new Set<LX.Music.MusicInfo>()
+export const searchListMusic = (list: TuneFlow.Music.MusicInfo[], text: string): TuneFlow.Music.MusicInfo[] => {
+  const nameMatches = new Set<TuneFlow.Music.MusicInfo>()
+  const singerMatches = new Set<TuneFlow.Music.MusicInfo>()
+  const albumMatches = new Set<TuneFlow.Music.MusicInfo>()
   const textLower = text.toLowerCase()
   for (const musicInfo of list) {
     if (musicInfo.name?.toLowerCase().includes(textLower)) nameMatches.add(musicInfo)
@@ -74,7 +74,7 @@ export const searchListMusic = (list: LX.Music.MusicInfo[], text: string): LX.Mu
   }
 
   const fuzzyPattern = new RegExp(text.split('').map(value => value.replace(/[.*+?^${}()|[\]\\]/, '\\$&')).join('.*') + '.*', 'i')
-  const fuzzyMatches: Array<{ num: number, data: LX.Music.MusicInfo }> = []
+  const fuzzyMatches: Array<{ num: number, data: TuneFlow.Music.MusicInfo }> = []
   for (const musicInfo of list) {
     if (nameMatches.has(musicInfo) || singerMatches.has(musicInfo) || albumMatches.has(musicInfo)) continue
     const candidate = `${musicInfo.name}${musicInfo.singer}${musicInfo.meta.albumName ?? ''}`
@@ -90,10 +90,10 @@ export const searchListMusic = (list: LX.Music.MusicInfo[], text: string): LX.Mu
 }
 
 export const createSortedList = (
-  list: LX.Music.MusicInfo[],
+  list: TuneFlow.Music.MusicInfo[],
   position: number,
   ids: string[],
-): LX.Music.MusicInfo[] => {
+): TuneFlow.Music.MusicInfo[] => {
   const byId = new Map(list.map(item => [item.id, item]))
   const selected = ids.flatMap(id => {
     const item = byId.get(id)

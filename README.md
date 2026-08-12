@@ -1,10 +1,12 @@
-<p align="center"><img width="200" src="./doc/images/icon.png" alt="LX Music logo"></p>
+<p align="center"><img width="200" src="./TuneFlow.png" alt="TuneFlow logo"></p>
 
-<h1 align="center">LX Music Server + Web</h1>
+<h1 align="center">TuneFlow · 音流</h1>
 
-<p align="center">由 Node.js Service 提供数据与媒体能力、在浏览器运行 Vue UI 的音乐软件</p>
+<p align="center">支持自行部署的 TuneFlow Web 音乐服务</p>
 
 ## 说明
+
+TuneFlow（音流）将音乐搜索、播放、列表、下载与本地媒体库带到浏览器：由 Node.js Service 提供数据与媒体能力，通过 Vue Web UI 使用。你可以将它部署在自己的电脑或服务器上，也可以使用 Docker 运行；播放列表、下载内容和其他持久化数据均由你自己的存储空间管理。
 
 所用技术栈：
 
@@ -23,17 +25,19 @@ npm run build:service
 npm run start:server
 ```
 
-浏览器打开 <http://127.0.0.1:3124>。默认只监听本机回环地址；若要在可信局域网使用，可显式设置 `LX_HOST=0.0.0.0`，并通过主机防火墙或反向代理限制访问。本服务没有身份认证、多租户隔离或公网安全加固，请勿直接暴露到互联网。
+浏览器打开 <http://127.0.0.1:3124>。默认只监听本机回环地址；若要在可信局域网使用，可显式设置 `TUNEFLOW_HOST=0.0.0.0`，并通过主机防火墙或反向代理限制访问。本服务没有身份认证、多租户隔离或公网安全加固，请勿直接暴露到互联网。
 
 ### 数据存储目录
 
-Service 独占所有持久化数据。数据根目录由 `LX_STORAGE_ROOT` 指定，默认是当前工作目录下的 `./data`。其中包括：
+Service 独占所有持久化数据。数据根目录由 `TUNEFLOW_STORAGE_ROOT` 指定，默认是当前工作目录下的 `./data`。其中包括：
 
-- `lx.data.db`，以及 Service 运行时可能存在的 WAL/SHM 文件；
-- 固定下载与本地媒体目录 `${LX_STORAGE_ROOT}/audio`；
+- `tuneflow.data.db`，以及 Service 运行时可能存在的 WAL/SHM 文件；
+- 固定下载与本地媒体目录 `${TUNEFLOW_STORAGE_ROOT}/audio`；
 - `sources/`、`tmp/`、`logs/` 与 `backups/` 支持目录。
 
-浏览器和 API 都不能选择或修改宿主机下载路径。Docker 中 `LX_STORAGE_ROOT=/data`，因此媒体固定存放在 `/data/audio`。备份时应先停止 Service 并备份完整数据根目录，而不是只复制数据库文件。
+浏览器和 API 都不能选择或修改宿主机下载路径。Docker 中 `TUNEFLOW_STORAGE_ROOT=/data`，因此媒体固定存放在 `/data/audio`。备份时应先停止 Service 并备份完整数据根目录，而不是只复制数据库文件。
+
+从旧版本升级时，Service 会在同一数据根目录内自动迁移旧数据库文件和旧设置键。Docker 服务名与数据卷已改为 TuneFlow 命名；使用旧命名卷的部署需先将完整 `/data` 内容复制到 `tuneflow-data` 卷，再启动新容器。
 
 ## 功能边界
 
@@ -41,7 +45,7 @@ Web UI 支持导航、搜索、列表、播放、Service 下载与本地媒体�
 
 ## 用户界面
 
-<p><img width="100%" src="./doc/images/app.png" alt="LX Music Web UI"></p>
+<p><img width="100%" src="./doc/images/app.png" alt="TuneFlow 音流 Web UI"></p>
 
 ## 贡献代码
 
@@ -59,11 +63,11 @@ Web UI 支持导航、搜索、列表、播放、Service 下载与本地媒体�
 
 ## 项目协议
 
-本项目基于 [Apache License 2.0](https://github.com/lyswhut/lx-music-desktop/blob/master/LICENSE) 许可证发行，以下协议是对于 Apache License 2.0 的补充，如有冲突，以以下协议为准。
+TuneFlow 基于 [Apache License 2.0](./LICENSE) 许可证发行。以下协议是对于 Apache License 2.0 的补充，如有冲突，以以下协议为准。
 
 ---
 
-*词语约定：本协议中的“本项目”指本仓库的 LX Music Server + Web 项目；“使用者”指签署本协议的使用者；“官方音乐平台”指对本项目内置的包括酷我、酷狗、咪咕等音乐源的官方平台统称；“版权数据”指包括但不限于图像、音频、名字等在内的他人拥有所属版权的数据。*
+*词语约定：本协议中的“本项目”指本仓库的 TuneFlow 项目；“使用者”指签署本协议的使用者；“官方音乐平台”指对本项目内置的包括酷我、酷狗、咪咕等音乐源的官方平台统称；“版权数据”指包括但不限于图像、音频、名字等在内的他人拥有所属版权的数据。*
 
 ### 一、数据来源
 
@@ -109,4 +113,4 @@ Web UI 支持导航、搜索、列表、播放、Service 下载与本地媒体�
 
 ---
 
-若对此有疑问请 mail to: lyswhut+qq.com (请将 `+` 替换为 `@`)
+若对此有疑问，请通过 [TuneFlow Issues](https://github.com/appdev/TuneFlow/issues) 联系项目维护者。

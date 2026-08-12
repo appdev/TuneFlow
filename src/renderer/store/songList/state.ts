@@ -6,34 +6,34 @@ export interface SortInfo {
   id: string
 }
 
-export const sources: LX.OnlineSource[] = markRaw([])
-export const sortList = markRaw<Partial<Record<LX.OnlineSource, SortInfo[]>>>({})
+export const sources: TuneFlow.OnlineSource[] = markRaw([])
+export const sortList = markRaw<Partial<Record<TuneFlow.OnlineSource, SortInfo[]>>>({})
 
 for (const source of music.sources) {
-  const songList = music[source.id as LX.OnlineSource]?.songList
+  const songList = music[source.id as TuneFlow.OnlineSource]?.songList
   if (!songList) continue
-  sources.push(source.id as LX.OnlineSource)
-  sortList[source.id as LX.OnlineSource] = songList.sortList as SortInfo[]
+  sources.push(source.id as TuneFlow.OnlineSource)
+  sortList[source.id as TuneFlow.OnlineSource] = songList.sortList as SortInfo[]
 }
 
-export interface TagInfoItem<T extends LX.OnlineSource = LX.OnlineSource> {
+export interface TagInfoItem<T extends TuneFlow.OnlineSource = TuneFlow.OnlineSource> {
   parent_id: string
   parent_name: string
   id: string
   name: string
   source: T
 }
-export interface TagInfoTypeItem<T extends LX.OnlineSource = LX.OnlineSource> {
+export interface TagInfoTypeItem<T extends TuneFlow.OnlineSource = TuneFlow.OnlineSource> {
   name: string
   list: Array<TagInfoItem<T>>
 }
-export interface TagInfo<Source extends LX.OnlineSource = LX.OnlineSource> {
+export interface TagInfo<Source extends TuneFlow.OnlineSource = TuneFlow.OnlineSource> {
   tags: Array<TagInfoTypeItem<Source>>
   hotTag: Array<TagInfoItem<Source>>
   source: Source
 }
 
-type Tags = Partial<Record<LX.OnlineSource, TagInfo>>
+type Tags = Partial<Record<TuneFlow.OnlineSource, TagInfo>>
 
 export const tags = shallowReactive<Tags>({})
 
@@ -47,7 +47,7 @@ export interface ListInfoItem {
   img: string
   // grade: basic.favorcnt / 10,
   desc: string | null
-  source: LX.OnlineSource
+  source: TuneFlow.OnlineSource
   total?: string
 }
 export interface ListInfo {
@@ -57,14 +57,14 @@ export interface ListInfo {
   limit: number
   key: string | null
   noItemLabel: string
-  source?: LX.OnlineSource
+  source?: TuneFlow.OnlineSource
   tagId: string
   sortId: string
 }
 
 export interface ListDetailInfo {
-  list: LX.Music.MusicInfoOnline[]
-  source: LX.OnlineSource
+  list: TuneFlow.Music.MusicInfoOnline[]
+  source: TuneFlow.OnlineSource
   desc: string | null
   total: number
   page: number

@@ -1,7 +1,7 @@
 import { onBeforeUnmount, onMounted } from '@common/utils/vueTools'
 
 export default (handleBack: () => void) => {
-  const handle_key_backspace_down = (event: LX.KeyDownEevent) => {
+  const handle_key_backspace_down = (event: TuneFlow.KeyDownEevent) => {
     if (event.event && (event.event.repeat || (event.event.target as HTMLElement).classList.contains('key-bind'))) return
     handleBack()
   }

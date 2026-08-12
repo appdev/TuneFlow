@@ -1,11 +1,14 @@
 <template>
   <div :class="$style.aside">
-    <div :class="$style.logo">L X</div>
+    <div :class="$style.logo" title="TuneFlow · 音流">
+      <img :src="tuneFlowIcon" alt="TuneFlow 音流">
+    </div>
     <NavBar />
   </div>
 </template>
 
 <script setup>
+import tuneFlowIcon from '../../../../../TuneFlow.png'
 import NavBar from './NavBar.vue'
 
 </script>
@@ -30,15 +33,19 @@ import NavBar from './NavBar.vue'
 
 .logo {
   box-sizing: border-box;
-  padding: 0 13%;
+  padding: 7px 13%;
   height: 50px;
-  color: var(--color-nav-font);
   opacity: .8;
   flex: none;
   text-align: center;
-  line-height: 50px;
-  font-weight: bold;
   // -webkit-app-region: no-drag;
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
 }
 
 </style>

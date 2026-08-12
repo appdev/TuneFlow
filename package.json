@@ -1,7 +1,7 @@
 {
-  "name": "lx-music-server-web",
+  "name": "tuneflow-server-web",
   "version": "2.12.2",
-  "description": "LX Music Web UI and Node.js Service",
+  "description": "TuneFlow (音流) Web UI and Node.js Service",
   "scripts": {
     "build:theme": "node src/common/theme/createThemes.js",
     "dev:web": "cross-env NODE_ENV=development webpack serve --config build-config/renderer-web/webpack.config.dev.js",
@@ -12,10 +12,10 @@
     "verify:service-isolated": "node build-config/server/verify-isolated-package.mjs",
     "fingerprint:worktree": "node build-config/server/worktree-fingerprint.mjs",
     "build:service": "npm run build:web && npm run prepare:service",
-    "dev:server": "npm run prepare:service && cross-env LX_SERVICE_NODE_MODULES=./dist/server/node_modules node dist/server/index.cjs",
+    "dev:server": "npm run prepare:service && cross-env TUNEFLOW_SERVICE_NODE_MODULES=./dist/server/node_modules node dist/server/index.cjs",
     "start:server": "node dist/server/index.cjs",
-    "lint": "eslint --ext .ts,.js,.vue -f node_modules/eslint-formatter-friendly src",
-    "lint:fix": "eslint --ext .ts,.js,.vue -f node_modules/eslint-formatter-friendly --fix src",
+    "lint": "eslint --ext .ts,.js,.vue -f stylish src",
+    "lint:fix": "eslint --ext .ts,.js,.vue -f stylish --fix src",
     "test": "npm run test:unit && npm run test:build-config",
     "test:unit": "vitest run",
     "test:build-config": "node --test build-config/server/*.test.mjs",
@@ -34,7 +34,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lyswhut/lx-music-desktop.git"
+    "url": "git+https://github.com/appdev/TuneFlow.git"
   },
   "keywords": [
     "music-player",
@@ -42,15 +42,12 @@
     "server",
     "vuejs3"
   ],
-  "author": {
-    "name": "lyswhut",
-    "email": "lyswhut@qq.com"
-  },
+  "author": "TuneFlow contributors",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/lyswhut/lx-music-desktop/issues"
+    "url": "https://github.com/appdev/TuneFlow/issues"
   },
-  "homepage": "https://github.com/lyswhut/lx-music-desktop#readme",
+  "homepage": "https://github.com/appdev/TuneFlow#readme",
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "@tsconfig/recommended": "^1.0.13",
@@ -69,7 +66,6 @@
     "eslint": "^8.57.1",
     "eslint-config-standard": "^17.1.0",
     "eslint-config-standard-with-typescript": "^43.0.1",
-    "eslint-formatter-friendly": "github:lyswhut/eslint-friendly-formatter#2170d1320e2fad13615a9dcf229669f0bb473a53",
     "eslint-plugin-html": "^8.1.4",
     "eslint-plugin-vue": "^9.33.0",
     "eslint-plugin-vue-pug": "^0.6.2",
@@ -113,7 +109,7 @@
     "image-size": "^1.1.0",
     "jschardet": "^3.1.4",
     "music-metadata": "^11.12.3",
-    "needle": "github:lyswhut/needle#93299ac841b7e9a9f82ca7279b88aaaeda404060",
+    "needle": "^3.5.0",
     "node-id3": "^0.2.9",
     "pako": "1.0.11",
     "qrc-decoder": "1.0.2",

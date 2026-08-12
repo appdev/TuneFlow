@@ -9,10 +9,10 @@ const easeInOutQuad = (t: number, b: number, c: number, d: number): number => {
 type Noop = () => void
 const noop: Noop = () => {}
 type ScrollElement<T> = {
-  lx_scrollLockKey?: number
-  lx_scrollNextParams?: [ScrollElement<HTMLElement>, number, number, Noop]
-  lx_scrollTimeout?: number
-  lx_scrollDelayTimeout?: number
+  tuneFlow_scrollLockKey?: number
+  tuneFlow_scrollNextParams?: [ScrollElement<HTMLElement>, number, number, Noop]
+  tuneFlow_scrollTimeout?: number
+  tuneFlow_scrollDelayTimeout?: number
 } & T
 
 const handleScrollY = (element: ScrollElement<HTMLElement>, to: number, duration = 300, fn = noop): Noop => {
@@ -21,14 +21,14 @@ const handleScrollY = (element: ScrollElement<HTMLElement>, to: number, duration
     return noop
   }
   const clean = () => {
-    element.lx_scrollLockKey = undefined
-    element.lx_scrollNextParams = undefined
-    if (element.lx_scrollTimeout) window.clearTimeout(element.lx_scrollTimeout)
-    element.lx_scrollTimeout = undefined
+    element.tuneFlow_scrollLockKey = undefined
+    element.tuneFlow_scrollNextParams = undefined
+    if (element.tuneFlow_scrollTimeout) window.clearTimeout(element.tuneFlow_scrollTimeout)
+    element.tuneFlow_scrollTimeout = undefined
   }
-  if (element.lx_scrollLockKey) {
-    element.lx_scrollNextParams = [element, to, duration, fn]
-    element.lx_scrollLockKey = -1
+  if (element.tuneFlow_scrollLockKey) {
+    element.tuneFlow_scrollNextParams = [element, to, duration, fn]
+    element.tuneFlow_scrollLockKey = -1
     return clean
   }
   // @ts-expect-error
@@ -54,10 +54,10 @@ const handleScrollY = (element: ScrollElement<HTMLElement>, to: number, duration
   let key = Math.random()
 
   const animateScroll = () => {
-    element.lx_scrollTimeout = undefined
-    // if (element.lx_scrollLockKey != key) {
-    if (element.lx_scrollNextParams && currentTime > duration * 0.75) {
-      const [_element, to, duration, fn] = element.lx_scrollNextParams
+    element.tuneFlow_scrollTimeout = undefined
+    // if (element.tuneFlow_scrollLockKey != key) {
+    if (element.tuneFlow_scrollNextParams && currentTime > duration * 0.75) {
+      const [_element, to, duration, fn] = element.tuneFlow_scrollNextParams
       clean()
       handleScrollY(_element, to, duration, fn)
       return
@@ -71,10 +71,10 @@ const handleScrollY = (element: ScrollElement<HTMLElement>, to: number, duration
       element.scrollTop = val
     }
     if (currentTime < duration) {
-      element.lx_scrollTimeout = window.setTimeout(animateScroll, increment)
+      element.tuneFlow_scrollTimeout = window.setTimeout(animateScroll, increment)
     } else {
-      if (element.lx_scrollNextParams) {
-        const [_element, to, duration, fn] = element.lx_scrollNextParams
+      if (element.tuneFlow_scrollNextParams) {
+        const [_element, to, duration, fn] = element.tuneFlow_scrollNextParams
         clean()
         handleScrollY(_element, to, duration, fn)
       } else {
@@ -84,7 +84,7 @@ const handleScrollY = (element: ScrollElement<HTMLElement>, to: number, duration
     }
   }
 
-  element.lx_scrollLockKey = key
+  element.tuneFlow_scrollLockKey = key
   animateScroll()
 
   return clean
@@ -99,22 +99,22 @@ const handleScrollY = (element: ScrollElement<HTMLElement>, to: number, duration
   */
 export const scrollTo = (element: ScrollElement<HTMLElement>, to: number, duration = 300, fn = () => {}, delay = 0): () => void => {
   let cancelFn: () => void
-  if (element.lx_scrollDelayTimeout != null) {
-    window.clearTimeout(element.lx_scrollDelayTimeout)
-    element.lx_scrollDelayTimeout = undefined
+  if (element.tuneFlow_scrollDelayTimeout != null) {
+    window.clearTimeout(element.tuneFlow_scrollDelayTimeout)
+    element.tuneFlow_scrollDelayTimeout = undefined
   }
   if (delay) {
     let scrollCancelFn: Noop
     cancelFn = () => {
-      if (element.lx_scrollDelayTimeout == null) {
+      if (element.tuneFlow_scrollDelayTimeout == null) {
         scrollCancelFn?.()
       } else {
-        window.clearTimeout(element.lx_scrollDelayTimeout)
-        element.lx_scrollDelayTimeout = undefined
+        window.clearTimeout(element.tuneFlow_scrollDelayTimeout)
+        element.tuneFlow_scrollDelayTimeout = undefined
       }
     }
-    element.lx_scrollDelayTimeout = window.setTimeout(() => {
-      element.lx_scrollDelayTimeout = undefined
+    element.tuneFlow_scrollDelayTimeout = window.setTimeout(() => {
+      element.tuneFlow_scrollDelayTimeout = undefined
       scrollCancelFn = handleScrollY(element, to, duration, fn)
     }, delay)
   } else {
@@ -128,14 +128,14 @@ const handleScrollX = (element: ScrollElement<HTMLElement>, to: number, duration
     return noop
   }
   const clean = () => {
-    element.lx_scrollLockKey = undefined
-    element.lx_scrollNextParams = undefined
-    if (element.lx_scrollTimeout) window.clearTimeout(element.lx_scrollTimeout)
-    element.lx_scrollTimeout = undefined
+    element.tuneFlow_scrollLockKey = undefined
+    element.tuneFlow_scrollNextParams = undefined
+    if (element.tuneFlow_scrollTimeout) window.clearTimeout(element.tuneFlow_scrollTimeout)
+    element.tuneFlow_scrollTimeout = undefined
   }
-  if (element.lx_scrollLockKey) {
-    element.lx_scrollNextParams = [element, to, duration, fn]
-    element.lx_scrollLockKey = -1
+  if (element.tuneFlow_scrollLockKey) {
+    element.tuneFlow_scrollNextParams = [element, to, duration, fn]
+    element.tuneFlow_scrollLockKey = -1
     return clean
   }
   // @ts-expect-error
@@ -161,9 +161,9 @@ const handleScrollX = (element: ScrollElement<HTMLElement>, to: number, duration
   let key = Math.random()
 
   const animateScroll = () => {
-    element.lx_scrollTimeout = undefined
-    if (element.lx_scrollNextParams && currentTime > duration * 0.75) {
-      const [_element, to, duration, fn] = element.lx_scrollNextParams
+    element.tuneFlow_scrollTimeout = undefined
+    if (element.tuneFlow_scrollNextParams && currentTime > duration * 0.75) {
+      const [_element, to, duration, fn] = element.tuneFlow_scrollNextParams
       clean()
       handleScrollY(_element, to, duration, fn)
       return
@@ -177,10 +177,10 @@ const handleScrollX = (element: ScrollElement<HTMLElement>, to: number, duration
       element.scrollLeft = val
     }
     if (currentTime < duration) {
-      element.lx_scrollTimeout = window.setTimeout(animateScroll, increment)
+      element.tuneFlow_scrollTimeout = window.setTimeout(animateScroll, increment)
     } else {
-      if (element.lx_scrollNextParams) {
-        const [_element, to, duration, fn] = element.lx_scrollNextParams
+      if (element.tuneFlow_scrollNextParams) {
+        const [_element, to, duration, fn] = element.tuneFlow_scrollNextParams
         clean()
         handleScrollY(_element, to, duration, fn)
       } else {
@@ -189,7 +189,7 @@ const handleScrollX = (element: ScrollElement<HTMLElement>, to: number, duration
       }
     }
   }
-  element.lx_scrollLockKey = key
+  element.tuneFlow_scrollLockKey = key
   animateScroll()
   return clean
 }
@@ -203,22 +203,22 @@ const handleScrollX = (element: ScrollElement<HTMLElement>, to: number, duration
   */
 export const scrollXTo = (element: ScrollElement<HTMLElement>, to: number, duration = 300, fn = () => {}, delay = 0): () => void => {
   let cancelFn: Noop
-  if (element.lx_scrollDelayTimeout != null) {
-    window.clearTimeout(element.lx_scrollDelayTimeout)
-    element.lx_scrollDelayTimeout = undefined
+  if (element.tuneFlow_scrollDelayTimeout != null) {
+    window.clearTimeout(element.tuneFlow_scrollDelayTimeout)
+    element.tuneFlow_scrollDelayTimeout = undefined
   }
   if (delay) {
     let scrollCancelFn: Noop
     cancelFn = () => {
-      if (element.lx_scrollDelayTimeout == null) {
+      if (element.tuneFlow_scrollDelayTimeout == null) {
         scrollCancelFn?.()
       } else {
-        window.clearTimeout(element.lx_scrollDelayTimeout)
-        element.lx_scrollDelayTimeout = undefined
+        window.clearTimeout(element.tuneFlow_scrollDelayTimeout)
+        element.tuneFlow_scrollDelayTimeout = undefined
       }
     }
-    element.lx_scrollDelayTimeout = window.setTimeout(() => {
-      element.lx_scrollDelayTimeout = undefined
+    element.tuneFlow_scrollDelayTimeout = window.setTimeout(() => {
+      element.tuneFlow_scrollDelayTimeout = undefined
       scrollCancelFn = handleScrollX(element, to, duration, fn)
     }, delay)
   } else {
@@ -233,14 +233,14 @@ const handleScrollXR = (element: ScrollElement<HTMLElement>, to: number, duratio
     return noop
   }
   const clean = () => {
-    element.lx_scrollLockKey = undefined
-    element.lx_scrollNextParams = undefined
-    if (element.lx_scrollTimeout) window.clearTimeout(element.lx_scrollTimeout)
-    element.lx_scrollTimeout = undefined
+    element.tuneFlow_scrollLockKey = undefined
+    element.tuneFlow_scrollNextParams = undefined
+    if (element.tuneFlow_scrollTimeout) window.clearTimeout(element.tuneFlow_scrollTimeout)
+    element.tuneFlow_scrollTimeout = undefined
   }
-  if (element.lx_scrollLockKey) {
-    element.lx_scrollNextParams = [element, to, duration, fn]
-    element.lx_scrollLockKey = -1
+  if (element.tuneFlow_scrollLockKey) {
+    element.tuneFlow_scrollNextParams = [element, to, duration, fn]
+    element.tuneFlow_scrollLockKey = -1
     return clean
   }
   // @ts-expect-error
@@ -267,9 +267,9 @@ const handleScrollXR = (element: ScrollElement<HTMLElement>, to: number, duratio
   let key = Math.random()
 
   const animateScroll = () => {
-    element.lx_scrollTimeout = undefined
-    if (element.lx_scrollNextParams && currentTime > duration * 0.75) {
-      const [_element, to, duration, fn] = element.lx_scrollNextParams
+    element.tuneFlow_scrollTimeout = undefined
+    if (element.tuneFlow_scrollNextParams && currentTime > duration * 0.75) {
+      const [_element, to, duration, fn] = element.tuneFlow_scrollNextParams
       clean()
       handleScrollY(_element, to, duration, fn)
       return
@@ -284,10 +284,10 @@ const handleScrollXR = (element: ScrollElement<HTMLElement>, to: number, duratio
       element.scrollLeft = val
     }
     if (currentTime < duration) {
-      element.lx_scrollTimeout = window.setTimeout(animateScroll, increment)
+      element.tuneFlow_scrollTimeout = window.setTimeout(animateScroll, increment)
     } else {
-      if (element.lx_scrollNextParams) {
-        const [_element, to, duration, fn] = element.lx_scrollNextParams
+      if (element.tuneFlow_scrollNextParams) {
+        const [_element, to, duration, fn] = element.tuneFlow_scrollNextParams
         clean()
         handleScrollY(_element, to, duration, fn)
       } else {
@@ -297,7 +297,7 @@ const handleScrollXR = (element: ScrollElement<HTMLElement>, to: number, duratio
     }
   }
 
-  element.lx_scrollLockKey = key
+  element.tuneFlow_scrollLockKey = key
   animateScroll()
 
   return clean
@@ -312,22 +312,22 @@ const handleScrollXR = (element: ScrollElement<HTMLElement>, to: number, duratio
   */
 export const scrollXRTo = (element: ScrollElement<HTMLElement>, to: number, duration = 300, fn = () => {}, delay = 0): () => void => {
   let cancelFn: Noop
-  if (element.lx_scrollDelayTimeout != null) {
-    window.clearTimeout(element.lx_scrollDelayTimeout)
-    element.lx_scrollDelayTimeout = undefined
+  if (element.tuneFlow_scrollDelayTimeout != null) {
+    window.clearTimeout(element.tuneFlow_scrollDelayTimeout)
+    element.tuneFlow_scrollDelayTimeout = undefined
   }
   if (delay) {
     let scrollCancelFn: Noop
     cancelFn = () => {
-      if (element.lx_scrollDelayTimeout == null) {
+      if (element.tuneFlow_scrollDelayTimeout == null) {
         scrollCancelFn?.()
       } else {
-        window.clearTimeout(element.lx_scrollDelayTimeout)
-        element.lx_scrollDelayTimeout = undefined
+        window.clearTimeout(element.tuneFlow_scrollDelayTimeout)
+        element.tuneFlow_scrollDelayTimeout = undefined
       }
     }
-    element.lx_scrollDelayTimeout = window.setTimeout(() => {
-      element.lx_scrollDelayTimeout = undefined
+    element.tuneFlow_scrollDelayTimeout = window.setTimeout(() => {
+      element.tuneFlow_scrollDelayTimeout = undefined
       scrollCancelFn = handleScrollXR(element, to, duration, fn)
     }, delay)
   } else {
@@ -342,6 +342,6 @@ export const scrollXRTo = (element: ScrollElement<HTMLElement>, to: number, dura
   */
 let dom_title = typeof document === 'undefined' ? undefined : document.getElementsByTagName('title')[0]
 export const setTitle = (title: string | null) => {
-  title ||= 'LX Music'
+  title ||= 'TuneFlow · 音流'
   if (dom_title != null) dom_title.innerText = title
 }

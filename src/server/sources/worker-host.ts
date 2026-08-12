@@ -254,7 +254,7 @@ export class SourceWorkerHost {
           lyric: lyric.lyric,
           tlyric: typeof lyric.tlyric === 'string' && lyric.tlyric.length < 5_120 ? lyric.tlyric : null,
           rlyric: typeof lyric.rlyric === 'string' && lyric.rlyric.length < 5_120 ? lyric.rlyric : null,
-          lxlyric: typeof lyric.lxlyric === 'string' && lyric.lxlyric.length < 8_192 ? lyric.lxlyric : null,
+          verbatimLyric: typeof lyric.verbatimLyric === 'string' && lyric.verbatimLyric.length < 8_192 ? lyric.verbatimLyric : null,
         }
       }
       default: throw new SourceServiceError('SOURCE_PROTOCOL_ERROR', 'Unsupported source action')

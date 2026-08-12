@@ -38,7 +38,7 @@ export const dateFormat2 = (time: number): string => {
  */
 let dom_title = typeof document === 'undefined' ? undefined : document.getElementsByTagName('title')[0]
 export const setTitle = (title: string | null) => {
-  title ||= 'LX Music'
+  title ||= 'TuneFlow · 音流'
   if (dom_title != null) dom_title.innerText = title
 }
 
@@ -63,7 +63,7 @@ export const getFontSizeWithScreen = (screenWidth: number = window.innerWidth): 
 }
 
 
-export const deduplicationList = <T extends LX.Music.MusicInfo>(list: T[]): T[] => {
+export const deduplicationList = <T extends TuneFlow.Music.MusicInfo>(list: T[]): T[] => {
   const ids = new Set<string>()
   return list.filter(s => {
     if (ids.has(s.id)) return false
@@ -73,7 +73,7 @@ export const deduplicationList = <T extends LX.Music.MusicInfo>(list: T[]): T[] 
 }
 
 export const langS2T = async(str: string) => {
-  return window.lx.worker.main.langS2t(Buffer.from(str).toString('base64')).then(b64 => Buffer.from(b64, 'base64').toString())
+  return window.tuneflow.worker.main.langS2t(Buffer.from(str).toString('base64')).then(b64 => Buffer.from(b64, 'base64').toString())
 }
 
 export const decodeName = (str: string | null = '') => {

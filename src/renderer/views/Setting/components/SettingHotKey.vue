@@ -50,7 +50,7 @@ export default {
   name: 'SettingHotKey',
   setup() {
     const t = useI18n()
-    const currentHotKey = ref(window.lx.appHotKeyConfig)
+    const currentHotKey = ref(window.tuneflow.appHotKeyConfig)
     const hotKeyConfig = ref({})
     let targetInput
     let nextKey = ''
@@ -65,14 +65,14 @@ export default {
     }
 
     const handleFocus = (event, info) => {
-      window.lx.isEditingHotKey = true
+      window.tuneflow.isEditingHotKey = true
       nextKey = hotKeyConfig.value[info.name]?.key ?? ''
       targetInput = event.target
       targetInput.value = tip = t('setting__hot_key_tip_input')
     }
 
     const handleBlur = (_event, info) => {
-      window.lx.isEditingHotKey = false
+      window.tuneflow.isEditingHotKey = false
       if (targetInput?.value == tip) {
         targetInput.value = nextKey ? formatHotKeyName(nextKey) : ''
         targetInput = null
@@ -99,7 +99,7 @@ export default {
     window.app_event.on('keyDown', handleKeyDown)
     onBeforeUnmount(() => {
       window.app_event.off('keyDown', handleKeyDown)
-      window.lx.isEditingHotKey = false
+      window.tuneflow.isEditingHotKey = false
     })
 
     return { allHotKeys, currentHotKey, hotKeyConfig, formatHotKeyName, handleFocus, handleBlur }

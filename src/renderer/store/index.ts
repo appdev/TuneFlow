@@ -23,7 +23,7 @@ export const getSourceI18nPrefix = () => {
 
 export const sourceNames = computed(() => {
   const prefix = getSourceI18nPrefix()
-  const sourceNames: Record<LX.OnlineSource | 'all', string> = {
+  const sourceNames: Record<TuneFlow.OnlineSource | 'all', string> = {
     kw: 'kw',
     tx: 'tx',
     kg: 'kg',
@@ -32,7 +32,7 @@ export const sourceNames = computed(() => {
     all: window.i18n.t(prefix + 'all' as any),
   }
   for (const { id } of music.sources) {
-    sourceNames[id as LX.OnlineSource] = window.i18n.t(prefix + id as any)
+    sourceNames[id as TuneFlow.OnlineSource] = window.i18n.t(prefix + id as any)
   }
 
   return sourceNames
@@ -40,10 +40,10 @@ export const sourceNames = computed(() => {
 
 export const isShowPact = ref(false)
 export const userApi = reactive<{
-  list: LX.UserApi.UserApiInfo[]
+  list: TuneFlow.UserApi.UserApiInfo[]
   status: boolean
   message?: string
-  apis: Partial<LX.UserApi.UserApiSources>
+  apis: Partial<TuneFlow.UserApi.UserApiSources>
 }>({
   list: [],
   status: false,
@@ -54,13 +54,13 @@ export const userApi = reactive<{
 export const themeShouldUseDarkColors = ref(window.shouldUseDarkColors)
 
 
-export const qualityList = shallowRef<LX.QualityList>({})
-export const setQualityList = (_qualityList: LX.QualityList) => {
+export const qualityList = shallowRef<TuneFlow.QualityList>({})
+export const setQualityList = (_qualityList: TuneFlow.QualityList) => {
   qualityList.value = _qualityList
 }
 
 export const themeId = ref('green')
-export const themeInfo: LX.ThemeInfo = {
+export const themeInfo: TuneFlow.ThemeInfo = {
   themes: [],
   userThemes: [],
   dataPath: '',

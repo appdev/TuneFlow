@@ -6,7 +6,7 @@ import { addHistoryWord } from '@renderer/store/search/action'
 import type { SearchListInfo, ListInfoItem } from '@renderer/store/search/songlist'
 import { search as searchSongList, listInfos } from '@renderer/store/search/songlist'
 
-export type SearchSource = LX.OnlineSource | 'all'
+export type SearchSource = TuneFlow.OnlineSource | 'all'
 
 export default () => {
   const listRef = ref<any>(null)
@@ -28,12 +28,12 @@ export default () => {
     if (text.length) void addHistoryWord(text)
     void searchSongList(text, page, source).then((list: ListInfoItem[]) => {
       // console.log(list)
-      if (listInfo.value.key == window.lx.songListInfo.searchKey && window.lx.songListInfo.searchPosition) {
+      if (listInfo.value.key == window.tuneflow.songListInfo.searchKey && window.tuneflow.songListInfo.searchPosition) {
         void nextTick(() => {
-          listRef.value?.scrollTo(window.lx.songListInfo.searchPosition)
+          listRef.value?.scrollTo(window.tuneflow.songListInfo.searchPosition)
         })
       } else if (list.length && listRef.value) {
-        window.lx.songListInfo.searchKey = null
+        window.tuneflow.songListInfo.searchKey = null
         void nextTick(() => {
           listRef.value.scrollTo(0)
         })
@@ -42,8 +42,8 @@ export default () => {
   }
 
   onBeforeRouteLeave(() => {
-    window.lx.songListInfo.searchKey = listInfo.value.key
-    if (listRef.value) window.lx.songListInfo.searchPosition = listRef.value.getScrollTop()
+    window.tuneflow.songListInfo.searchKey = listInfo.value.key
+    if (listRef.value) window.tuneflow.songListInfo.searchPosition = listRef.value.getScrollTop()
   })
 
 

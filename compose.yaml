@@ -1,11 +1,11 @@
 services:
-  lx-music-web:
+  tuneflow-web:
     build:
       context: .
     ports:
       - "127.0.0.1:3124:3124"
     volumes:
-      - lx-music-data:/data
+      - tuneflow-data:/data
     init: true
     restart: unless-stopped
     healthcheck:
@@ -16,4 +16,4 @@ services:
       retries: 3
 
 volumes:
-  lx-music-data:
+  tuneflow-data:

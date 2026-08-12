@@ -46,7 +46,7 @@ export const CatalogLyrics = Type.Object({
   lyric: Type.String(),
   tlyric: Type.Optional(Type.Union([Type.String(), Type.Null()])),
   rlyric: Type.Optional(Type.Union([Type.String(), Type.Null()])),
-  lxlyric: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  verbatimLyric: Type.Optional(Type.Union([Type.String(), Type.Null()])),
 }, { additionalProperties: false })
 
 export const Playlist = Type.Object({

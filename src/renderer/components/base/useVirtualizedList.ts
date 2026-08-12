@@ -9,7 +9,7 @@
 // import { scrollTo } from '@common/utils/renderer'
 
 // interface ListItem {
-//   item: LX.Music.MusicInfo
+//   item: TuneFlow.Music.MusicInfo
 //   top: number
 //   style: {
 //     position: string
@@ -22,7 +22,7 @@
 //   key: string
 // }
 
-// export default (props: { list: LX.Music.MusicInfo[], itemHeight: number }) => {
+// export default (props: { list: TuneFlow.Music.MusicInfo[], itemHeight: number }) => {
 //   const dom_scrollContainer = ref<HTMLElement | null>(null)
 //   const dom_list = ref<HTMLElement | null>(null)
 //   let startIndex = -1

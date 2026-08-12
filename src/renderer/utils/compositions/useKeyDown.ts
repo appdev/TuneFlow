@@ -5,7 +5,7 @@ export default (name: string) => {
   const down = `key_${name}_down`
   const up = `key_${name}_up`
 
-  const handle_key_down = (event: LX.KeyDownEevent) => {
+  const handle_key_down = (event: TuneFlow.KeyDownEevent) => {
     if (!keyDown.value) {
       // console.log(event)
       switch ((event.event?.target as HTMLElement).tagName) {

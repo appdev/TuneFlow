@@ -46,6 +46,18 @@
         </span>
       </li>
       <li
+        class="default-list" :class="[$style.listsItem, {[$style.active]: localList.id == listId}, {[$style.fetching]: fetchingListStatus[localList.id]}]"
+        :aria-label="$t(localList.name)" :aria-selected="localList.id == listId"
+        @click="handleListToggle(localList.id)"
+      >
+        <span :class="$style.listsLabel">
+          <transition name="list-active">
+            <svg-icon v-if="localList.id == listId" name="angle-right-solid" :class="$style.activeIcon" />
+          </transition>
+          {{ $t(localList.name) }}
+        </span>
+      </li>
+      <li
         v-for="(item, index) in userLists"
         :key="item.id" class="user-list"
         :class="[$style.listsItem, {[$style.active]: item.id == listId}, {[$style.clicked]: rightClickItemIndex == index}, {[$style.fetching]: fetchingListStatus[item.id]}]"
@@ -86,7 +98,7 @@ import DuplicateMusicModal from './components/DuplicateMusicModal.vue'
 import ListSortModal from './components/ListSortModal.vue'
 import ListUpdateModal from './components/ListUpdateModal.vue'
 
-import { defaultList, loveList, userLists, fetchingListStatus } from '@renderer/store/list/state'
+import { defaultList, loveList, localList, userLists, fetchingListStatus } from '@renderer/store/list/state'
 import { removeUserList } from '@renderer/store/list/action'
 
 import { ref, watch } from '@common/utils/vueTools'
@@ -207,7 +219,7 @@ export default {
     })
 
     watch(() => userLists, (lists) => {
-      if (lists.some(l => l.id == props.listId)) return
+      if ([defaultList.id, loveList.id, localList.id].includes(props.listId) || lists.some(l => l.id == props.listId)) return
       void router.replace({
         path: '/list',
         query: {
@@ -220,6 +232,7 @@ export default {
       rightClickItemIndex,
       defaultList,
       loveList,
+      localList,
       userLists,
       fetchingListStatus,
       dom_lists_list,

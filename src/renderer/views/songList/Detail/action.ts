@@ -7,9 +7,9 @@ import { playList } from '@renderer/core/player/action'
 import { LIST_IDS } from '@common/constants'
 import { toMD5 } from '@renderer/utils'
 
-const getListId = (id: string, source: LX.OnlineSource) => `${source}__${id}`
+const getListId = (id: string, source: TuneFlow.OnlineSource) => `${source}__${id}`
 
-export const addSongListDetail = async(id: string, source: LX.OnlineSource, name?: string) => {
+export const addSongListDetail = async(id: string, source: TuneFlow.OnlineSource, name?: string) => {
   // console.log(this.listDetail.info)
   // if (!this.listDetail.info.name) return
   const listId = getListId(id, source)
@@ -35,7 +35,7 @@ export const addSongListDetail = async(id: string, source: LX.OnlineSource, name
   })
 }
 
-export const playSongListDetail = async(id: string, source: LX.OnlineSource, list?: LX.Music.MusicInfoOnline[], index: number = 0) => {
+export const playSongListDetail = async(id: string, source: TuneFlow.OnlineSource, list?: TuneFlow.Music.MusicInfoOnline[], index: number = 0) => {
   let isPlayingList = false
   // console.log(list)
   const listId = getListId(id, source)

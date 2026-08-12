@@ -1,4 +1,4 @@
-declare namespace LX {
+declare namespace TuneFlow {
   interface IpcRendererEvent {
     event: null
   }
@@ -6,6 +6,6 @@ declare namespace LX {
     event: null
     params: T
   }
-  type IpcRendererEventListener = (params: LX.IpcRendererEvent) => any
-  type IpcRendererEventListenerParams<T> = (params: LX.IpcRendererEventParams<T>) => any
+  type IpcRendererEventListener = (params: TuneFlow.IpcRendererEvent) => any
+  type IpcRendererEventListenerParams<T> = (params: TuneFlow.IpcRendererEventParams<T>) => any
 }

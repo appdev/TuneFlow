@@ -4,10 +4,10 @@ import path from 'node:path'
 import { createServer } from '../app'
 
 const main = async(): Promise<void> => {
-  const temporaryRoot = mkdtempSync(path.join(os.tmpdir(), 'lx-openapi-build-'))
+  const temporaryRoot = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-openapi-build-'))
   const webRoot = path.join(temporaryRoot, 'web')
   mkdirSync(webRoot)
-  writeFileSync(path.join(webRoot, 'index.html'), '<!doctype html><title>LX</title>')
+  writeFileSync(path.join(webRoot, 'index.html'), '<!doctype html><title>TuneFlow · 音流</title>')
   const app = await createServer({ storageRoot: temporaryRoot, webRoot, host: '127.0.0.1', port: 0 })
   try {
     const response = await app.inject({ method: 'GET', url: '/openapi.json' })

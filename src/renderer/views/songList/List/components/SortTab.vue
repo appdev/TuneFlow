@@ -39,7 +39,7 @@ const handleToggle = (id) => {
   })
 }
 watch(() => props.source, async(source) => {
-  // const source = (await getLeaderboardSetting()).source as LX.OnlineSource
+  // const source = (await getLeaderboardSetting()).source as TuneFlow.OnlineSource
   if (!source) return
   let _list = sortList[source] ?? []
   list.splice(0, list.length, ..._list)

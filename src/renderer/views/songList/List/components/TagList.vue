@@ -60,7 +60,7 @@ const handleToggleTag = (id) => {
 }
 watch(() => props.source, async(source) => {
   if (!source) return
-  // const source = (await getLeaderboardSetting()).source as LX.OnlineSource
+  // const source = (await getLeaderboardSetting()).source as TuneFlow.OnlineSource
   let tagInfo = tags[source]
   // console.log(await getTags(source))
   if (tagInfo == null) setTags(tagInfo = await getTags(source), source)

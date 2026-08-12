@@ -12,8 +12,8 @@ interface WebProcess {
 }
 
 const runtime = globalThis as typeof globalThis & {
-  lxWebCapabilities?: WebRuntime['capabilities']
-  lxWebRuntime?: WebRuntime
+  tuneFlowWebCapabilities?: WebRuntime['capabilities']
+  tuneFlowWebRuntime?: WebRuntime
   process?: WebProcess
 }
 
@@ -33,7 +33,7 @@ runtime.process.versions.app ??= 'web'
 runtime.process.env ??= {}
 runtime.process.env.NODE_ENV ??= 'production'
 runtime.process.on ??= () => {}
-runtime.lxWebRuntime = getWebRuntime()
-runtime.lxWebCapabilities = runtime.lxWebRuntime.capabilities
+runtime.tuneFlowWebRuntime = getWebRuntime()
+runtime.tuneFlowWebCapabilities = runtime.tuneFlowWebRuntime.capabilities
 
 void import('@renderer/main')

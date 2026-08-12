@@ -15,7 +15,7 @@ export const getExt = (quality: string): DownloadExtension => {
   }
 }
 
-export const getMusicType = (musicInfo: LX.Music.MusicInfoOnline, requested: LX.Quality, qualityList?: LX.QualityList): LX.Quality => {
+export const getMusicType = (musicInfo: TuneFlow.Music.MusicInfoOnline, requested: TuneFlow.Quality, qualityList?: TuneFlow.QualityList): TuneFlow.Quality => {
   if (qualityList == null) {
     return musicInfo.meta._qualitys[requested] == null
       ? (QUALITYS.slice(Math.max(0, QUALITYS.indexOf(requested))).find(quality => musicInfo.meta._qualitys[quality] != null) ?? '128k')

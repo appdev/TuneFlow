@@ -8,7 +8,7 @@ import {
   // saveUserSoundEffectPitchShifterPresetList,
 } from '@renderer/utils/ipc'
 
-let userEqPresetList: LX.SoundEffect.EQPreset[] | null = null
+let userEqPresetList: TuneFlow.SoundEffect.EQPreset[] | null = null
 
 export const getUserEQPresetList = async() => {
   if (userEqPresetList == null) {
@@ -17,7 +17,7 @@ export const getUserEQPresetList = async() => {
   }
   return userEqPresetList
 }
-export const saveUserEQPreset = async(preset: LX.SoundEffect.EQPreset) => {
+export const saveUserEQPreset = async(preset: TuneFlow.SoundEffect.EQPreset) => {
   if (userEqPresetList == null) {
     // eslint-disable-next-line require-atomic-updates
     userEqPresetList = reactive(await getUserSoundEffectEQPresetList())
@@ -39,7 +39,7 @@ export const removeUserEQPreset = async(id: string) => {
 }
 
 
-let userConvolutionPresetList: LX.SoundEffect.ConvolutionPreset[] | null = null
+let userConvolutionPresetList: TuneFlow.SoundEffect.ConvolutionPreset[] | null = null
 export const getUserConvolutionPresetList = async() => {
   if (userConvolutionPresetList == null) {
     // eslint-disable-next-line require-atomic-updates
@@ -47,7 +47,7 @@ export const getUserConvolutionPresetList = async() => {
   }
   return userConvolutionPresetList
 }
-export const saveUserConvolutionPreset = async(preset: LX.SoundEffect.ConvolutionPreset) => {
+export const saveUserConvolutionPreset = async(preset: TuneFlow.SoundEffect.ConvolutionPreset) => {
   if (userConvolutionPresetList == null) {
     // eslint-disable-next-line require-atomic-updates
     userConvolutionPresetList = reactive(await getUserSoundEffectConvolutionPresetList())
@@ -69,14 +69,14 @@ export const removeUserConvolutionPreset = async(id: string) => {
 }
 
 
-// let userPitchShifterPresetList: LX.SoundEffect.PitchShifterPreset[] | null = null
+// let userPitchShifterPresetList: TuneFlow.SoundEffect.PitchShifterPreset[] | null = null
 // export const getUserPitchShifterPresetList = async() => {
 //   if (userEqPresetList == null) {
 //     userPitchShifterPresetList = reactive(await getUserSoundEffectPitchShifterPresetList())
 //   }
 //   return userPitchShifterPresetList
 // }
-// export const saveUserPitchShifterPreset = async(preset: LX.SoundEffect.PitchShifterPreset) => {
+// export const saveUserPitchShifterPreset = async(preset: TuneFlow.SoundEffect.PitchShifterPreset) => {
 //   if (userPitchShifterPresetList == null) {
 //     userPitchShifterPresetList = reactive(await getUserSoundEffectPitchShifterPresetList())
 //   }

@@ -6,7 +6,7 @@ import { fetchServiceLyric, fetchServicePicture } from './lyrics'
 describe('Web lyric client', () => {
   it('requests lyrics from the same-origin Service endpoint', async() => {
     const fetchImpl = vi.fn(async() => new Response(JSON.stringify({
-      data: { lyric: '[00:01.000]line', tlyric: '', rlyric: '', lxlyric: '' },
+      data: { lyric: '[00:01.000]line', tlyric: '', rlyric: '', verbatimLyric: '' },
     }), { status: 200, headers: { 'content-type': 'application/json' } }))
     const musicInfo = { id: 'tx_1', source: 'tx', name: 'Song', singer: 'Artist', meta: { songId: 1 } }
 

@@ -15,7 +15,7 @@ export default () => {
 
     const { playIndex } = updatePlayIndex()
     if (playIndex < 0) { // 歌曲被移除
-      if (window.lx.isPlayedStop) {
+      if (window.tuneflow.isPlayedStop) {
         stop()
         setTimeout(() => {
           setPlayMusicInfo(null, null)

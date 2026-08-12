@@ -14,7 +14,7 @@ afterEach(() => {
 
 describe('createWorktreeManifest', () => {
   it('hashes tracked and non-ignored untracked bytes but excludes ignored artifacts', () => {
-    const root = mkdtempSync(path.join(os.tmpdir(), 'lx-fingerprint-'))
+    const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-fingerprint-'))
     roots.push(root)
     execFileSync('git', ['init', '--quiet'], { cwd: root })
     writeFileSync(path.join(root, '.gitignore'), 'ignored/\n')
@@ -35,7 +35,7 @@ describe('createWorktreeManifest', () => {
   })
 
   it('omits tracked files deleted from the worktree', () => {
-    const root = mkdtempSync(path.join(os.tmpdir(), 'lx-fingerprint-'))
+    const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-fingerprint-'))
     roots.push(root)
     execFileSync('git', ['init', '--quiet'], { cwd: root })
     writeFileSync(path.join(root, 'deleted.txt'), 'tracked-before-removal')

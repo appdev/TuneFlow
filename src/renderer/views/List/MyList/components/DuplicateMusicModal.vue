@@ -68,7 +68,7 @@ export default {
     }
     const handleFilterList = async() => {
       // console.time('filter')
-      duplicateList.value = markRawList(await window.lx.worker.main.filterDuplicateMusic(await getListMusics(props.listInfo.id)))
+      duplicateList.value = markRawList(await window.tuneflow.worker.main.filterDuplicateMusic(await getListMusics(props.listInfo.id)))
       // console.log(duplicateList.value)
       // console.timeEnd('filter')
     }

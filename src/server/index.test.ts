@@ -53,7 +53,7 @@ afterEach(() => {
 
 describe('Service process shutdown', () => {
   it('starts and gracefully stops the actual dev:server command', async() => {
-    const storageRoot = mkdtempSync(path.join(os.tmpdir(), 'lx-service-signal-'))
+    const storageRoot = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-service-signal-'))
     const webRoot = path.join(storageRoot, 'web')
     roots.push(storageRoot)
     mkdirSync(webRoot)
@@ -63,11 +63,11 @@ describe('Service process shutdown', () => {
       cwd: process.cwd(),
       env: {
         ...process.env,
-        LX_STORAGE_ROOT: storageRoot,
-        LX_WEB_ROOT: webRoot,
-        LX_HOST: '127.0.0.1',
-        LX_PORT: String(port),
-        LX_SKIP_ELECTRON_REBUILD: '1',
+        TUNEFLOW_STORAGE_ROOT: storageRoot,
+        TUNEFLOW_WEB_ROOT: webRoot,
+        TUNEFLOW_HOST: '127.0.0.1',
+        TUNEFLOW_PORT: String(port),
+        TUNEFLOW_SKIP_ELECTRON_REBUILD: '1',
       },
       stdio: 'pipe',
       detached: process.platform !== 'win32',

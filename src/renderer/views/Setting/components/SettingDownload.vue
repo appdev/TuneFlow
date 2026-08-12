@@ -39,7 +39,7 @@ dd
   .gap-top
     base-checkbox(id="setting_download_isEmbedLyricR" :disabled="!appSetting['download.isEmbedLyric']" :model-value="appSetting['download.isEmbedLyricR']" :label="$t('setting__download_embed_rlyric')" @update:model-value="updateSetting({'download.isEmbedLyricR': $event})")
   .gap-top
-    base-checkbox(id="setting_download_isEmbedLyricLx" :disabled="!appSetting['download.isEmbedLyric']" :model-value="appSetting['download.isEmbedLyricLx']" :label="$t('setting__download_embed_lxlyric')" @update:model-value="updateSetting({'download.isEmbedLyricLx': $event})")
+    base-checkbox(id="setting_download_isEmbedVerbatimLyric" :disabled="!appSetting['download.isEmbedLyric']" :model-value="appSetting['download.isEmbedVerbatimLyric']" :label="$t('setting__download_embed_verbatim_lyric')" @update:model-value="updateSetting({'download.isEmbedVerbatimLyric': $event})")
 dd(:aria-label="$t('setting__download_lyric_title')")
   h3#download_lyric {{ $t('setting__download_lyric') }}
   .gap-top
@@ -49,7 +49,7 @@ dd(:aria-label="$t('setting__download_lyric_title')")
   .gap-top
     base-checkbox(id="setting_download_isDownloadRLrc" :disabled="!appSetting['download.isDownloadLrc']" :model-value="appSetting['download.isDownloadRLrc']" :label="$t('setting__download_rlyric')" @update:model-value="updateSetting({'download.isDownloadRLrc': $event})")
   .gap-top
-    base-checkbox(id="setting_download_isDownloadLxLrc" :disabled="!appSetting['download.isDownloadLrc']" :model-value="appSetting['download.isDownloadLxLrc']" :label="$t('setting__download_lxlyric')" @update:model-value="updateSetting({'download.isDownloadLxLrc': $event})")
+    base-checkbox(id="setting_download_isDownloadVerbatimLyric" :disabled="!appSetting['download.isDownloadLrc']" :model-value="appSetting['download.isDownloadVerbatimLyric']" :label="$t('setting__download_verbatim_lyric')" @update:model-value="updateSetting({'download.isDownloadVerbatimLyric': $event})")
 dd
   h3#download_lyric_format
     | {{ $t('setting__download_lyric_format') }}

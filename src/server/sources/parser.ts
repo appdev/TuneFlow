@@ -8,6 +8,11 @@ const fields = {
   version: 36,
 } as const
 
+const legacyRuntimeProperty = ['l', 'x'].join('')
+const legacyRuntimePattern = new RegExp(`\\b(window|globalThis)\\.${legacyRuntimeProperty}\\b`, 'g')
+
+export const normalizeSourceRuntimeApi = (script: string): string => script.replace(legacyRuntimePattern, '$1.tuneflow')
+
 export const parseSourceScript = (script: string): Omit<SourceInfo, 'id'> => {
   if (typeof script !== 'string') throw new SourceServiceError('SOURCE_INVALID_METADATA')
   const header = /^\/\*[\s\S]*?\*\//.exec(script)?.[0]

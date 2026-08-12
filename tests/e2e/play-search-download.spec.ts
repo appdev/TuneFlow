@@ -15,7 +15,7 @@ const RESTART_CONSOLE_ERRORS = new Set([
   'Failed to load resource: net::ERR_CONNECTION_REFUSED',
   'Failed to load resource: net::ERR_INCOMPLETE_CHUNKED_ENCODING',
 ])
-const RESTART_CONSOLE_ERROR_FIRST_LINES = new Set(['WebRuntimeError: Unable to reach LX Music Service'])
+const RESTART_CONSOLE_ERROR_FIRST_LINES = new Set(['WebRuntimeError: Unable to reach TuneFlow Service'])
 
 const createWave = (): Buffer => {
   const dataSize = DURATION_SECONDS * SAMPLE_RATE * CHANNELS * BYTES_PER_SAMPLE
@@ -77,7 +77,7 @@ const audioState = async(page: Page): Promise<{ currentTime: number, duration: n
 })
 
 test('original UI persists search, list, playback, download, library, settings, and theme across Service restart', async({ browser }) => {
-  const root = mkdtempSync(path.join(os.tmpdir(), 'lx-task8-e2e-'))
+  const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-task8-e2e-'))
   const storageRoot = path.join(root, 'storage')
   const longWave = createWave()
   const shortMp3 = readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3'))
@@ -97,13 +97,13 @@ test('original UI persists search, list, playback, download, library, settings, 
       env: {
         ...process.env,
         NODE_ENV: 'test',
-        LX_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS: '1',
+        TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS: '1',
         HTTP_PROXY: `http://127.0.0.1:${proxyPort}`,
-        LX_HOST: '127.0.0.1',
-        LX_PORT: String(servicePort),
-        LX_STORAGE_ROOT: storageRoot,
-        LX_WEB_ROOT: path.join(process.cwd(), 'dist/web'),
-        LX_SERVICE_NODE_MODULES: path.join(process.cwd(), 'dist/server/node_modules'),
+        TUNEFLOW_HOST: '127.0.0.1',
+        TUNEFLOW_PORT: String(servicePort),
+        TUNEFLOW_STORAGE_ROOT: storageRoot,
+        TUNEFLOW_WEB_ROOT: path.join(process.cwd(), 'dist/web'),
+        TUNEFLOW_SERVICE_NODE_MODULES: path.join(process.cwd(), 'dist/server/node_modules'),
       },
       stdio: 'ignore',
     })
@@ -134,7 +134,7 @@ test('original UI persists search, list, playback, download, library, settings, 
     const audioPort = await listen(audioServer)
 
     const fixtureSource = `/*\n * @name Task8 production acceptance\n * @description Deterministic source for Server Web E2E\n * @version 1.0.0\n */
-window.lx.on(window.lx.EVENT_NAMES.request, async ({ source, action, info }) => {
+window.tuneflow.on(window.tuneflow.EVENT_NAMES.request, async ({ source, action, info }) => {
   if (source !== 'kw') throw new Error('unexpected source')
   if (action === 'musicUrl') {
     const id = info && info.musicInfo && info.musicInfo.songmid
@@ -146,7 +146,7 @@ window.lx.on(window.lx.EVENT_NAMES.request, async ({ source, action, info }) => 
   if (action === 'pic') return 'http://artistpicserver.kuwo.cn/task8.jpg'
   throw new Error('unexpected source action')
 })
-window.lx.send(window.lx.EVENT_NAMES.inited, {
+window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
   sources: { kw: { type: 'music', actions: ['musicUrl', 'lyric', 'pic'], qualitys: ['128k'] } },
 })`
 
@@ -198,6 +198,7 @@ window.lx.send(window.lx.EVENT_NAMES.inited, {
     const restartDiagnostics: string[] = []
     const diagnostics: string[] = []
     let restartingService = false
+    let simulatingFailedPlayback = false
     page.on('pageerror', error => {
       const diagnostic = `pageerror:${error.message}`
       diagnostics.push(diagnostic)
@@ -207,7 +208,7 @@ window.lx.send(window.lx.EVENT_NAMES.inited, {
       const diagnostic = `console:${message.text()}`
       const firstLine = message.text().split('\n', 1)[0]
       if (restartingService && (RESTART_CONSOLE_ERRORS.has(message.text()) || RESTART_CONSOLE_ERROR_FIRST_LINES.has(firstLine))) restartDiagnostics.push(`console:${firstLine}`)
-      else diagnostics.push(diagnostic)
+      else if (!simulatingFailedPlayback || message.text() !== 'Failed to load resource: the server responded with a status of 502 (Bad Gateway)') diagnostics.push(diagnostic)
     })
     page.on('response', response => {
       const pathname = new URL(response.url()).pathname
@@ -292,10 +293,10 @@ window.lx.send(window.lx.EVENT_NAMES.inited, {
     await page.evaluate(() => {
       const target = window as unknown as {
         __task8DownloadEvents?: Array<Array<{ status: string }>>
-        lxWebRuntime: { on: (name: string, listener: (event: { params: Array<{ status: string }> }) => void) => void }
+        tuneFlowWebRuntime: { on: (name: string, listener: (event: { params: Array<{ status: string }> }) => void) => void }
       }
       target.__task8DownloadEvents = []
-      target.lxWebRuntime.on('service_downloads', event => target.__task8DownloadEvents!.push(event.params.map(item => ({ status: item.status }))))
+      target.tuneFlowWebRuntime.on('service_downloads', event => target.__task8DownloadEvents!.push(event.params.map(item => ({ status: item.status }))))
     })
     await downloadRow.click({ button: 'right' })
     await page.getByRole('tab', { name: 'Download', exact: true }).click()
@@ -309,6 +310,23 @@ window.lx.send(window.lx.EVENT_NAMES.inited, {
       const body = await (await fetch(`${origin}/api/v1/library/tracks`)).json() as { data: Array<{ id: string, name: string, streamUrl: string }> }
       return body.data.find(item => item.name === 'Task8 downloaded - Fixture artist') ?? null
     }, { timeout: 20_000 }).not.toBeNull()
+
+    let rejectNextOnlineStream = true
+    simulatingFailedPlayback = true
+    await page.route(`${origin}/api/v1/streams/**`, async route => {
+      if (!rejectNextOnlineStream) return route.continue()
+      rejectNextOnlineStream = false
+      await route.fulfill({ status: 502, contentType: 'text/plain', body: 'simulated stale playback URL' })
+    })
+    const localFallbackResponsesBefore = libraryResponses.length
+    await page.goto(`${origin}/#/search?source=kw&type=music&text=task8`, { waitUntil: 'networkidle' })
+    const downloadedFallback = page.getByText('Task8 downloaded', { exact: true })
+    await downloadedFallback.waitFor({ state: 'visible' })
+    await downloadedFallback.locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " list-item ")]').dblclick()
+    await expect.poll(() => libraryResponses.slice(localFallbackResponsesBefore).some(item => item.status === 200 || item.status === 206)).toBe(true)
+    await expect.poll(async() => (await audioState(page)).src).toMatch(/\/api\/v1\/library\/tracks\/[a-f0-9]{64}\/stream/)
+    await page.unroute(`${origin}/api/v1/streams/**`)
+    simulatingFailedPlayback = false
 
     await page.reload({ waitUntil: 'networkidle' })
     await page.getByRole('tab', { name: 'Your Library' }).click()

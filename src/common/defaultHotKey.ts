@@ -1,6 +1,6 @@
 import { HOTKEY_PLAYER, HOTKEY_COMMON } from './hotKey'
 
-const local: LX.HotKeyConfig = {
+const local: TuneFlow.HotKeyConfig = {
   enable: true,
   keys: {
     'mod+f5': {
@@ -26,7 +26,7 @@ const local: LX.HotKeyConfig = {
   },
 }
 
-const global: LX.HotKeyConfig = {
+const global: TuneFlow.HotKeyConfig = {
   enable: false,
   keys: {},
 }

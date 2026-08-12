@@ -12,12 +12,12 @@ const fixtureSource = `/*
  * @description Source used only by the prepared Service browser smoke test
  * @version 1.0.0
  */
-window.lx.on(window.lx.EVENT_NAMES.request, async ({ source, action }) => {
+window.tuneflow.on(window.tuneflow.EVENT_NAMES.request, async ({ source, action }) => {
   if (source !== 'fixture') throw new Error('unexpected source')
   if (action === 'lyric') return { lyric: 'fixture lyric' }
   throw new Error('unexpected action')
 })
-window.lx.send(window.lx.EVENT_NAMES.inited, {
+window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
   sources: { fixture: { type: 'music', actions: ['lyric'], qualitys: [] } },
 })`
 
@@ -60,7 +60,7 @@ const waitForHealth = async(origin: string): Promise<void> => {
 }
 
 describe('Task 4 prepared Service UI smoke', () => {
-  const root = mkdtempSync(path.join(os.tmpdir(), 'lx-task4-ui-'))
+  const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-task4-ui-'))
   let sourceServer: http.Server | undefined
   let proxyServer: http.Server | undefined
   let service: ChildProcess | undefined
@@ -109,11 +109,11 @@ describe('Task 4 prepared Service UI smoke', () => {
       env: {
         ...process.env,
         HTTP_PROXY: `http://127.0.0.1:${proxyPort}`,
-        LX_HOST: '127.0.0.1',
-        LX_PORT: String(servicePort),
-        LX_STORAGE_ROOT: path.join(root, 'storage'),
-        LX_WEB_ROOT: path.join(process.cwd(), 'dist/web'),
-        LX_SERVICE_NODE_MODULES: path.join(process.cwd(), 'dist/server/node_modules'),
+        TUNEFLOW_HOST: '127.0.0.1',
+        TUNEFLOW_PORT: String(servicePort),
+        TUNEFLOW_STORAGE_ROOT: path.join(root, 'storage'),
+        TUNEFLOW_WEB_ROOT: path.join(process.cwd(), 'dist/web'),
+        TUNEFLOW_SERVICE_NODE_MODULES: path.join(process.cwd(), 'dist/server/node_modules'),
       },
       stdio: 'ignore',
     })

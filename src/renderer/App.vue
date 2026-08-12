@@ -24,14 +24,14 @@ onMounted(() => {
   document.getElementById('root').style.display = 'block'
 
   // const styles = getComputedStyle(document.documentElement)
-  // window.lxData.bubbleCursor = new BubbleCursor({
+  // window.tuneFlowData.bubbleCursor = new BubbleCursor({
   //   fillStyle: styles.getPropertyValue('--color-primary-alpha-900'),
   //   strokeStyle: styles.getPropertyValue('--color-primary-alpha-700'),
   // })
 })
 
 // onBeforeUnmount(() => {
-//   window.lxData.bubbleCursor?.destroy()
+//   window.tuneFlowData.bubbleCursor?.destroy()
 // })
 
 </script>

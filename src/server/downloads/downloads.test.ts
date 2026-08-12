@@ -15,7 +15,7 @@ import { close as closeDatabase, getDB, init as initDatabase } from '../db/core/
 import { applyDownloadMetadata } from './metadata'
 import { parseFile } from 'music-metadata'
 
-process.env.LX_SERVICE_NODE_MODULES = path.join(process.cwd(), 'dist/server/node_modules')
+process.env.TUNEFLOW_SERVICE_NODE_MODULES = path.join(process.cwd(), 'dist/server/node_modules')
 
 const bytes = Buffer.from(Array.from({ length: 64 * 1024 }, (_, index) => index % 251))
 const roots: string[] = []
@@ -29,7 +29,7 @@ const fixtureTrack = {
   source: 'kw',
   interval: '00:02',
   meta: { songId: 'fixture-track', albumName: 'Fixture', _qualitys: { '128k': {}, flac: {} } },
-} as unknown as LX.Music.MusicInfoOnline
+} as unknown as TuneFlow.Music.MusicInfoOnline
 
 const minimalFlac = (): Buffer => {
   const value = Buffer.from('ZkxhQwAAACIQABAAABxDABxDCsRC8AAACJ0e/DOryiNvu1DoqTJS38oYAwAAEg==', 'base64').subarray(0, 42)
@@ -37,19 +37,19 @@ const minimalFlac = (): Buffer => {
   return value
 }
 
-const metadataSettings = (patch: Partial<LX.AppSetting> = {}): LX.AppSetting => ({
+const metadataSettings = (patch: Partial<TuneFlow.AppSetting> = {}): TuneFlow.AppSetting => ({
   'download.isEmbedPic': false,
   'download.isEmbedLyric': false,
   'download.isDownloadLrc': false,
-  'download.isEmbedLyricLx': false,
+  'download.isEmbedVerbatimLyric': false,
   'download.isEmbedLyricT': false,
   'download.isEmbedLyricR': false,
-  'download.isDownloadLxLrc': false,
+  'download.isDownloadVerbatimLyric': false,
   'download.isDownloadTLrc': false,
   'download.isDownloadRLrc': false,
   'download.lrcFormat': 'utf8',
   ...patch,
-} as LX.AppSetting)
+} as TuneFlow.AppSetting)
 
 const startUpstream = async(options: { range?: boolean, disconnectOnce?: boolean, payload?: Buffer } = {}) => {
   const requests: Array<{ range?: string }> = []
@@ -82,7 +82,7 @@ const startUpstream = async(options: { range?: boolean, disconnectOnce?: boolean
 }
 
 const createRoot = () => {
-  const root = mkdtempSync(path.join(os.tmpdir(), 'lx-downloads-'))
+  const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-downloads-'))
   roots.push(root)
   mkdirSync(path.join(root, 'audio'))
   mkdirSync(path.join(root, 'tmp'))
@@ -97,7 +97,7 @@ afterEach(async() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 
-describe('LX download policy', () => {
+describe('TuneFlow download policy', () => {
   it('matches every upstream quality extension and the three filename patterns', () => {
     expect(['ape', 'flac', 'flac24bit', 'wav', '128k', '192k', '320k', 'unknown'].map(getExt))
       .toEqual(['ape', 'flac', 'flac', 'wav', 'mp3', 'mp3', 'mp3', 'mp3'])
@@ -106,7 +106,7 @@ describe('LX download policy', () => {
     expect(makeFileName('歌名', fixtureTrack.name, fixtureTrack.singer, 'wav')).toBe('ABSong.wav')
   })
 
-  it('clips LX names and atomically reserves collision suffixes without overwrite', () => {
+  it('clips TuneFlow names and atomically reserves collision suffixes without overwrite', () => {
     const root = createRoot()
     const longSinger = new Array(60).fill('歌手').join('、')
     expect(makeFileName('歌名 - 歌手', '歌'.repeat(140), longSinger, 'mp3').replace('.mp3', '').length).toBe(150)
@@ -157,7 +157,7 @@ describe('LX download policy', () => {
     ])).resolves.toBe('completed')
     expect(Date.now() - started).toBeLessThan(1_000)
     expect((await parseFile(flac)).common).toMatchObject({ title: fixtureTrack.name, lyrics: expect.anything(), picture: expect.anything() })
-    expect(() => readFileSync(`${flac}.lxmtemp`)).toThrow()
+    expect(() => readFileSync(`${flac}.tuneflowtmp`)).toThrow()
 
     writeFileSync(flac, minimalFlac())
     await expect(applyDownloadMetadata(flac, record, metadataSettings({ 'download.isEmbedLyric': true }), {
@@ -177,7 +177,7 @@ describe('durable download manager', () => {
     const nonAudioRoot = path.join(root, 'sources', 'legacy-downloads')
     const manager = new DownloadManager({
       storageRoot: root,
-      getSettings: () => ({ 'download.savePath': nonAudioRoot, 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': nonAudioRoot, 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => ({ url: upstream.url, headers: {} }),
       metadata: async() => {},
     })
@@ -195,7 +195,7 @@ describe('durable download manager', () => {
     const options = {
       storageRoot: root,
       autoStart: false,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => { throw new Error('not used') },
     }
     new DownloadManager(options).close()
@@ -237,7 +237,7 @@ describe('durable download manager', () => {
     const states: string[] = []
     const manager = new DownloadManager({
       storageRoot: root,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => ({ url: upstream.url, headers: {} }),
       metadata: async() => {},
       publish: jobs => states.push(jobs[0]?.status ?? 'empty'),
@@ -260,7 +260,7 @@ describe('durable download manager', () => {
     const first = new DownloadManager({
       storageRoot: root,
       autoStart: false,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => ({ url: upstream.url, headers: {} }),
       metadata: async() => {},
     })
@@ -272,7 +272,7 @@ describe('durable download manager', () => {
     const restarted = new DownloadManager({
       storageRoot: root,
       autoStart: false,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => ({ url: upstream.url, headers: {} }),
       metadata: async() => {},
     })
@@ -291,7 +291,7 @@ describe('durable download manager', () => {
     const manager = new DownloadManager({
       storageRoot: root,
       autoStart: false,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => ({ url: upstream.url, headers: {} }),
       metadata: async() => {},
     })
@@ -312,7 +312,7 @@ describe('durable download manager', () => {
     const manager = new DownloadManager({
       storageRoot: root,
       autoStart: false,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => ({ url: upstream.url, headers: {} }),
       metadata: async() => { throw new Error('fixture metadata failure') },
     })
@@ -328,7 +328,7 @@ describe('durable download manager', () => {
     const restarted = new DownloadManager({
       storageRoot: root,
       autoStart: false,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => ({ url: upstream.url, headers: {} }),
     })
     expect(restarted.get(first.id)).toMatchObject({ status: 'completed', downloaded: bytes.length, total: bytes.length, progress: 100 })
@@ -341,7 +341,7 @@ describe('durable download manager', () => {
     const manager = new DownloadManager({
       storageRoot: root,
       autoStart: false,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => ({ url: upstream.url, headers: {} }),
       metadata: async() => {},
     })
@@ -359,7 +359,7 @@ describe('durable download manager', () => {
     const restarted = new DownloadManager({
       storageRoot: root,
       autoStart: false,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => ({ url: upstream.url, headers: {} }),
       metadata: async() => {},
     })
@@ -383,7 +383,7 @@ describe('durable download manager', () => {
         'download.savePath': path.join(root, 'audio'),
         'download.maxDownloadNum': 1,
         'download.fileName': '歌名',
-      } as LX.AppSetting),
+      } as TuneFlow.AppSetting),
       resolve: async() => ({ url: upstream.url, headers: {} }),
       metadata: async(filePath, job, settings) => applyDownloadMetadata(filePath, job, settings, {
         getLyrics: async() => ({ lyric: '[00:00.00]Fixture FLAC lyric' }),
@@ -398,7 +398,7 @@ describe('durable download manager', () => {
 
     expect(manager.get(job.id)).toMatchObject({ status: 'completed', warning: 'Metadata: async FLAC writer failed' })
     expect(readFileSync(path.join(root, 'audio', job.fileName))).toEqual(original)
-    expect(() => readFileSync(path.join(root, 'audio', `${job.fileName}.lxmtemp`))).toThrow()
+    expect(() => readFileSync(path.join(root, 'audio', `${job.fileName}.tuneflowtmp`))).toThrow()
     manager.close()
   })
 
@@ -409,7 +409,7 @@ describe('durable download manager', () => {
     let resolveCount = 0
     const first = new DownloadManager({
       storageRoot: root,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => { resolveCount++; return { url: upstream.url, headers: {} } },
       metadata: async() => {},
       finalizationCheckpoint: async(point, record) => {
@@ -430,7 +430,7 @@ describe('durable download manager', () => {
     const restarted = new DownloadManager({
       storageRoot: root,
       autoStart: false,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => { resolveCount++; return { url: upstream.url, headers: {} } },
       metadata: async() => {},
     })
@@ -456,7 +456,7 @@ describe('durable download manager', () => {
       let resolveCount = 0
       const first = new DownloadManager({
         storageRoot: root,
-        getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+        getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
         resolve: async() => { resolveCount++; return { url: upstream.url, headers: {} } },
         metadata: async() => {},
         finalizationCheckpoint: point => point === checkpoint ? 'simulate-crash' : undefined,
@@ -471,7 +471,7 @@ describe('durable download manager', () => {
       const restarted = new DownloadManager({
         storageRoot: root,
         autoStart: false,
-        getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+        getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
         resolve: async() => { resolveCount++; return { url: upstream.url, headers: {} } },
         metadata: async() => {},
       })
@@ -492,7 +492,7 @@ describe('durable download manager', () => {
     let resolveCount = 0
     const first = new DownloadManager({
       storageRoot: root,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => { resolveCount++; return { url: upstream.url, headers: {} } },
       metadata: async() => {},
       finalizationCheckpoint: point => point === 'after-marker' ? 'simulate-crash' : undefined,
@@ -505,7 +505,7 @@ describe('durable download manager', () => {
     const restarted = new DownloadManager({
       storageRoot: root,
       autoStart: false,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => { resolveCount++; return { url: upstream.url, headers: {} } },
       metadata: async() => {},
     })
@@ -524,7 +524,7 @@ describe('durable download manager', () => {
     let resolveCount = 0
     const first = new DownloadManager({
       storageRoot: root,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => { resolveCount++; return { url: upstream.url, headers: {} } },
       metadata: async() => {},
       finalizationCheckpoint: point => point === 'after-marker' ? 'simulate-crash' : undefined,
@@ -537,7 +537,7 @@ describe('durable download manager', () => {
     const restarted = new DownloadManager({
       storageRoot: root,
       autoStart: false,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => { resolveCount++; return { url: upstream.url, headers: {} } },
       metadata: async() => {},
     })
@@ -577,7 +577,7 @@ describe('durable download manager', () => {
     let resolveCount = 0
     const first = new DownloadManager({
       storageRoot: root,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => { resolveCount++; return { url: upstream.url, headers: {} } },
       metadata: async() => {},
       finalizationCheckpoint: point => point === 'after-marker' ? 'simulate-crash' : undefined,
@@ -594,7 +594,7 @@ describe('durable download manager', () => {
     const restarted = new DownloadManager({
       storageRoot: root,
       autoStart: false,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => { resolveCount++; return { url: upstream.url, headers: {} } },
       metadata: async() => {},
     })
@@ -616,7 +616,7 @@ describe('durable download manager', () => {
     let resolveCount = 0
     const first = new DownloadManager({
       storageRoot: root,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => { resolveCount++; return { url: upstream.url, headers: {} } },
       metadata: async() => {},
       finalizationCheckpoint: point => point === 'after-marker' ? 'simulate-crash' : undefined,
@@ -640,7 +640,7 @@ describe('durable download manager', () => {
     const restarted = new DownloadManager({
       storageRoot: root,
       autoStart: false,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => { resolveCount++; return { url: upstream.url, headers: {} } },
       metadata: async() => {},
       removePart: target => {
@@ -685,7 +685,7 @@ describe('durable download manager', () => {
     const manager = new DownloadManager({
       storageRoot: root,
       autoStart: false,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => { throw new Error('not used') },
       metadata: async() => {},
     })
@@ -704,7 +704,7 @@ describe('durable download manager', () => {
     const manager = new DownloadManager({
       storageRoot: root,
       autoStart: false,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => { throw new Error('not used') },
       metadata: async() => {},
       removePart: () => {
@@ -725,7 +725,7 @@ describe('durable download manager', () => {
     const first = new DownloadManager({
       storageRoot: root,
       autoStart: false,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => ({ url: upstream.url, headers: {} }),
       metadata: async() => {},
     })
@@ -737,7 +737,7 @@ describe('durable download manager', () => {
     const restarted = new DownloadManager({
       storageRoot: root,
       autoStart: false,
-      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as LX.AppSetting),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => ({ url: upstream.url, headers: {} }),
       metadata: async() => {},
     })
@@ -763,7 +763,7 @@ describe('durable download manager', () => {
         'download.maxDownloadNum': 1,
         'download.fileName': '歌名',
         'download.isSavePathGroupByListName': true,
-      } as LX.AppSetting),
+      } as TuneFlow.AppSetting),
       resolveListName: listId => listId === 'server-list' ? serverName : undefined,
       resolve: async() => ({ url: upstream.url, headers: {} }),
       metadata: async() => {},

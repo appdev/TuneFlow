@@ -1,6 +1,6 @@
 // import './app_setting'
 
-declare namespace LX {
+declare namespace TuneFlow {
   interface CmdParams {
     /**
      * 搜索，启动软件时自动在搜索框搜索指定的内容，例如：-search="突然的自我 - 伍佰"
@@ -49,7 +49,7 @@ declare namespace LX {
   type Source = OnlineSource | 'local'
   type Quality = '128k' | '320k' | 'flac' | 'flac24bit' | '192k' | 'ape' | 'wav'
 
-  type QualityList = Partial<Record<LX.Source, LX.Quality[]>>
+  type QualityList = Partial<Record<TuneFlow.Source, TuneFlow.Quality[]>>
 
   interface EnvParams {
     deeplink?: string | null

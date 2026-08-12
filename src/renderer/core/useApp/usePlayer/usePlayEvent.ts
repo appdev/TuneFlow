@@ -17,7 +17,7 @@ export default () => {
     // console.log('start load timeout')
     clearLoadingTimeout()
     loadingTimeout = setTimeout(() => {
-      if (window.lx.isPlayedStop) {
+      if (window.tuneflow.isPlayedStop) {
         prevTimeoutId = null
         setAllStatus('')
         return
@@ -49,7 +49,7 @@ export default () => {
   const addDelayNextTimeout = () => {
     clearDelayNextTimeout()
     delayNextTimeout = setTimeout(() => {
-      if (window.lx.isPlayedStop) {
+      if (window.tuneflow.isPlayedStop) {
         setAllStatus('')
         return
       }
@@ -58,7 +58,7 @@ export default () => {
   }
 
   const handleLoadstart = () => {
-    if (window.lx.isPlayedStop) return
+    if (window.tuneflow.isPlayedStop) return
     if (appSetting['player.autoSkipOnError']) startLoadingTimeout()
     setAllStatus(t('player__loading'))
   }
@@ -84,7 +84,7 @@ export default () => {
   const handleError = (errCode?: number) => {
     if (!musicInfo.id) return
     clearLoadingTimeout()
-    if (window.lx.isPlayedStop) return
+    if (window.tuneflow.isPlayedStop) return
     if (!isEmpty()) setStop()
     if (playMusicInfo.musicInfo && errCode !== 1 && retryNum < 2) { // 若音频URL无效则尝试刷新2次URL
       // console.log(this.retryNum)

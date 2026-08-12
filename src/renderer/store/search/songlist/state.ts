@@ -7,12 +7,12 @@ import { type ListInfo } from '@renderer/store/songList/state'
 
 export type { ListInfoItem } from '@renderer/store/songList/state'
 
-export const sources: Array<LX.OnlineSource | 'all'> = markRaw([])
+export const sources: Array<TuneFlow.OnlineSource | 'all'> = markRaw([])
 
 export type SearchListInfo = Omit<ListInfo, 'source'>
 
 
-interface ListInfos extends Partial<Record<LX.OnlineSource, SearchListInfo>> {
+interface ListInfos extends Partial<Record<TuneFlow.OnlineSource, SearchListInfo>> {
   'all': SearchListInfo
 }
 
@@ -29,11 +29,11 @@ export const listInfos: ListInfos = markRaw({
     sortId: '',
   }),
 })
-export const maxPages: Partial<Record<LX.OnlineSource, number>> = {}
+export const maxPages: Partial<Record<TuneFlow.OnlineSource, number>> = {}
 for (const source of music.sources) {
-  if (!music[source.id as LX.OnlineSource]?.songList?.search) continue
-  sources.push(source.id as LX.OnlineSource)
-  listInfos[source.id as LX.OnlineSource] = reactive<SearchListInfo>({
+  if (!music[source.id as TuneFlow.OnlineSource]?.songList?.search) continue
+  sources.push(source.id as TuneFlow.OnlineSource)
+  listInfos[source.id as TuneFlow.OnlineSource] = reactive<SearchListInfo>({
     page: 1,
     limit: 18,
     total: 0,
@@ -43,6 +43,6 @@ for (const source of music.sources) {
     tagId: '',
     sortId: '',
   })
-  maxPages[source.id as LX.OnlineSource] = 0
+  maxPages[source.id as TuneFlow.OnlineSource] = 0
 }
 sources.push('all')

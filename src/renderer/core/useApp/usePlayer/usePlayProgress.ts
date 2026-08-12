@@ -29,7 +29,7 @@ export default () => {
     if (mediaBuffer.timeout) return
     mediaBuffer.timeout = setTimeout(() => {
       mediaBuffer.timeout = null
-      if (window.lx.isPlayedStop) return
+      if (window.tuneflow.isPlayedStop) return
       const currentTime = getCurrentTime()
 
       mediaBuffer.playTime ||= currentTime

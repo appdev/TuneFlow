@@ -54,7 +54,7 @@ export const createRequest = (fetchImpl: typeof globalThis.fetch): RuntimeReques
     })
   } catch (error) {
     const cause = error instanceof Error ? error.message : String(error)
-    throw new WebRuntimeError('NETWORK_ERROR', 0, 'Unable to reach LX Music Service', { cause })
+    throw new WebRuntimeError('NETWORK_ERROR', 0, 'Unable to reach TuneFlow Service', { cause })
   }
   const parsed = await parseResponse(response)
   if (!response.ok) {

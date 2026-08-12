@@ -14,7 +14,7 @@ export const setSearchText = (text: string) => {
 }
 
 let isInitedSearchHistory = false
-const saveSearchHistoryListThrottle = throttle((list: LX.List.SearchHistoryList) => {
+const saveSearchHistoryListThrottle = throttle((list: TuneFlow.List.SearchHistoryList) => {
   saveSearchHistoryList(list)
 }, 500)
 

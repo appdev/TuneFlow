@@ -7,8 +7,8 @@ export const registerOpenApi = async(app: ApiFastifyInstance): Promise<void> => 
     openapi: {
       openapi: '3.0.3',
       info: {
-        title: 'LX Music Service API',
-        description: 'Private single-user LX Music Service API.',
+        title: 'TuneFlow Service API',
+        description: 'Private single-user TuneFlow (音流) Service API.',
         version: '1.0.0',
       },
     },

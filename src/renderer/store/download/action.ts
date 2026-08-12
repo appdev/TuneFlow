@@ -6,9 +6,9 @@ import { downloadList } from './state'
 interface ServiceDownloadDto {
   id: string
   status: 'waiting' | 'running' | 'paused' | 'error' | 'completed'
-  musicInfo: LX.Music.MusicInfoOnline
-  quality: LX.Quality
-  extension: LX.Download.FileExt
+  musicInfo: TuneFlow.Music.MusicInfoOnline
+  quality: TuneFlow.Quality
+  extension: TuneFlow.Download.FileExt
   fileName: string
   downloaded: number
   total: number
@@ -28,13 +28,13 @@ const serviceRequest = async<T>(method: string, path: string, body?: unknown): P
   return (await response.json()).data as T
 }
 
-const serviceStatus = (status: ServiceDownloadDto['status']): LX.Download.DownloadTaskStatus => ({
+const serviceStatus = (status: ServiceDownloadDto['status']): TuneFlow.Download.DownloadTaskStatus => ({
   waiting: DOWNLOAD_STATUS.WAITING,
   running: DOWNLOAD_STATUS.RUN,
   paused: DOWNLOAD_STATUS.PAUSE,
   error: DOWNLOAD_STATUS.ERROR,
   completed: DOWNLOAD_STATUS.COMPLETED,
-}[status] as LX.Download.DownloadTaskStatus)
+}[status] as TuneFlow.Download.DownloadTaskStatus)
 
 const serviceStatusText = (task: ServiceDownloadDto): string => task.error ?? task.warning ?? ({
   waiting: window.i18n.t('download___status_waiting'),
@@ -44,7 +44,7 @@ const serviceStatusText = (task: ServiceDownloadDto): string => task.error ?? ta
   completed: window.i18n.t('download___status_completed'),
 }[task.status] as string)
 
-const fromService = (task: ServiceDownloadDto): LX.Download.ListItem => ({
+const fromService = (task: ServiceDownloadDto): TuneFlow.Download.ListItem => ({
   id: task.id,
   isComplate: task.status === 'completed',
   status: serviceStatus(task.status),
@@ -73,19 +73,19 @@ const reconcileServiceDownloads = (tasks: ServiceDownloadDto[]) => {
 let serviceSubscribed = false
 const subscribeServiceDownloads = () => {
   if (serviceSubscribed) return
-  const runtime = (globalThis as typeof globalThis & { lxWebRuntime?: { on: (name: string, listener: (event: { params: ServiceDownloadDto[] }) => void) => void } }).lxWebRuntime
+  const runtime = (globalThis as typeof globalThis & { tuneFlowWebRuntime?: { on: (name: string, listener: (event: { params: ServiceDownloadDto[] }) => void) => void } }).tuneFlowWebRuntime
   if (runtime == null) return
   runtime.on('service_downloads', ({ params }) => { reconcileServiceDownloads(params) })
   serviceSubscribed = true
 }
 
-export const getDownloadList = async(): Promise<LX.Download.ListItem[]> => {
+export const getDownloadList = async(): Promise<TuneFlow.Download.ListItem[]> => {
   reconcileServiceDownloads(await serviceRequest<ServiceDownloadDto[]>('GET', '/api/v1/downloads'))
   subscribeServiceDownloads()
   return downloadList
 }
 
-export const createDownloadTasks = async(list: LX.Music.MusicInfoOnline[], quality: LX.Quality, listId?: string) => {
+export const createDownloadTasks = async(list: TuneFlow.Music.MusicInfoOnline[], quality: TuneFlow.Quality, listId?: string) => {
   if (!list.length) return
   subscribeServiceDownloads()
   for (const musicInfo of list) {
@@ -99,11 +99,11 @@ export const createDownloadTasks = async(list: LX.Music.MusicInfoOnline[], quali
   reconcileServiceDownloads(await serviceRequest<ServiceDownloadDto[]>('GET', '/api/v1/downloads'))
 }
 
-export const startDownloadTasks = async(list: LX.Download.ListItem[]) => {
+export const startDownloadTasks = async(list: TuneFlow.Download.ListItem[]) => {
   await Promise.all(list.map(async task => serviceRequest('POST', `/api/v1/downloads/${encodeURIComponent(task.id)}/start`)))
 }
 
-export const pauseDownloadTasks = async(list: LX.Download.ListItem[]) => {
+export const pauseDownloadTasks = async(list: TuneFlow.Download.ListItem[]) => {
   await Promise.all(list.map(async task => serviceRequest('POST', `/api/v1/downloads/${encodeURIComponent(task.id)}/pause`)))
 }
 

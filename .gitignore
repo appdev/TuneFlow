@@ -62,6 +62,14 @@ typings/
 # next.js build output
 .next
 
+# Local development and automation artifacts
+.codex/
+.playwright-mcp/
+._*
+
+# Local visual audit exports
+musicfree-search-v2-board*.png
+
 
 build
 

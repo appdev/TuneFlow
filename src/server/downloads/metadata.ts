@@ -7,21 +7,21 @@ import { buildLyrics } from '@common/utils/musicMeta/buildLyrics'
 import type { DownloadJobRecord } from './types'
 
 export interface MetadataDependencies {
-  getPicture?: (musicInfo: LX.Music.MusicInfoOnline) => Promise<string | null>
-  getLyrics?: (musicInfo: LX.Music.MusicInfoOnline) => Promise<LX.Music.LyricInfo | null>
+  getPicture?: (musicInfo: TuneFlow.Music.MusicInfoOnline) => Promise<string | null>
+  getLyrics?: (musicInfo: TuneFlow.Music.MusicInfoOnline) => Promise<TuneFlow.Music.LyricInfo | null>
   writeFlacMetadata?: (filePath: string, meta: Parameters<typeof setMeta>[1]) => Promise<void>
 }
 
 const fixKgLyric = (lrc: string): string => /\[00:\d\d:\d\d.\d+\]/.test(lrc) ? lrc.replace(/(?:\[00:(\d\d:\d\d.\d+\]))/gm, '[$1') : lrc
 
-export const applyDownloadMetadata = async(filePath: string, job: DownloadJobRecord, settings: LX.AppSetting, dependencies: MetadataDependencies = {}): Promise<void> => {
+export const applyDownloadMetadata = async(filePath: string, job: DownloadJobRecord, settings: TuneFlow.AppSetting, dependencies: MetadataDependencies = {}): Promise<void> => {
   const canEmbed = job.extension === 'mp3' || job.extension === 'flac'
   const [picture, lyrics] = await Promise.all([
     settings['download.isEmbedPic'] ? dependencies.getPicture?.(job.musicInfo) ?? Promise.resolve(job.musicInfo.meta.picUrl ?? null) : Promise.resolve(null),
     settings['download.isEmbedLyric'] || settings['download.isDownloadLrc'] ? dependencies.getLyrics?.(job.musicInfo) ?? Promise.resolve(null) : Promise.resolve(null),
   ])
   const embeddedLyrics = canEmbed && settings['download.isEmbedLyric'] && lyrics != null
-    ? buildLyrics(lyrics, settings['download.isEmbedLyricLx'], settings['download.isEmbedLyricT'], settings['download.isEmbedLyricR'])
+    ? buildLyrics(lyrics, settings['download.isEmbedVerbatimLyric'], settings['download.isEmbedLyricT'], settings['download.isEmbedLyricR'])
     : null
   const meta = {
     title: job.musicInfo.name,
@@ -43,7 +43,7 @@ export const applyDownloadMetadata = async(filePath: string, job: DownloadJobRec
     await (dependencies.writeFlacMetadata ?? (async(target, value) => { await setMeta(target, value) }))(filePath, meta)
   }
   if (settings['download.isDownloadLrc'] && lyrics?.lyric) {
-    const lrc = buildLyrics({ ...lyrics, lyric: fixKgLyric(lyrics.lyric) }, settings['download.isDownloadLxLrc'], settings['download.isDownloadTLrc'], settings['download.isDownloadRLrc'])
+    const lrc = buildLyrics({ ...lyrics, lyric: fixKgLyric(lyrics.lyric) }, settings['download.isDownloadVerbatimLyric'], settings['download.isDownloadTLrc'], settings['download.isDownloadRLrc'])
     const encoded = iconv.encode(lrc, settings['download.lrcFormat'] === 'gbk' ? 'gbk' : 'utf8', { addBOM: true })
     await writeFile(filePath.slice(0, -path.extname(filePath).length) + '.lrc', encoded)
   }

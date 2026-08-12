@@ -2,7 +2,7 @@
 // import { downloadList } from './download'
 
 
-// export const getList = (listId: string | null): LX.Download.ListItem[] | LX.Music.MusicInfo[] => {
+// export const getList = (listId: string | null): TuneFlow.Download.ListItem[] | TuneFlow.Music.MusicInfo[] => {
 //   return listId == 'download' ? downloadList : getListFromState(listId)
 // }
 import { encodePath, isUrl } from '@common/utils/common'
@@ -11,7 +11,7 @@ import { markRaw, shallowReactive } from '@common/utils/vueTools'
 import { getBuiltInThemeInfo } from './builtInThemes'
 import { qualityList, themeInfo, themeShouldUseDarkColors } from './index'
 
-export const assertApiSupport = (source: LX.Source): boolean => {
+export const assertApiSupport = (source: TuneFlow.Source): boolean => {
   return source == 'local' || qualityList.value[source] != null
 }
 
@@ -21,7 +21,7 @@ export const buildBgUrl = (originUrl: string, dataPath: string): string => {
     : `url(file:///${encodePath(joinPath(dataPath, originUrl).replaceAll('\\', '/'))})`
 }
 
-export const getThemes = (callback: (themeInfo: LX.ThemeInfo) => void) => {
+export const getThemes = (callback: (themeInfo: TuneFlow.ThemeInfo) => void) => {
   if (themeInfo.themes.length) {
     callback(themeInfo)
     return
@@ -32,7 +32,7 @@ export const getThemes = (callback: (themeInfo: LX.ThemeInfo) => void) => {
   themeInfo.dataPath = info.dataPath
   callback(themeInfo)
 }
-export const buildThemeColors = (theme: LX.Theme, dataPath: string) => {
+export const buildThemeColors = (theme: TuneFlow.Theme, dataPath: string) => {
   if (theme.isCustom && theme.config.extInfo['--background-image'] != 'none') {
     theme = copyTheme(theme)
     theme.config.extInfo['--background-image'] = buildBgUrl(theme.config.extInfo['--background-image'], dataPath)
@@ -45,7 +45,7 @@ export const buildThemeColors = (theme: LX.Theme, dataPath: string) => {
   return colors
 }
 
-export const copyTheme = (theme: LX.Theme): LX.Theme => {
+export const copyTheme = (theme: TuneFlow.Theme): TuneFlow.Theme => {
   return {
     ...theme,
     config: {
@@ -56,7 +56,7 @@ export const copyTheme = (theme: LX.Theme): LX.Theme => {
   }
 }
 
-export const findTheme = (themeInfo: LX.ThemeInfo, id: string): LX.Theme | undefined => {
+export const findTheme = (themeInfo: TuneFlow.ThemeInfo, id: string): TuneFlow.Theme | undefined => {
   let theme = themeInfo.themes.find(theme => theme.id == id)
   if (theme) return theme
   theme = themeInfo.userThemes.find(theme => theme.id == id)

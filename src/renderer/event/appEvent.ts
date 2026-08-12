@@ -11,7 +11,7 @@ import Event from './Event'
 // }
 
 export class AppEvent extends Event {
-  configUpdate(setting: Partial<LX.AppSetting>) {
+  configUpdate(setting: Partial<TuneFlow.AppSetting>) {
     this.emit('configUpdate', setting)
   }
 
@@ -164,11 +164,11 @@ export class AppEvent extends Event {
   }
 
   // 列表里的音乐信息改变事件
-  // musicInfoUpdate(musicInfo: LX.Music.MusicInfo) {
+  // musicInfoUpdate(musicInfo: TuneFlow.Music.MusicInfo) {
   //   this.emit('musicInfoUpdate', musicInfo)
   // }
 
-  keyDown(event: LX.KeyDownEevent) {
+  keyDown(event: TuneFlow.KeyDownEevent) {
     this.emit('keyDown', event)
   }
 }

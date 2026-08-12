@@ -16,7 +16,7 @@ const ensureWritableStorage = (storageRoot: string) => {
     mkdirSync(path.join(storageRoot, name), { recursive: true })
   }
   accessSync(storageRoot, constants.W_OK)
-  const probe = path.join(storageRoot, `.lx-write-probe-${process.pid}-${Date.now()}`)
+  const probe = path.join(storageRoot, `.tuneflow-write-probe-${process.pid}-${Date.now()}`)
   writeFileSync(probe, '')
   unlinkSync(probe)
 }
@@ -56,8 +56,8 @@ export const normalizeServerOptions = (options: ServerOptions): ServerOptions =>
 }
 
 export const loadServerOptions = (): ServerOptions => normalizeServerOptions({
-  storageRoot: process.env.LX_STORAGE_ROOT ?? './data',
-  webRoot: process.env.LX_WEB_ROOT ?? './dist/web',
-  host: process.env.LX_HOST ?? '127.0.0.1',
-  port: Number.parseInt(process.env.LX_PORT ?? '3124', 10),
+  storageRoot: process.env.TUNEFLOW_STORAGE_ROOT ?? './data',
+  webRoot: process.env.TUNEFLOW_WEB_ROOT ?? './dist/web',
+  host: process.env.TUNEFLOW_HOST ?? '127.0.0.1',
+  port: Number.parseInt(process.env.TUNEFLOW_PORT ?? '3124', 10),
 })

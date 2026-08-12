@@ -23,7 +23,7 @@ const timeoutTools: {
   endTime: 0,
   interval: null,
   exit() {
-    window.lx.isPlayedStop = true
+    window.tuneflow.isPlayedStop = true
     if (!appSetting['player.waitPlayEndStop'] && isPlay.value) {
       pause()
     }
@@ -67,12 +67,12 @@ const timeoutTools: {
 }
 
 export const startTimeoutStop = (time: number) => {
-  window.lx.isPlayedStop &&= false
+  window.tuneflow.isPlayedStop &&= false
   timeoutTools.start(time)
 }
 export const stopTimeoutStop = () => {
   console.warn('stopTimeoutStop')
-  window.lx.isPlayedStop &&= false
+  window.tuneflow.isPlayedStop &&= false
   timeoutTools.clearTimeout()
 }
 

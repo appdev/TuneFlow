@@ -32,14 +32,14 @@ export default () => {
     if (status) {
       if (apiInfo.sources) {
         let apis: any = {}
-        let qualitys: LX.QualityList = {}
+        let qualitys: TuneFlow.QualityList = {}
         for (const [source, { actions, type, qualitys: sourceQualitys }] of Object.entries(apiInfo.sources)) {
           if (type != 'music') continue
-          apis[source as LX.Source] = {}
+          apis[source as TuneFlow.Source] = {}
           for (const action of actions) {
             switch (action) {
               case 'musicUrl':
-                apis[source].getMusicUrl = (songInfo: LX.Music.MusicInfo, type: LX.Quality) => {
+                apis[source].getMusicUrl = (songInfo: TuneFlow.Music.MusicInfo, type: TuneFlow.Quality) => {
                   const requestKey = `request__${Math.random().toString().substring(2)}`
                   return {
                     canceleFn() {
@@ -67,7 +67,7 @@ export default () => {
                 }
                 break
               case 'lyric':
-                apis[source].getLyric = (songInfo: LX.Music.MusicInfo) => {
+                apis[source].getLyric = (songInfo: TuneFlow.Music.MusicInfo) => {
                   const requestKey = `request__${Math.random().toString().substring(2)}`
                   return {
                     canceleFn() {
@@ -95,7 +95,7 @@ export default () => {
                 }
                 break
               case 'pic':
-                apis[source].getPic = (songInfo: LX.Music.MusicInfo) => {
+                apis[source].getPic = (songInfo: TuneFlow.Music.MusicInfo) => {
                   const requestKey = `request__${Math.random().toString().substring(2)}`
                   return {
                     canceleFn() {
@@ -126,7 +126,7 @@ export default () => {
                 break
             }
           }
-          qualitys[source as LX.Source] = sourceQualitys
+          qualitys[source as TuneFlow.Source] = sourceQualitys
         }
         qualityList.value = qualitys
         userApi.apis = apis
@@ -140,7 +140,7 @@ export default () => {
         })
       }
     }
-    if (!window.lx.apiInitPromise[1]) window.lx.apiInitPromise[2](status)
+    if (!window.tuneflow.apiInitPromise[1]) window.tuneflow.apiInitPromise[2](status)
   })
 
   const rUserApiShowUpdateAlert = onShowUserApiUpdateAlert(({ params: { name, log, updateUrl } }) => {

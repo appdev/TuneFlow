@@ -8,7 +8,7 @@ import { addHistoryWord } from '@renderer/store/search/action'
 import { search as searchMusic, listInfos, type ListInfo } from '@renderer/store/search/music'
 import { assertApiSupport } from '@renderer/store/utils'
 
-export type SearchSource = LX.OnlineSource | 'all'
+export type SearchSource = TuneFlow.OnlineSource | 'all'
 
 export default () => {
   const listRef = ref<any>(null)
@@ -26,7 +26,7 @@ export default () => {
   const search = (text: string, source: SearchSource, page: number) => {
     listInfo.value = listInfos[source] as ListInfo
     if (text.length) void addHistoryWord(text)
-    void searchMusic(text, page, source).then((list: LX.Music.MusicInfo[]) => {
+    void searchMusic(text, page, source).then((list: TuneFlow.Music.MusicInfo[]) => {
       if (list.length) {
         setTimeout(() => {
           if (listRef.value) listRef.value.scrollToTop()

@@ -9,12 +9,12 @@ const ignoreUnsupportedIpc = (error: unknown) => {
 }
 
 export const registerEvents = () => {
-  window.lx.isEditingHotKey = false
+  window.tuneflow.isEditingHotKey = false
   window.app_event = createAppEventHub()
   window.key_event = createKeyEventHub()
 
-  const setHotkeyConfig = ({ local, global }: LX.HotKeyConfigAll) => {
-    window.lx.appHotKeyConfig = {
+  const setHotkeyConfig = ({ local, global }: TuneFlow.HotKeyConfigAll) => {
+    window.tuneflow.appHotKeyConfig = {
       local,
       global,
     }

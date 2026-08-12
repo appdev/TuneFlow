@@ -51,7 +51,7 @@ import useList from './useList'
 import useKeyBack from './useKeyBack'
 
 
-const source = ref<LX.OnlineSource>('kw')
+const source = ref<TuneFlow.OnlineSource>('kw')
 const id = ref<string>('')
 const page = ref<number>(1)
 const picUrl = ref<string>('')
@@ -94,12 +94,12 @@ const verifyQueryParams = async function(this: any, to: { query: Query, path: st
   }
   next()
   setVisibleListDetail(true)
-  source.value = _source as LX.OnlineSource
+  source.value = _source as TuneFlow.OnlineSource
   id.value = _id
   page.value = _page ? parseInt(_page) : 1
   picUrl.value = _picUrl ?? ''
   refresh.value = _refresh ? _refresh == 'true' : false
-  if (to.query.fromName) window.lx.songListInfo.fromName = to.query.fromName
+  if (to.query.fromName) window.tuneflow.songListInfo.fromName = to.query.fromName
 }
 
 
@@ -123,7 +123,7 @@ export default {
 
     const handleBack = () => {
       setVisibleListDetail(false)
-      if (window.lx.songListInfo.fromName) void router.replace({ name: window.lx.songListInfo.fromName })
+      if (window.tuneflow.songListInfo.fromName) void router.replace({ name: window.tuneflow.songListInfo.fromName })
       else router.back()
     }
 

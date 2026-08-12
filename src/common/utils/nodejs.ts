@@ -141,23 +141,23 @@ export const gunzipData = async(buf: Buffer): Promise<string> => {
 }
 
 /**
- * 保存lx配置文件
+ * 保存 TuneFlow 配置文件
  * @param path 保存路径
  * @param data 数据
  */
-export const saveLxConfigFile = async(path: string, data: any) => {
-  if (!path.endsWith('.lxmc')) path += '.lxmc'
+export const saveTuneFlowConfigFile = async(path: string, data: any) => {
+  if (!path.endsWith('.tuneflow')) path += '.tuneflow'
   fs.writeFile(path, await gzipData(JSON.stringify(data)), 'binary', err => {
     console.log(err)
   })
 }
 
 /**
- * 读取lx配置文件
+ * 读取 TuneFlow 配置文件
  * @param path 文件路径
  * @returns 数据
  */
-export const readLxConfigFile = async(path: string): Promise<any> => {
+export const readTuneFlowConfigFile = async(path: string): Promise<any> => {
   let isJSON = path.endsWith('.json')
   let data: string | Buffer = await fs.promises.readFile(path, isJSON ? 'utf8' : 'binary')
   if (!data) return data

@@ -145,6 +145,17 @@ describe('typed Web runtime HTTP transport', () => {
     await expect(runtime.invoke(WIN_MAIN_RENDERER_EVENT_NAME.download_list_get)).rejects.toMatchObject({ code: 'UNSUPPORTED_IPC' })
   })
 
+  it('maps the local system list to scanned library tracks', async() => {
+    const musicInfo = { id: 'local-track', name: 'Downloaded', singer: 'Artist', source: 'local', interval: '00:02', meta: { songId: 'local-track', albumName: '', ext: 'mp3' } }
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(jsonResponse({
+      data: [{ ...musicInfo, musicInfo, size: 1024, extension: 'mp3', streamUrl: '/api/v1/library/tracks/local-track/stream' }],
+    }))
+    const runtime = createWebRuntime({ fetch, EventSource: FakeEventSource })
+
+    await expect(runtime.invoke(PLAYER_EVENT_NAME.list_music_get, 'local')).resolves.toEqual([musicInfo])
+    expect(fetch).toHaveBeenCalledWith('/api/v1/library/tracks', { method: 'GET' })
+  })
+
   it('keeps local in-page shortcuts while disabling global hotkeys', async() => {
     const fetch = vi.fn<typeof globalThis.fetch>()
     const runtime = createWebRuntime({ fetch, EventSource: FakeEventSource })

@@ -19,7 +19,7 @@ export const createListQueryStatement = () => {
  */
 export const createListInsertStatement = () => {
   const db = getDB()
-  return db.prepare<[LX.DBService.UserListInfo]>(`
+  return db.prepare<[TuneFlow.DBService.UserListInfo]>(`
     INSERT INTO "main"."my_list" ("id", "name", "source", "sourceListId", "position", "locationUpdateTime")
     VALUES (@id, @name, @source, @sourceListId, @position, @locationUpdateTime)`)
 }
@@ -48,7 +48,7 @@ export const createListDeleteStatement = () => {
  */
 export const createListUpdateStatement = () => {
   const db = getDB()
-  return db.prepare<[LX.DBService.UserListInfo]>(`
+  return db.prepare<[TuneFlow.DBService.UserListInfo]>(`
     UPDATE "main"."my_list"
     SET "name"=@name, "source"=@source, "sourceListId"=@sourceListId, "locationUpdateTime"=@locationUpdateTime
     WHERE "id"=@id`)
@@ -60,7 +60,7 @@ export const createListUpdateStatement = () => {
  */
 export const createMusicInfoQueryStatement = () => {
   const db = getDB()
-  return db.prepare<[LX.DBService.MusicInfoQuery]>(`
+  return db.prepare<[TuneFlow.DBService.MusicInfoQuery]>(`
     SELECT mInfo."id", mInfo."name", mInfo."singer", mInfo."source", mInfo."interval", mInfo."meta"
     FROM my_list_music_info mInfo
     LEFT JOIN my_list_music_info_order O
@@ -76,7 +76,7 @@ export const createMusicInfoQueryStatement = () => {
  */
 export const createMusicInfoInsertStatement = () => {
   const db = getDB()
-  return db.prepare<[LX.DBService.MusicInfo]>(`
+  return db.prepare<[TuneFlow.DBService.MusicInfo]>(`
     INSERT INTO "main"."my_list_music_info" ("id", "listId", "name", "singer", "source", "interval", "meta")
     VALUES (@id, @listId, @name, @singer, @source, @interval, @meta)`)
 }
@@ -87,7 +87,7 @@ export const createMusicInfoInsertStatement = () => {
  */
 export const createMusicInfoUpdateStatement = () => {
   const db = getDB()
-  return db.prepare<[LX.DBService.MusicInfo]>(`
+  return db.prepare<[TuneFlow.DBService.MusicInfo]>(`
     UPDATE "main"."my_list_music_info"
     SET "name"=@name, "singer"=@singer, "source"=@source, "interval"=@interval, "meta"=@meta
     WHERE "id"=@id AND "listId"=@listId`)
@@ -118,7 +118,7 @@ export const createMusicInfoDeleteByListIdStatement = () => {
  */
 export const createMusicInfoDeleteStatement = () => {
   const db = getDB()
-  return db.prepare<[LX.DBService.MusicInfoRemove]>('DELETE FROM "main"."my_list_music_info" WHERE "id"=@id AND "listId"=@listId')
+  return db.prepare<[TuneFlow.DBService.MusicInfoRemove]>('DELETE FROM "main"."my_list_music_info" WHERE "id"=@id AND "listId"=@listId')
 }
 
 /**
@@ -127,7 +127,7 @@ export const createMusicInfoDeleteStatement = () => {
  */
 export const createMusicInfoByListAndMusicInfoIdQueryStatement = () => {
   const db = getDB()
-  return db.prepare<[LX.DBService.ListMusicInfoQuery]>(`SELECT "id", "name", "singer", "source", "interval", "meta"
+  return db.prepare<[TuneFlow.DBService.ListMusicInfoQuery]>(`SELECT "id", "name", "singer", "source", "interval", "meta"
     FROM "main"."my_list_music_info"
     WHERE "id"=@musicInfoId
     AND "listId"=@listId`)
@@ -151,7 +151,7 @@ export const createMusicInfoByMusicInfoIdQueryStatement = () => {
  */
 export const createMusicInfoOrderInsertStatement = () => {
   const db = getDB()
-  return db.prepare<[LX.DBService.MusicInfoOrder]>(`
+  return db.prepare<[TuneFlow.DBService.MusicInfoOrder]>(`
     INSERT INTO "main"."my_list_music_info_order" ("listId", "musicInfoId", "order")
     VALUES (@listId, @musicInfoId, @order)`)
 }
@@ -180,6 +180,6 @@ export const createMusicInfoOrderDeleteByListIdStatement = () => {
  */
 export const createMusicInfoOrderDeleteStatement = () => {
   const db = getDB()
-  return db.prepare<[LX.DBService.MusicInfoRemove]>('DELETE FROM "main"."my_list_music_info_order" WHERE "musicInfoId"=@id AND "listId"=@listId')
+  return db.prepare<[TuneFlow.DBService.MusicInfoRemove]>('DELETE FROM "main"."my_list_music_info_order" WHERE "musicInfoId"=@id AND "listId"=@listId')
 }
 

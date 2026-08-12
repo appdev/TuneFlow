@@ -5,7 +5,7 @@ export default () => {
   const isShowDuplicateMusicModal = ref(false)
   const duplicateListInfo = reactive({ id: '', name: '' })
 
-  const handleDuplicateList = (listInfo: LX.List.MyListInfo) => {
+  const handleDuplicateList = (listInfo: TuneFlow.List.MyListInfo) => {
     duplicateListInfo.id = listInfo.id
     duplicateListInfo.name = listInfo.name
     isShowDuplicateMusicModal.value = true

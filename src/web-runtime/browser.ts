@@ -38,8 +38,8 @@ export const toMD5 = (): never => {
 }
 export const gzipData = async(): Promise<never> => rejectUnsupportedCapability('gzipData')
 export const gunzipData = async(): Promise<never> => rejectUnsupportedCapability('gunzipData')
-export const saveLxConfigFile = async(): Promise<never> => rejectUnsupportedCapability('saveLxConfigFile')
-export const readLxConfigFile = async(): Promise<never> => rejectUnsupportedCapability('readLxConfigFile')
+export const saveTuneFlowConfigFile = async(): Promise<never> => rejectUnsupportedCapability('saveTuneFlowConfigFile')
+export const readTuneFlowConfigFile = async(): Promise<never> => rejectUnsupportedCapability('readTuneFlowConfigFile')
 export const saveStrToFile = async(): Promise<never> => rejectUnsupportedCapability('saveStrToFile')
 export const b64DecodeUnicode = (value: string): string => atob(value)
 export const copyFile = async(): Promise<never> => rejectUnsupportedCapability('copyFile')

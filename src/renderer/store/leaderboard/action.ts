@@ -6,7 +6,7 @@ import { boards, type Board, listDetailInfo, type ListDetailInfo } from './state
 
 const cache = new Map<string, any>()
 
-export const setBoard = (board: Board, source: LX.OnlineSource) => {
+export const setBoard = (board: Board, source: TuneFlow.OnlineSource) => {
   boards[source] = markRaw(board)
 }
 
@@ -33,8 +33,8 @@ export const clearListDetail = () => {
   listDetailInfo.noItemLabel = ''
 }
 
-export const getBoardsList = async(source: LX.OnlineSource) => {
-  // const source = (await getLeaderboardSetting()).source as LX.OnlineSource
+export const getBoardsList = async(source: TuneFlow.OnlineSource) => {
+  // const source = (await getLeaderboardSetting()).source as TuneFlow.OnlineSource
   return musicSdk[source]?.leaderboard.getBoards() as Promise<Board>
 }
 
@@ -51,10 +51,10 @@ export const getListDetail = async(id: string, page: number, isRefresh = false):
 
   if (!isRefresh && cache.has(key)) return cache.get(key)
 
-  const [source, bangId] = id.split('__') as [LX.OnlineSource, string]
+  const [source, bangId] = id.split('__') as [TuneFlow.OnlineSource, string]
 
   return musicSdk[source]?.leaderboard?.getList(bangId, page).then((result: ListDetailInfo) => {
-    result.list = markRawList(deduplicationList(result.list.map(m => toNewMusicInfo(m)) as LX.Music.MusicInfoOnline[]))
+    result.list = markRawList(deduplicationList(result.list.map(m => toNewMusicInfo(m)) as TuneFlow.Music.MusicInfoOnline[]))
     cache.set(key, result)
     return result
   })
@@ -67,8 +67,8 @@ export const getListDetail = async(id: string, page: number, isRefresh = false):
  * @param isRefresh 是否跳过缓存
  * @returns
  */
-export const getListDetailAll = async(id: string, isRefresh = false): Promise<LX.Music.MusicInfoOnline[]> => {
-  const [source, bangId] = id.split('__') as [LX.OnlineSource, string]
+export const getListDetailAll = async(id: string, isRefresh = false): Promise<TuneFlow.Music.MusicInfoOnline[]> => {
+  const [source, bangId] = id.split('__') as [TuneFlow.OnlineSource, string]
   // console.log(source, id)
   // eslint-disable-next-line @typescript-eslint/promise-function-async
   const loadData = async(id: string, page: number): Promise<ListDetailInfo> => {
@@ -76,7 +76,7 @@ export const getListDetailAll = async(id: string, isRefresh = false): Promise<LX
     if (!isRefresh && cache.has(key)) return cache.get(key)
 
     return musicSdk[source]?.leaderboard.getList(id, page).then((result: ListDetailInfo) => {
-      result.list = markRawList(deduplicationList(result.list.map(m => toNewMusicInfo(m)) as LX.Music.MusicInfoOnline[]))
+      result.list = markRawList(deduplicationList(result.list.map(m => toNewMusicInfo(m)) as TuneFlow.Music.MusicInfoOnline[]))
       cache.set(key, result)
       return result
     }) ?? Promise.reject(new Error('source not found' + source))

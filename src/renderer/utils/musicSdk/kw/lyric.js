@@ -224,10 +224,10 @@ export default {
   //         return Promise.reject(new Error('Get lyric failed'))
   //       }
   //       if (lrcInfo.tlyric) lrcInfo.tlyric = lrcInfo.tlyric.replace(lrcTools.rxps.wordTimeAll, '')
-  //       lrcInfo.lxlyric = lrcTools.parse(lrcInfo.lyric)
+  //       lrcInfo.verbatimLyric = lrcTools.parse(lrcInfo.lyric)
   //       // console.log(lrcInfo.lyric)
   //       // console.log(lrcInfo.tlyric)
-  //       // console.log(lrcInfo.lxlyric)
+  //       // console.log(lrcInfo.verbatimLyric)
   //       // console.log(JSON.stringify(lrcInfo))
   //     })
   //   })
@@ -255,9 +255,9 @@ export default {
         // console.log(lrcInfo)
         if (lrcInfo.tlyric) lrcInfo.tlyric = lrcInfo.tlyric.replace(lrcTools.rxps.wordTimeAll, '')
         try {
-          lrcInfo.lxlyric = lrcTools.parse(lrcInfo.lyric)
+          lrcInfo.verbatimLyric = lrcTools.parse(lrcInfo.lyric)
         } catch {
-          lrcInfo.lxlyric = ''
+          lrcInfo.verbatimLyric = ''
         }
         lrcInfo.lyric = lrcInfo.lyric.replace(lrcTools.rxps.wordTimeAll, '')
         if (!existTimeExp.test(lrcInfo.lyric)) return Promise.reject(new Error('Get lyric failed'))

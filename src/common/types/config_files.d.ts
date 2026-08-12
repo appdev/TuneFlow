@@ -1,8 +1,8 @@
-declare namespace LX {
+declare namespace TuneFlow {
   namespace ConfigFile {
     interface MyListInfoPart {
       type: 'playListPart_v2'
-      data: LX.List.MyDefaultListInfoFull | LX.List.MyLoveListInfoFull | LX.List.UserListInfoFull
+      data: TuneFlow.List.MyDefaultListInfoFull | TuneFlow.List.MyLoveListInfoFull | TuneFlow.List.UserListInfoFull
     }
 
   }

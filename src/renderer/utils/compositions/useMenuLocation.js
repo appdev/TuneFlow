@@ -60,8 +60,8 @@ export default ({ visible, location, onHide }) => {
   }, { immediate: true })
 
   watch(location, location => {
-    menuStyles.left = location.x - window.lx.rootOffset + 2 + 'px'
-    menuStyles.top = location.y - window.lx.rootOffset + 'px'
+    menuStyles.left = location.x - window.tuneflow.rootOffset + 2 + 'px'
+    menuStyles.top = location.y - window.tuneflow.rootOffset + 'px'
     // nextTick(() => {
     if (show) {
       if (menuStyles.transitionProperty != transition2) menuStyles.transitionProperty = transition2

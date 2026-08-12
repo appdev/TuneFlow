@@ -4,7 +4,7 @@ import { filterFileName } from '@common/utils/common'
 import { clipFileNameLength } from '@common/utils/tools'
 import { joinPath } from '@web-runtime/browser'
 
-export const buildSavePath = (musicInfo: LX.Download.ListItem) => {
+export const buildSavePath = (musicInfo: TuneFlow.Download.ListItem) => {
   let savePath = appSetting['download.savePath']
   if (appSetting['download.isSavePathGroupByListName']) {
     let dirName: string | undefined

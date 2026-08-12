@@ -79,7 +79,7 @@ const handleMenuClick = (action) => {
 
 
 watch(() => props.source, async(source) => {
-  // const source = (await getLeaderboardSetting()).source as LX.OnlineSource
+  // const source = (await getLeaderboardSetting()).source as TuneFlow.OnlineSource
   let boardList = boards[source]
   if (boardList == null) setBoard(boardList = await getBoardsList(source), source)
   list.splice(0, list.length, ...boardList.list)

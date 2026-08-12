@@ -73,7 +73,7 @@ export const setPlayListId = (listId: string | null) => {
   playInfo.playerListId = listId
 }
 
-export const getList = (listId: string | null): Array<LX.Music.MusicInfo | LX.Download.ListItem> => {
+export const getList = (listId: string | null): Array<TuneFlow.Music.MusicInfo | TuneFlow.Download.ListItem> => {
   return listId == LIST_IDS.DOWNLOAD ? downloadList : getListMusicsFromCache(listId)
 }
 
@@ -90,7 +90,7 @@ export const updatePlayIndex = () => {
   return indexInfo
 }
 
-export const getPlayIndex = (listId: string | null, musicInfo: LX.Download.ListItem | LX.Music.MusicInfo | null, isTempPlay: boolean): {
+export const getPlayIndex = (listId: string | null, musicInfo: TuneFlow.Download.ListItem | TuneFlow.Music.MusicInfo | null, isTempPlay: boolean): {
   playIndex: number
   playerPlayIndex: number
 } => {
@@ -131,7 +131,7 @@ export const resetPlayerMusicInfo = () => {
     lrc: null,
     tlrc: null,
     rlrc: null,
-    lxlrc: null,
+    verbatimLyric: null,
     rawlrc: null,
     name: '',
     singer: '',
@@ -139,7 +139,7 @@ export const resetPlayerMusicInfo = () => {
   })
 }
 
-const setPlayerMusicInfo = (musicInfo: LX.Music.MusicInfo | LX.Download.ListItem | null) => {
+const setPlayerMusicInfo = (musicInfo: TuneFlow.Music.MusicInfo | TuneFlow.Download.ListItem | null) => {
   if (musicInfo) {
     setMusicInfo('progress' in musicInfo ? {
       id: musicInfo.id,
@@ -150,7 +150,7 @@ const setPlayerMusicInfo = (musicInfo: LX.Music.MusicInfo | LX.Download.ListItem
       lrc: null,
       tlrc: null,
       rlrc: null,
-      lxlrc: null,
+      verbatimLyric: null,
       rawlrc: null,
     } : {
       id: musicInfo.id,
@@ -161,7 +161,7 @@ const setPlayerMusicInfo = (musicInfo: LX.Music.MusicInfo | LX.Download.ListItem
       lrc: null,
       tlrc: null,
       rlrc: null,
-      lxlrc: null,
+      verbatimLyric: null,
       rawlrc: null,
     })
   } else resetPlayerMusicInfo()
@@ -173,7 +173,7 @@ const setPlayerMusicInfo = (musicInfo: LX.Music.MusicInfo | LX.Download.ListItem
  * @param musicInfo 歌曲信息
  * @param isTempPlay 是否临时播放
  */
-export const setPlayMusicInfo = (listId: string | null, musicInfo: LX.Download.ListItem | LX.Music.MusicInfo | null, isTempPlay: boolean = false) => {
+export const setPlayMusicInfo = (listId: string | null, musicInfo: TuneFlow.Download.ListItem | TuneFlow.Music.MusicInfo | null, isTempPlay: boolean = false) => {
   musicInfo = toRaw(musicInfo)
 
   playMusicInfo.listId = listId
@@ -201,7 +201,7 @@ export const setPlayMusicInfo = (listId: string | null, musicInfo: LX.Download.L
  * 将歌曲添加到已播放列表
  * @param playMusicInfo playMusicInfo对象
  */
-export const addPlayedList = (playMusicInfo: LX.Player.PlayMusicInfo) => {
+export const addPlayedList = (playMusicInfo: TuneFlow.Player.PlayMusicInfo) => {
   const id = playMusicInfo.musicInfo.id
   if (playedList.some(m => m.musicInfo.id === id)) return
   playedList.push(playMusicInfo)
@@ -224,8 +224,8 @@ export const clearPlayedList = () => {
  * 添加歌曲到稍后播放列表
  * @param list 歌曲列表
  */
-export const addTempPlayList = (list: LX.Player.TempPlayListItem[]) => {
-  const topList: Array<Omit<LX.Player.TempPlayListItem, 'top'>> = []
+export const addTempPlayList = (list: TuneFlow.Player.TempPlayListItem[]) => {
+  const topList: Array<Omit<TuneFlow.Player.TempPlayListItem, 'top'>> = []
   const bottomList = list.filter(({ isTop, ...musicInfo }) => {
     if (isTop) {
       topList.push(musicInfo)

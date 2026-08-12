@@ -15,9 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      CI_CONTAINER: lx-music-ci-${{ github.run_id }}-${{ github.run_attempt }}
-      CI_IMAGE: lx-music-server-web:ci
-      CI_VOLUME: lx-music-ci-data-${{ github.run_id }}-${{ github.run_attempt }}
+      CI_CONTAINER: tuneflow-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      CI_IMAGE: tuneflow-server-web:ci
+      CI_VOLUME: tuneflow-ci-data-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

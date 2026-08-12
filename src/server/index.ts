@@ -2,13 +2,13 @@ import { createServer } from './app'
 import { loadServerOptions } from './config'
 
 const help = [
-  'LX Music Service',
+  'TuneFlow (音流) Service',
   '',
   'Environment variables:',
-  '  LX_STORAGE_ROOT  Storage directory (default: ./data)',
-  '  LX_WEB_ROOT      Web assets directory (default: ./dist/web)',
-  '  LX_HOST          Bind host (default: 127.0.0.1)',
-  '  LX_PORT          Bind port (default: 3124)',
+  '  TUNEFLOW_STORAGE_ROOT  Storage directory (default: ./data)',
+  '  TUNEFLOW_WEB_ROOT      Web assets directory (default: ./dist/web)',
+  '  TUNEFLOW_HOST          Bind host (default: 127.0.0.1)',
+  '  TUNEFLOW_PORT          Bind port (default: 3124)',
 ].join('\n')
 
 const main = async() => {

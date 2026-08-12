@@ -1,17 +1,17 @@
 import { SPLIT_CHAR } from '@common/constants'
 
 export const filterMusicList = async({ playedList, listId, list, playerMusicInfo, dislikeInfo, isNext }: {
-  playedList: LX.Player.PlayMusicInfo[]
+  playedList: TuneFlow.Player.PlayMusicInfo[]
   listId: string
-  list: Array<LX.Music.MusicInfo | LX.Download.ListItem>
-  playerMusicInfo?: LX.Music.MusicInfo | LX.Download.ListItem
-  dislikeInfo: Omit<LX.Dislike.DislikeInfo, 'rules'>
+  list: Array<TuneFlow.Music.MusicInfo | TuneFlow.Download.ListItem>
+  playerMusicInfo?: TuneFlow.Music.MusicInfo | TuneFlow.Download.ListItem
+  dislikeInfo: Omit<TuneFlow.Dislike.DislikeInfo, 'rules'>
   isNext: boolean
 }) => {
   let playerIndex = -1
-  const canPlayList: Array<LX.Music.MusicInfo | LX.Download.ListItem> = []
+  const canPlayList: Array<TuneFlow.Music.MusicInfo | TuneFlow.Download.ListItem> = []
   const filteredPlayedList = playedList.filter(info => info.listId == listId && !info.isTempPlay).map(({ musicInfo }) => musicInfo)
-  const hasDislike = (info: LX.Music.MusicInfo) => {
+  const hasDislike = (info: TuneFlow.Music.MusicInfo) => {
     const name = info.name?.replaceAll(SPLIT_CHAR.DISLIKE_NAME, SPLIT_CHAR.DISLIKE_NAME_ALIAS).toLocaleLowerCase().trim() ?? ''
     const singer = info.singer?.replaceAll(SPLIT_CHAR.DISLIKE_NAME, SPLIT_CHAR.DISLIKE_NAME_ALIAS).toLocaleLowerCase().trim() ?? ''
     return dislikeInfo.musicNames.has(name) || dislikeInfo.singerNames.has(singer) || dislikeInfo.names.has(`${name}${SPLIT_CHAR.DISLIKE_NAME}${singer}`)

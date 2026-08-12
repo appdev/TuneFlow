@@ -7,7 +7,7 @@ export const setInited = () => {
   isInitedList.value = true
 }
 
-export const downloadList = reactive<LX.Download.ListItem[]>([])
-// export const downloadListMap = new Map<string, LX.Download.ListItem>()
+export const downloadList = reactive<TuneFlow.Download.ListItem[]>([])
+// export const downloadListMap = new Map<string, TuneFlow.Download.ListItem>()
 
 export const downloadStatus = markRaw(DOWNLOAD_STATUS)

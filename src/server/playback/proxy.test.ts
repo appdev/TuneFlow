@@ -19,7 +19,7 @@ const apps: Array<ReturnType<typeof Fastify>> = []
 const servers: Array<ReturnType<typeof createHttpServer>> = []
 const tempRoots: string[] = []
 
-const startUpstream = async(): Promise<{ url: string, requests: Array<{ method?: string, range?: string, ifRange?: string, sourceHeader?: string }> }> => {
+const startUpstream = async(contentType = 'audio/mpeg'): Promise<{ url: string, requests: Array<{ method?: string, range?: string, ifRange?: string, sourceHeader?: string }> }> => {
   const requests: Array<{ method?: string, range?: string, ifRange?: string, sourceHeader?: string }> = []
   const server = createHttpServer((request, response) => {
     requests.push({ method: request.method, range: typeof request.headers.range === 'string' ? request.headers.range : undefined, ifRange: typeof request.headers['if-range'] === 'string' ? request.headers['if-range'] : undefined, sourceHeader: typeof request.headers['x-source-required'] === 'string' ? request.headers['x-source-required'] : undefined })
@@ -39,7 +39,7 @@ const startUpstream = async(): Promise<{ url: string, requests: Array<{ method?:
         return
       }
       response.writeHead(206, {
-        'content-type': 'audio/mpeg',
+        'content-type': contentType,
         'content-length': end - start + 1,
         'content-range': `bytes ${start}-${end}/${bytes.length}`,
         'accept-ranges': 'bytes',
@@ -49,7 +49,7 @@ const startUpstream = async(): Promise<{ url: string, requests: Array<{ method?:
       else response.end()
       return
     }
-    response.writeHead(200, { 'content-type': 'audio/mpeg', 'content-length': bytes.length, 'accept-ranges': 'bytes', etag: '"fixture"' })
+    response.writeHead(200, { 'content-type': contentType, 'content-length': bytes.length, 'accept-ranges': 'bytes', etag: '"fixture"' })
     if (request.method !== 'HEAD') response.end(bytes)
     else response.end()
   })
@@ -64,7 +64,7 @@ const playbackApp = (store = new TokenStore()): ReturnType<typeof Fastify> => {
   apps.push(app)
   registerPlaybackRoutes(app, {
     tokenStore: store,
-    resolveTrack: async() => ({ url: 'http://example.invalid/never-expose', quality: '128k' as LX.Quality, expiresAt: Date.now() + 300_000 }),
+    resolveTrack: async() => ({ url: 'http://example.invalid/never-expose', quality: '128k' as TuneFlow.Quality, expiresAt: Date.now() + 300_000 }),
     allowPrivateNetwork: true,
   })
   return app
@@ -87,7 +87,7 @@ describe('same-origin playback proxy', () => {
 
     await resolver.resolveTrack({
       source: 'wy',
-      quality: '128k' as LX.Quality,
+      quality: '128k' as TuneFlow.Quality,
       info: {
         type: '128k',
         musicInfo: {
@@ -146,7 +146,7 @@ describe('same-origin playback proxy', () => {
 
     const result = await resolver.resolveTrack({
       source: 'tx',
-      quality: '128k' as LX.Quality,
+      quality: '128k' as TuneFlow.Quality,
       info: {
         type: '128k',
         musicInfo: {
@@ -169,6 +169,46 @@ describe('same-origin playback proxy', () => {
     })
   })
 
+  it('prefers a completed local download after the original provider fails', async() => {
+    const requestSource = vi.fn().mockRejectedValue(new Error('get music url failed'))
+    const sources = {
+      list: () => [{ id: 'user_api_fixture', active: true }],
+      requestSource,
+    } as unknown as SourcesService
+    const findAlternatives = vi.fn(async() => [{ source: 'wy', songmid: 'online-fallback' }])
+    const localUrl = `/api/v1/library/tracks/${'a'.repeat(64)}/stream`
+    const findLocal = vi.fn(() => localUrl)
+    const resolver = new PlaybackResolver(sources, new TokenStore(), findAlternatives, findLocal)
+
+    await expect(resolver.resolveTrack({
+      source: 'kw',
+      quality: '128k' as TuneFlow.Quality,
+      info: { id: 'track-1', name: '晚风', singer: '伍佰', source: 'kw' },
+    })).resolves.toMatchObject({ url: localUrl, quality: '128k' })
+    expect(findLocal).toHaveBeenCalledWith(expect.objectContaining({ id: 'track-1' }))
+    expect(findAlternatives).not.toHaveBeenCalled()
+    expect(requestSource).toHaveBeenCalledOnce()
+  })
+
+  it('uses a completed local download immediately when refreshing a failed stream URL', async() => {
+    const requestSource = vi.fn().mockResolvedValue({ url: 'https://example.test/should-not-be-used' })
+    const sources = {
+      list: () => [{ id: 'user_api_fixture', active: true }],
+      requestSource,
+    } as unknown as SourcesService
+    const localUrl = `/api/v1/library/tracks/${'b'.repeat(64)}/stream`
+    const findLocal = vi.fn(() => localUrl)
+    const resolver = new PlaybackResolver(sources, new TokenStore(), undefined, findLocal)
+
+    await expect(resolver.resolveTrack({
+      source: 'kw',
+      quality: '128k' as TuneFlow.Quality,
+      preferLocal: true,
+      info: { type: '128k', musicInfo: { id: 'track-1', name: '晚风', singer: '伍佰', source: 'kw' } },
+    })).resolves.toMatchObject({ url: localUrl })
+    expect(requestSource).not.toHaveBeenCalled()
+  })
+
   it('preserves the upstream failure when the active source does not support a fallback provider', async() => {
     const upstreamError = Object.assign(new Error('source endpoint DNS lookup failed'), { code: 'SOURCE_NETWORK_ERROR' })
     const requestSource = vi.fn().mockRejectedValue(upstreamError)
@@ -185,7 +225,7 @@ describe('same-origin playback proxy', () => {
 
     await expect(resolver.resolveTrack({
       source: 'kw',
-      quality: '128k' as LX.Quality,
+      quality: '128k' as TuneFlow.Quality,
       info: { name: '晚风', singer: '伍佰', source: 'kw' },
     })).rejects.toBe(upstreamError)
     expect(requestSource).toHaveBeenCalledTimes(1)
@@ -204,6 +244,18 @@ describe('same-origin playback proxy', () => {
     expect(response.rawPayload).toEqual(bytes)
     expect(upstream.requests).toEqual([{ method: 'GET', sourceHeader: 'required' }])
     expect(response.body).not.toContain(upstream.url)
+  })
+
+  it('canonicalizes legacy FLAC content type for native media frameworks', async() => {
+    const upstream = await startUpstream('audio/x-flac')
+    const store = new TokenStore()
+    const token = store.create({ url: upstream.url })
+    const app = playbackApp(store)
+
+    const response = await app.inject({ method: 'GET', url: `/api/v1/streams/${token}` })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.headers['content-type']).toBe('audio/flac')
   })
 
   it('follows an upstream redirect without emitting an unhandled stream error', async() => {
@@ -347,7 +399,7 @@ describe('same-origin playback proxy', () => {
   })
 
   it('does not authorize caller-selected list ids or paths as library files', async() => {
-    const root = mkdtempSync(path.join(os.tmpdir(), 'lx-library-registry-'))
+    const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-library-registry-'))
     tempRoots.push(root)
     mkdirSync(path.join(root, 'audio'))
     writeFileSync(path.join(root, 'private.txt'), 'private')
@@ -399,7 +451,7 @@ describe('same-origin playback proxy', () => {
       return reply.send(error)
     })
     registerPlaybackRoutes(app, {
-      resolveTrack: async() => ({ url: '/api/v1/streams/opaque-token', quality: '128k' as LX.Quality, expiresAt: 123 }),
+      resolveTrack: async() => ({ url: '/api/v1/streams/opaque-token', quality: '128k' as TuneFlow.Quality, expiresAt: 123 }),
     })
 
     const invalid = await app.inject({ method: 'POST', url: '/api/v1/playback/tracks/resolve', payload: { source: '', quality: '128k', info: {} } })

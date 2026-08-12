@@ -115,7 +115,7 @@ test('retired Electron source and build paths are absent', () => {
 })
 
 test('Web-only source has no desktop capability classifications or runtime guards', () => {
-  const forbidden = /desktop-noop|classifyCapability|runtimeCapabilities\.(?:sync|openApi|updates|windowControls|tray|desktopLyric|globalHotkeys)|window\.lx\.worker\.download/
+  const forbidden = /desktop-noop|classifyCapability|runtimeCapabilities\.(?:sync|openApi|updates|windowControls|tray|desktopLyric|globalHotkeys)|window\.tuneflow\.worker\.download/
   const matches = productionRoots
     .flatMap(listProductionFiles)
     .flatMap((path) => readFileSync(join(root, path), 'utf8').split('\n').flatMap((line, index) => forbidden.test(line)

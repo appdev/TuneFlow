@@ -26,7 +26,7 @@ const waitForHealth = async(origin: string): Promise<void> => {
 }
 
 test('production Web removes desktop file actions while retaining network, play, and remove actions', async({ browser }) => {
-  const root = mkdtempSync(path.join(os.tmpdir(), 'lx-web-only-ui-'))
+  const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-web-only-ui-'))
   const storageRoot = path.join(root, 'storage')
   const audio = readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3'))
   let audioServer: http.Server | undefined
@@ -48,22 +48,22 @@ test('production Web removes desktop file actions while retaining network, play,
       cwd: process.cwd(),
       env: {
         ...process.env,
-        LX_HOST: '127.0.0.1',
-        LX_PORT: String(servicePort),
-        LX_STORAGE_ROOT: storageRoot,
-        LX_WEB_ROOT: path.join(process.cwd(), 'dist/web'),
-        LX_SERVICE_NODE_MODULES: path.join(process.cwd(), 'dist/server/node_modules'),
+        TUNEFLOW_HOST: '127.0.0.1',
+        TUNEFLOW_PORT: String(servicePort),
+        TUNEFLOW_STORAGE_ROOT: storageRoot,
+        TUNEFLOW_WEB_ROOT: path.join(process.cwd(), 'dist/web'),
+        TUNEFLOW_SERVICE_NODE_MODULES: path.join(process.cwd(), 'dist/server/node_modules'),
       },
       stdio: 'ignore',
     })
     await waitForHealth(origin)
 
     const sourceScript = `/*\n * @name Web only UI fixture\n * @description Deterministic completed download for production UI evidence\n * @version 1.0.0\n */
-window.lx.on(window.lx.EVENT_NAMES.request, async ({ source, action }) => {
+window.tuneflow.on(window.tuneflow.EVENT_NAMES.request, async ({ source, action }) => {
   if (source !== 'fixture' || action !== 'musicUrl') throw new Error('unexpected source request')
   return 'http://127.0.0.1:${audioPort}/download.mp3'
 })
-window.lx.send(window.lx.EVENT_NAMES.inited, {
+window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
   sources: { fixture: { type: 'music', actions: ['musicUrl'], qualitys: ['128k'] } },
 })`
     const installed = await (await fetch(`${origin}/api/v1/sources`, {
@@ -134,6 +134,10 @@ window.lx.send(window.lx.EVENT_NAMES.inited, {
       await expect(page.getByRole('tab', { name: '添加本地歌曲' })).toHaveCount(0)
       await expect(page.getByRole('tab', { name: '导入', exact: true })).toHaveCount(0)
       await expect(page.getByRole('tab', { name: '导出', exact: true })).toHaveCount(0)
+
+      await page.getByRole('columnheader', { name: '#' }).click()
+      await page.getByText('本地列表', { exact: true }).click()
+      await expect(page.getByText(/已完成下载/).first()).toBeVisible()
 
       await page.goto(`${origin}/#/download`, { waitUntil: 'networkidle' })
       const completedDownload = page.getByText('已完成下载 - 测试歌手', { exact: true })

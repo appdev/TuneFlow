@@ -213,7 +213,7 @@ export default {
     },
     async handleSearch() {
       if (!this.text.length) return this.resultList = []
-      this.resultList = await window.lx.worker.main.searchListMusic(toRaw(this.list), this.text)
+      this.resultList = await window.tuneflow.worker.main.searchListMusic(toRaw(this.list), this.text)
     },
   },
 }

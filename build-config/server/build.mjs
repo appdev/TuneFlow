@@ -14,7 +14,7 @@ await writeFile(path.join(serverRoot, 'package.json'), `${JSON.stringify({
     'better-sqlite3': '^12.9.0',
     'crypto-js': '^4.2.0',
     fastify: '^5.11.3',
-    needle: 'github:lyswhut/needle#93299ac841b7e9a9f82ca7279b88aaaeda404060',
+    needle: '^3.5.0',
     tunnel: '^0.0.6',
     'iconv-lite': '^0.7.2',
     'image-size': '^1.1.0',
@@ -38,16 +38,16 @@ await build({
   alias: {
     '@common': path.join(root, 'src/common'),
     '@web-runtime': path.join(root, 'src/web-runtime'),
-    '@renderer/store': path.join(root, 'src/server/lxSdk/rendererStoreShim.ts'),
+    '@renderer/store': path.join(root, 'src/server/tuneFlowSdk/rendererStoreShim.ts'),
     '@renderer/utils/musicSdk/kg/vendors/infSign.min': path.join(root, 'src/renderer/utils/musicSdk/kg/vendors/infSign.min.js'),
-    '@renderer/utils': path.join(root, 'src/server/lxSdk/rendererUtilsShim.ts'),
-    '@common/rendererIpc': path.join(root, 'src/server/lxSdk/rendererIpcShim.ts'),
+    '@renderer/utils': path.join(root, 'src/server/tuneFlowSdk/rendererUtilsShim.ts'),
+    '@common/rendererIpc': path.join(root, 'src/server/tuneFlowSdk/rendererIpcShim.ts'),
   },
   plugins: [{
     name: 'service-provider-utils',
     setup(build) {
       build.onResolve({ filter: /^\.\.\/\.\.\/index$/ }, args => args.importer.includes(`${path.sep}renderer${path.sep}utils${path.sep}musicSdk${path.sep}`)
-        ? { path: path.join(root, 'src/server/lxSdk/rendererUtilsShim.ts') }
+        ? { path: path.join(root, 'src/server/tuneFlowSdk/rendererUtilsShim.ts') }
         : undefined)
     },
   }],
@@ -71,9 +71,9 @@ await build({
   alias: {
     '@common': path.join(root, 'src/common'),
     '@web-runtime': path.join(root, 'src/web-runtime'),
-    '@renderer/store': path.join(root, 'src/server/lxSdk/rendererStoreShim.ts'),
+    '@renderer/store': path.join(root, 'src/server/tuneFlowSdk/rendererStoreShim.ts'),
     '@renderer/utils/musicSdk/kg/vendors/infSign.min': path.join(root, 'src/renderer/utils/musicSdk/kg/vendors/infSign.min.js'),
-    '@renderer/utils': path.join(root, 'src/server/lxSdk/rendererUtilsShim.ts'),
-    '@common/rendererIpc': path.join(root, 'src/server/lxSdk/rendererIpcShim.ts'),
+    '@renderer/utils': path.join(root, 'src/server/tuneFlowSdk/rendererUtilsShim.ts'),
+    '@common/rendererIpc': path.join(root, 'src/server/tuneFlowSdk/rendererIpcShim.ts'),
   },
 })

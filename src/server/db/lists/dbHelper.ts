@@ -25,7 +25,7 @@ const idFixRxp = /\.0$/
  * @returns
  */
 export const queryAllUserList = () => {
-  const list = createListQueryStatement().all() as LX.DBService.UserListInfo[]
+  const list = createListQueryStatement().all() as TuneFlow.DBService.UserListInfo[]
   for (const info of list) {
     // 兼容v2.3.0之前版本插入数字类型的ID导致其意外在末尾追加 .0 的问题
     if (info.sourceListId?.endsWith?.('.0')) {
@@ -40,11 +40,11 @@ export const queryAllUserList = () => {
  * @param lists 列表
  * @param isClear 是否清空列表
  */
-export const insertUserLists = (lists: LX.DBService.UserListInfo[], isClear: boolean = false) => {
+export const insertUserLists = (lists: TuneFlow.DBService.UserListInfo[], isClear: boolean = false) => {
   const db = getDB()
   const listClearStatement = createListClearStatement()
   const listInsertStatement = createListInsertStatement()
-  db.transaction((lists: LX.DBService.UserListInfo[]) => {
+  db.transaction((lists: TuneFlow.DBService.UserListInfo[]) => {
     if (isClear) listClearStatement.run()
     for (const list of lists) {
       listInsertStatement.run({
@@ -81,10 +81,10 @@ export const deleteUserLists = (listIds: string[]) => {
  * 批量更新用户列表
  * @param lists 列表
  */
-export const updateUserLists = (lists: LX.DBService.UserListInfo[]) => {
+export const updateUserLists = (lists: TuneFlow.DBService.UserListInfo[]) => {
   const db = getDB()
   const listUpdateStatement = createListUpdateStatement()
-  db.transaction((lists: LX.DBService.UserListInfo[]) => {
+  db.transaction((lists: TuneFlow.DBService.UserListInfo[]) => {
     for (const list of lists) listUpdateStatement.run(list)
   })(lists)
 }
@@ -94,11 +94,11 @@ export const updateUserLists = (lists: LX.DBService.UserListInfo[]) => {
  * 批量添加歌曲
  * @param list
  */
-export const insertMusicInfoList = (list: LX.DBService.MusicInfo[]) => {
+export const insertMusicInfoList = (list: TuneFlow.DBService.MusicInfo[]) => {
   const musicInfoInsertStatement = createMusicInfoInsertStatement()
   const musicInfoOrderInsertStatement = createMusicInfoOrderInsertStatement()
   const db = getDB()
-  db.transaction((musics: LX.DBService.MusicInfo[]) => {
+  db.transaction((musics: TuneFlow.DBService.MusicInfo[]) => {
     for (const music of musics) {
       musicInfoInsertStatement.run(music)
       musicInfoOrderInsertStatement.run({
@@ -116,13 +116,13 @@ export const insertMusicInfoList = (list: LX.DBService.MusicInfo[]) => {
  * @param listId 列表Id
  * @param listAll 原始列表歌曲，列表去重后
  */
-export const insertMusicInfoListAndRefreshOrder = (list: LX.DBService.MusicInfo[], listId: string, listAll: LX.DBService.MusicInfo[]) => {
+export const insertMusicInfoListAndRefreshOrder = (list: TuneFlow.DBService.MusicInfo[], listId: string, listAll: TuneFlow.DBService.MusicInfo[]) => {
   const musicInfoInsertStatement = createMusicInfoInsertStatement()
   const musicInfoOrderInsertStatement = createMusicInfoOrderInsertStatement()
   const musicInfoOrderDeleteByListIdStatement = createMusicInfoOrderDeleteByListIdStatement()
 
   const db = getDB()
-  db.transaction((list: LX.DBService.MusicInfo[], listId: string, listAll: LX.DBService.MusicInfo[]) => {
+  db.transaction((list: TuneFlow.DBService.MusicInfo[], listId: string, listAll: TuneFlow.DBService.MusicInfo[]) => {
     musicInfoOrderDeleteByListIdStatement.run(listId)
     for (const music of list) {
       musicInfoInsertStatement.run(music)
@@ -146,10 +146,10 @@ export const insertMusicInfoListAndRefreshOrder = (list: LX.DBService.MusicInfo[
  * 批量更新歌曲
  * @param list
  */
-export const updateMusicInfos = (list: LX.DBService.MusicInfo[]) => {
+export const updateMusicInfos = (list: TuneFlow.DBService.MusicInfo[]) => {
   const musicInfoUpdateStatement = createMusicInfoUpdateStatement()
   const db = getDB()
-  db.transaction((musics: LX.DBService.MusicInfo[]) => {
+  db.transaction((musics: TuneFlow.DBService.MusicInfo[]) => {
     for (const music of musics) {
       musicInfoUpdateStatement.run(music)
     }
@@ -163,7 +163,7 @@ export const updateMusicInfos = (list: LX.DBService.MusicInfo[]) => {
  */
 export const queryMusicInfoByListId = (listId: string) => {
   const musicInfoQueryStatement = createMusicInfoQueryStatement()
-  return musicInfoQueryStatement.all({ listId }) as LX.DBService.MusicInfo[]
+  return musicInfoQueryStatement.all({ listId }) as TuneFlow.DBService.MusicInfo[]
 }
 
 /**
@@ -172,7 +172,7 @@ export const queryMusicInfoByListId = (listId: string) => {
  * @param ids 要移动的歌曲
  * @param musicInfos 音乐信息
  */
-export const moveMusicInfo = (fromId: string, ids: string[], musicInfos: LX.DBService.MusicInfo[]) => {
+export const moveMusicInfo = (fromId: string, ids: string[], musicInfos: TuneFlow.DBService.MusicInfo[]) => {
   const musicInfoInsertStatement = createMusicInfoInsertStatement()
   const musicInfoOrderInsertStatement = createMusicInfoOrderInsertStatement()
   const musicInfoDeleteStatement = createMusicInfoDeleteStatement()
@@ -180,7 +180,7 @@ export const moveMusicInfo = (fromId: string, ids: string[], musicInfos: LX.DBSe
   // const musicInfoOrderDeleteByListIdStatement = createMusicInfoOrderDeleteByListIdStatement()
 
   const db = getDB()
-  db.transaction((fromId: string, ids: string[], musicInfos: LX.DBService.MusicInfo[]) => {
+  db.transaction((fromId: string, ids: string[], musicInfos: TuneFlow.DBService.MusicInfo[]) => {
     // musicInfoOrderDeleteByListIdStatement.run(fromId)
     for (const id of ids) {
       musicInfoDeleteStatement.run({ listId: fromId, id })
@@ -204,7 +204,7 @@ export const moveMusicInfo = (fromId: string, ids: string[], musicInfos: LX.DBSe
  * @param musicInfos 要移动的歌曲，目标列表去重后
  * @param toListAll 目标列表歌曲
  */
-export const moveMusicInfoAndRefreshOrder = (fromId: string, ids: string[], toId: string, musicInfos: LX.DBService.MusicInfo[], toListAll: LX.DBService.MusicInfo[]) => {
+export const moveMusicInfoAndRefreshOrder = (fromId: string, ids: string[], toId: string, musicInfos: TuneFlow.DBService.MusicInfo[], toListAll: TuneFlow.DBService.MusicInfo[]) => {
   const musicInfoInsertStatement = createMusicInfoInsertStatement()
   const musicInfoDeleteStatement = createMusicInfoDeleteStatement()
   const musicInfoOrderDeleteStatement = createMusicInfoOrderDeleteStatement()
@@ -212,7 +212,7 @@ export const moveMusicInfoAndRefreshOrder = (fromId: string, ids: string[], toId
   const musicInfoOrderDeleteByListIdStatement = createMusicInfoOrderDeleteByListIdStatement()
 
   const db = getDB()
-  db.transaction((fromId: string, ids: string[], musicInfos: LX.DBService.MusicInfo[], toListAll: LX.DBService.MusicInfo[]) => {
+  db.transaction((fromId: string, ids: string[], musicInfos: TuneFlow.DBService.MusicInfo[], toListAll: TuneFlow.DBService.MusicInfo[]) => {
     for (const id of ids) {
       musicInfoDeleteStatement.run({ listId: fromId, id })
       musicInfoOrderDeleteStatement.run({ listId: fromId, id })
@@ -277,7 +277,7 @@ export const removeMusicInfoByListId = (ids: string[]) => {
  */
 export const queryMusicInfoByListIdAndMusicInfoId = (listId: string, musicInfoId: string) => {
   const musicInfoByListAndMusicInfoIdQueryStatement = createMusicInfoByListAndMusicInfoIdQueryStatement()
-  return musicInfoByListAndMusicInfoIdQueryStatement.get({ listId, musicInfoId }) as LX.DBService.MusicInfo | null
+  return musicInfoByListAndMusicInfoIdQueryStatement.get({ listId, musicInfoId }) as TuneFlow.DBService.MusicInfo | null
 }
 
 /**
@@ -287,7 +287,7 @@ export const queryMusicInfoByListIdAndMusicInfoId = (listId: string, musicInfoId
  */
 export const queryMusicInfoByMusicInfoId = (id: string) => {
   const musicInfoByMusicInfoIdQueryStatement = createMusicInfoByMusicInfoIdQueryStatement()
-  return musicInfoByMusicInfoIdQueryStatement.all(id) as LX.DBService.MusicInfo[]
+  return musicInfoByMusicInfoIdQueryStatement.all(id) as TuneFlow.DBService.MusicInfo[]
 }
 
 /**
@@ -295,11 +295,11 @@ export const queryMusicInfoByMusicInfoId = (id: string) => {
  * @param listId 列表id
  * @param musicInfoOrders 音乐顺序
  */
-export const updateMusicInfoOrder = (listId: string, musicInfoOrders: LX.DBService.MusicInfoOrder[]) => {
+export const updateMusicInfoOrder = (listId: string, musicInfoOrders: TuneFlow.DBService.MusicInfoOrder[]) => {
   const db = getDB()
   const musicInfoOrderInsertStatement = createMusicInfoOrderInsertStatement()
   const musicInfoOrderDeleteByListIdStatement = createMusicInfoOrderDeleteByListIdStatement()
-  db.transaction((listId: string, musicInfoOrders: LX.DBService.MusicInfoOrder[]) => {
+  db.transaction((listId: string, musicInfoOrders: TuneFlow.DBService.MusicInfoOrder[]) => {
     musicInfoOrderDeleteByListIdStatement.run(listId)
     for (const orderInfo of musicInfoOrders) musicInfoOrderInsertStatement.run(orderInfo)
   })(listId, musicInfoOrders)
@@ -310,13 +310,13 @@ export const updateMusicInfoOrder = (listId: string, musicInfoOrders: LX.DBServi
  * @param listId 列表id
  * @param musicInfos 歌曲列表
  */
-export const overwriteMusicInfo = (listId: string, musicInfos: LX.DBService.MusicInfo[]) => {
+export const overwriteMusicInfo = (listId: string, musicInfos: TuneFlow.DBService.MusicInfo[]) => {
   const db = getDB()
   const musicInfoDeleteByListIdStatement = createMusicInfoDeleteByListIdStatement()
   const musicInfoOrderDeleteByListIdStatement = createMusicInfoOrderDeleteByListIdStatement()
   const musicInfoInsertStatement = createMusicInfoInsertStatement()
   const musicInfoOrderInsertStatement = createMusicInfoOrderInsertStatement()
-  db.transaction((listId: string, musicInfos: LX.DBService.MusicInfo[]) => {
+  db.transaction((listId: string, musicInfos: TuneFlow.DBService.MusicInfo[]) => {
     musicInfoDeleteByListIdStatement.run(listId)
     musicInfoOrderDeleteByListIdStatement.run(listId)
     for (const musicInfo of musicInfos) {
@@ -335,7 +335,7 @@ export const overwriteMusicInfo = (listId: string, musicInfos: LX.DBService.Musi
  * @param lists 列表
  * @param musicInfos 歌曲列表
  */
-export const overwriteListData = (lists: LX.DBService.UserListInfo[], musicInfos: LX.DBService.MusicInfo[]) => {
+export const overwriteListData = (lists: TuneFlow.DBService.UserListInfo[], musicInfos: TuneFlow.DBService.MusicInfo[]) => {
   const db = getDB()
   const listClearStatement = createListClearStatement()
   const listInsertStatement = createListInsertStatement()
@@ -343,7 +343,7 @@ export const overwriteListData = (lists: LX.DBService.UserListInfo[], musicInfos
   const musicInfoInsertStatement = createMusicInfoInsertStatement()
   const musicInfoOrderClearStatement = createMusicInfoOrderClearStatement()
   const musicInfoOrderInsertStatement = createMusicInfoOrderInsertStatement()
-  db.transaction((lists: LX.DBService.UserListInfo[], musicInfos: LX.DBService.MusicInfo[]) => {
+  db.transaction((lists: TuneFlow.DBService.UserListInfo[], musicInfos: TuneFlow.DBService.MusicInfo[]) => {
     listClearStatement.run()
     for (const list of lists) {
       listInsertStatement.run({

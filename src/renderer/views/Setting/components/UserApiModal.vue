@@ -20,7 +20,7 @@ material-modal(:show="modelValue" bg-close teleport="#view" @close="handleClose"
     div(:class="$style.note")
       p(:class="[$style.ruleLink]")
         | {{ $t('user_api__readme') }}
-        span.hover.underline(aria-label="https://lxmusic.toside.cn/desktop/custom-source" @click="handleOpenUrl('https://lyswhut.github.io/lx-music-doc/desktop/custom-source')") FAQ
+        span.hover.underline(aria-label="https://github.com/appdev/TuneFlow/blob/main/FAQ.md" @click="handleOpenUrl('https://github.com/appdev/TuneFlow/blob/main/FAQ.md')") FAQ
       p {{ $t('user_api__note') }}
     div(:class="$style.footer")
       base-btn(data-testid="user-api-import-network" :class="$style.footerBtn" @click="isShowOnlineImportModal = true") {{ $t('user_api__btn_import_online') }}

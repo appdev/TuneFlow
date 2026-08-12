@@ -76,7 +76,7 @@ const decodeBody = (raw: Uint8Array): unknown => {
 const requestBody = (init: RequestInit & { form?: Record<string, unknown>, formData?: Record<string, unknown> }): { body?: string, headers?: HeadersInit } => {
   if (init.form != null) return { body: new URLSearchParams(Object.entries(init.form).map(([key, value]) => [key, String(value)])).toString(), headers: { ...(init.headers ?? {}), 'content-type': 'application/x-www-form-urlencoded' } }
   if (init.formData != null) {
-    const boundary = `----lx-source-${randomUUID()}`
+    const boundary = `----tuneflow-source-${randomUUID()}`
     const body = Object.entries(init.formData).map(([key, value]) => `--${boundary}\r\nContent-Disposition: form-data; name="${key.replace(/[\r\n"]/g, '')}"\r\n\r\n${String(value)}\r\n`).join('') + `--${boundary}--\r\n`
     return { body, headers: { ...(init.headers ?? {}), 'content-type': `multipart/form-data; boundary=${boundary}` } }
   }

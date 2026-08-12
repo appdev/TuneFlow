@@ -11,7 +11,7 @@ const mrcTools = {
   parseLyric(str) {
     str = str.replace(/\r/g, '')
     const lines = str.split('\n')
-    const lxlrcLines = []
+    const verbatimLyricLines = []
     const lrcLines = []
 
     for (const line of lines) {
@@ -40,11 +40,11 @@ const mrcTools = {
       })
       const wordArr = words.split(this.rxps.wordTime)
       const newWords = times.map((time, index) => `${time}${wordArr[index]}`).join('')
-      lxlrcLines.push(`[${time}]${newWords}`)
+      verbatimLyricLines.push(`[${time}]${newWords}`)
     }
     return {
       lyric: lrcLines.join('\n'),
-      lxlyric: lxlrcLines.join('\n'),
+      verbatimLyric: verbatimLyricLines.join('\n'),
     }
   },
   getText(url, tryNum = 0) {
@@ -67,7 +67,7 @@ const mrcTools = {
     })
   },
   getLrc(url) {
-    return this.getText(url).then(text => ({ lxlyric: '', lyric: text }))
+    return this.getText(url).then(text => ({ verbatimLyric: '', lyric: text }))
   },
   getTrc(url) {
     if (!url) return Promise.resolve('')

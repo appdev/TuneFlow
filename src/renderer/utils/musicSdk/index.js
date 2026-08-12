@@ -50,7 +50,7 @@ const sources = {
   xm,
 }
 
-if (globalThis.lxWebRuntime != null) {
+if (globalThis.tuneFlowWebRuntime != null) {
   for (const source of sources.sources) {
     const search = sources[source.id]?.musicSearch
     if (!search) continue

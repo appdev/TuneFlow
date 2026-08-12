@@ -7,7 +7,7 @@ export default defineConfig({
   workers: 1,
   timeout: 120_000,
   expect: { timeout: 15_000 },
-  outputDir: '.superpowers/sdd/2026-08-10-lx-music-server-web/task-8-artifacts/playwright-results',
+  outputDir: '.superpowers/sdd/2026-08-10-tuneflow-server-web/task-8-artifacts/playwright-results',
   use: {
     headless: true,
     viewport: { width: 1440, height: 900 },

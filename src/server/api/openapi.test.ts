@@ -14,10 +14,10 @@ afterEach(async() => {
 
 describe('Service OpenAPI contract', () => {
   it('documents the complete API with stable, unique operation ids', async() => {
-    const storageRoot = mkdtempSync(path.join(os.tmpdir(), 'lx-openapi-'))
+    const storageRoot = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-openapi-'))
     const webRoot = path.join(storageRoot, 'web')
     mkdirSync(webRoot)
-    writeFileSync(path.join(webRoot, 'index.html'), '<!doctype html><title>LX</title>')
+    writeFileSync(path.join(webRoot, 'index.html'), '<!doctype html><title>TuneFlow · 音流</title>')
     roots.push(storageRoot)
     const app = await createServer({ storageRoot, webRoot, host: '127.0.0.1', port: 0 })
     apps.push(app)
@@ -33,6 +33,7 @@ describe('Service OpenAPI contract', () => {
       '/api/v1/playlists/reorder', '/api/v1/playlists/tracks/move', '/api/v1/playlists/{id}/tracks/reorder', '/api/v1/playlists/import',
       '/api/v1/playlists/{id}/tracks/{trackId}/exists', '/api/v1/tracks/{id}/playlists', '/api/v1/events/snapshot', '/api/v1/events',
       '/api/v1/sources', '/api/v1/sources/active', '/api/v1/sources/{id}', '/api/v1/catalog/capabilities', '/api/v1/catalog/tracks/search',
+      '/api/v1/catalog/leaderboards', '/api/v1/catalog/leaderboards/tracks',
       '/api/v1/catalog/playlists/search', '/api/v1/catalog/albums/search', '/api/v1/catalog/tracks/lyrics',
       '/api/v1/catalog/tracks/picture', '/api/v1/playback/tracks/resolve', '/api/v1/streams/{token}', '/api/v1/downloads',
       '/api/v1/downloads/{id}/start', '/api/v1/downloads/{id}/resume', '/api/v1/downloads/{id}/pause', '/api/v1/downloads/{id}',

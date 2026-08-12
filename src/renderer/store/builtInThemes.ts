@@ -1,14 +1,14 @@
 import themes from '@common/theme/index.json'
 
-const builtInThemes = themes as LX.Theme[]
+const builtInThemes = themes as TuneFlow.Theme[]
 
-export const getBuiltInThemeInfo = (): LX.ThemeInfo => ({
+export const getBuiltInThemeInfo = (): TuneFlow.ThemeInfo => ({
   themes: builtInThemes,
   userThemes: [],
   dataPath: '',
 })
 
-export const resolveBuiltInTheme = (id: string, lightId: string, darkId: string, prefersDark: boolean): LX.Theme => {
+export const resolveBuiltInTheme = (id: string, lightId: string, darkId: string, prefersDark: boolean): TuneFlow.Theme => {
   const requestedId = id == 'auto' ? (prefersDark ? darkId : lightId) : id
   return builtInThemes.find(theme => theme.id == requestedId) ??
     builtInThemes.find(theme => theme.id == (prefersDark ? 'black' : 'green'))!

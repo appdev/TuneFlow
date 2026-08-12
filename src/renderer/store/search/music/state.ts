@@ -4,7 +4,7 @@ import music from '@renderer/utils/musicSdk'
 // import { deduplicationList } from '@common/utils/renderer'
 
 export declare interface ListInfo {
-  list: LX.Music.MusicInfo[]
+  list: TuneFlow.Music.MusicInfo[]
   total: number
   page: number
   maxPage: number
@@ -13,11 +13,11 @@ export declare interface ListInfo {
   noItemLabel: string
 }
 
-interface ListInfos extends Partial<Record<LX.OnlineSource, ListInfo>> {
+interface ListInfos extends Partial<Record<TuneFlow.OnlineSource, ListInfo>> {
   'all': ListInfo
 }
 
-export const sources: Array<LX.OnlineSource | 'all'> = markRaw([])
+export const sources: Array<TuneFlow.OnlineSource | 'all'> = markRaw([])
 
 export const listInfos: ListInfos = markRaw({
   all: reactive<ListInfo>({
@@ -30,11 +30,11 @@ export const listInfos: ListInfos = markRaw({
     noItemLabel: '',
   }),
 })
-export const maxPages: Partial<Record<LX.OnlineSource, number>> = {}
+export const maxPages: Partial<Record<TuneFlow.OnlineSource, number>> = {}
 for (const source of music.sources) {
-  if (!music[source.id as LX.OnlineSource]?.musicSearch) continue
-  sources.push(source.id as LX.OnlineSource)
-  listInfos[source.id as LX.OnlineSource] = reactive<ListInfo>({
+  if (!music[source.id as TuneFlow.OnlineSource]?.musicSearch) continue
+  sources.push(source.id as TuneFlow.OnlineSource)
+  listInfos[source.id as TuneFlow.OnlineSource] = reactive<ListInfo>({
     page: 1,
     maxPage: 0,
     limit: 30,
@@ -43,6 +43,6 @@ for (const source of music.sources) {
     key: '',
     noItemLabel: '',
   })
-  maxPages[source.id as LX.OnlineSource] = 0
+  maxPages[source.id as TuneFlow.OnlineSource] = 0
 }
 sources.push('all')

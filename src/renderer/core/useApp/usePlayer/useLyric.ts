@@ -23,7 +23,7 @@ export default () => {
   watch(() => appSetting['player.isShowLyricTranslation'], setLyric)
   watch(() => appSetting['player.isShowLyricRoma'], setLyric)
   watch(() => appSetting['player.isSwapLyricTranslationAndRoma'], setLyric)
-  watch(() => appSetting['player.isPlayLxlrc'], setLyric)
+  watch(() => appSetting['player.isPlayVerbatimLyric'], setLyric)
 
   window.app_event.on('play', play)
   window.app_event.on('pause', pause)

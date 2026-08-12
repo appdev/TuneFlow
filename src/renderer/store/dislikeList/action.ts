@@ -5,7 +5,7 @@ import { dislikeInfo, dislikeRuleCount } from './state'
 import { SPLIT_CHAR } from '@common/constants'
 
 
-export const hasDislike = (info: LX.Music.MusicInfo | LX.Download.ListItem) => {
+export const hasDislike = (info: TuneFlow.Music.MusicInfo | TuneFlow.Download.ListItem) => {
   if ('progress' in info) info = info.metadata.musicInfo
   const name = info.name?.replaceAll(SPLIT_CHAR.DISLIKE_NAME, SPLIT_CHAR.DISLIKE_NAME_ALIAS).toLocaleLowerCase().trim() ?? ''
   const singer = info.singer?.replaceAll(SPLIT_CHAR.DISLIKE_NAME, SPLIT_CHAR.DISLIKE_NAME_ALIAS).toLocaleLowerCase().trim() ?? ''
@@ -14,7 +14,7 @@ export const hasDislike = (info: LX.Music.MusicInfo | LX.Download.ListItem) => {
     dislikeInfo.names.has(`${name}${SPLIT_CHAR.DISLIKE_NAME}${singer}`)
 }
 
-export const initDislikeInfo = ({ musicNames, rules, names, singerNames }: LX.Dislike.DislikeInfo) => {
+export const initDislikeInfo = ({ musicNames, rules, names, singerNames }: TuneFlow.Dislike.DislikeInfo) => {
   dislikeInfo.names = markRaw(names)
   dislikeInfo.singerNames = markRaw(singerNames)
   dislikeInfo.musicNames = markRaw(musicNames)
@@ -51,7 +51,7 @@ const initNameSet = () => {
   dislikeRuleCount.value = dislikeInfo.musicNames.size + dislikeInfo.singerNames.size + dislikeInfo.names.size
 }
 
-export const addDislikeInfo = (infos: LX.Dislike.DislikeMusicInfo[]) => {
+export const addDislikeInfo = (infos: TuneFlow.Dislike.DislikeMusicInfo[]) => {
   dislikeInfo.rules += '\n' + infos.map(info => `${info.name ?? ''}${SPLIT_CHAR.DISLIKE_NAME}${info.singer ?? ''}`).join('\n')
   initNameSet()
   return dislikeInfo.rules
@@ -70,7 +70,7 @@ export const clearDislikeInfo = () => {
 }
 
 
-// export const updateDislikeInfo = (info: LX.Dislike.ListItem) => {
+// export const updateDislikeInfo = (info: TuneFlow.Dislike.ListItem) => {
 //   const targetInfo = dislikeInfo.list.find(i => i.id == info.id)
 //   if (!targetInfo) return
 //   targetInfo.name = info.name

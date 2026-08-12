@@ -3,7 +3,7 @@
 ## Outcome
 
 Convert this repository from a shared Electron/Web renderer into a Web-only UI
-served by the LX Music Service. The existing Electron application is no longer a
+served by the TuneFlow Service. The existing Electron application is no longer a
 supported build or runtime target; a future Flutter client will consume Service
 APIs independently.
 
@@ -43,7 +43,7 @@ system window controls are removed.
 The effective download root is always:
 
 ```text
-${LX_STORAGE_ROOT}/audio
+${TUNEFLOW_STORAGE_ROOT}/audio
 ```
 
 For the Docker image this resolves to `/data/audio`.

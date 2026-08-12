@@ -6,6 +6,7 @@ import tables, { DB_VERSION } from './tables'
 import verifyDB from './verifyDB'
 import migrateData from './migrate'
 import { resetListCache } from '../lists'
+import { migrateLegacyDatabaseFiles } from '../databasePath'
 
 let db: Database.Database | undefined
 let exitHookInstalled = false
@@ -19,7 +20,7 @@ const initTables = (db: Database.Database) => {
 }
 
 const getDatabaseConstructor = (): typeof Database => {
-  const serviceModules = process.env.LX_SERVICE_NODE_MODULES
+  const serviceModules = process.env.TUNEFLOW_SERVICE_NODE_MODULES
   if (serviceModules == null) return Database
   const createServiceRequire: typeof createRequire = Reflect.get({ createRequire }, 'createRequire')
   const serviceRequire = createServiceRequire(path.join(path.resolve(serviceModules), '..', 'package.json'))
@@ -28,9 +29,9 @@ const getDatabaseConstructor = (): typeof Database => {
 
 
 // 打开、初始化数据库
-export const init = (lxDataPath: string): boolean | null => {
+export const init = (dataPath: string): boolean | null => {
   close()
-  const databasePath = path.join(lxDataPath, 'lx.data.db')
+  const databasePath = migrateLegacyDatabaseFiles(dataPath)
   const nativeBinding = path.join(__dirname, '../node_modules/better-sqlite3/build/Release/better_sqlite3.node')
   const bindingOptions = existsSync(nativeBinding) ? { nativeBinding } : {}
   const DatabaseConstructor = getDatabaseConstructor()

@@ -64,7 +64,7 @@ export default () => {
   }
   const setPauseStatus = () => {
     setPlay(false)
-    if (window.lx.isPlayedStop) pause()
+    if (window.tuneflow.isPlayedStop) pause()
   }
 
   const handleUpdatePlayInfo = () => {
@@ -72,14 +72,14 @@ export default () => {
   }
 
   const handleCanplay = () => {
-    if (window.lx.isPlayedStop) {
+    if (window.tuneflow.isPlayedStop) {
       setPause()
     }
   }
   const handleEnded = () => {
     // setTimeout(() => {
     setAllStatus(t('player__end'))
-    if (window.lx.isPlayedStop) {
+    if (window.tuneflow.isPlayedStop) {
       console.log('played stop')
       return
     }
@@ -117,7 +117,7 @@ export default () => {
   watch(() => appSetting['player.togglePlayMethod'], newValue => {
     // setLoopPlay(newValue == 'singleLoop')
     if (playedList.length) clearPlayedList()
-    if (newValue == 'random' && playMusicInfo.musicInfo && !playMusicInfo.isTempPlay) addPlayedList({ ...(playMusicInfo as LX.Player.PlayMusicInfo) })
+    if (newValue == 'random' && playMusicInfo.musicInfo && !playMusicInfo.isTempPlay) addPlayedList({ ...(playMusicInfo as TuneFlow.Player.PlayMusicInfo) })
   })
 
   // setLoopPlay(appSetting['player.togglePlayMethod'] == 'singleLoop')

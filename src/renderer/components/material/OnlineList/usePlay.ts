@@ -8,9 +8,9 @@ import { playList } from '@renderer/core/player'
 import { LIST_IDS } from '@common/constants'
 
 export default ({ selectedList, props, removeAllSelect, emit }: {
-  selectedList: Ref<LX.Music.MusicInfoOnline[]>
+  selectedList: Ref<TuneFlow.Music.MusicInfoOnline[]>
   props: {
-    list: LX.Music.MusicInfoOnline[]
+    list: TuneFlow.Music.MusicInfoOnline[]
   }
   removeAllSelect: () => void
   emit: (event: 'show-menu' | 'play-list' | 'togglePage', ...args: any[]) => void

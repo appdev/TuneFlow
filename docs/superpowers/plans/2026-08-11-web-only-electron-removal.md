@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make LX Music Service plus its Web UI the repository's only supported runtime, remove desktop-only operations and Electron build/runtime code, and fix downloads to the Service-owned audio directory.
+**Goal:** Make TuneFlow Service plus its Web UI the repository's only supported runtime, remove desktop-only operations and Electron build/runtime code, and fix downloads to the Service-owned audio directory.
 
 **Architecture:** First make the Service own its storage and persistence dependencies, then remove desktop-only UI consumers, and only then delete Electron entrypoints and packaging. The Web renderer continues to reuse upstream Vue components, but browser/Service adapters become canonical and no production path may require Electron.
 
@@ -10,8 +10,8 @@
 
 ## Global Constraints
 
-- The only supported products are the Web UI and LX Music Service.
-- The effective download root is always `${LX_STORAGE_ROOT}/audio`; in Docker it is `/data/audio`.
+- The only supported products are the Web UI and TuneFlow Service.
+- The effective download root is always `${TUNEFLOW_STORAGE_ROOT}/audio`; in Docker it is `/data/audio`.
 - Do not delete or rewrite existing databases, lists, downloads, audio files, or unrelated dirty-worktree changes.
 - Network custom-source import, Service downloads, Service local-library scanning, built-in themes, and in-page play-detail navigation remain supported.
 - Electron builds are not an acceptance gate after their scripts and dependencies are removed.
@@ -262,7 +262,7 @@ Expected: both exit 0. Leave changes uncommitted.
 
 **Interfaces:**
 - Produces: `buildLyrics(lyricInfo, settings): string` at the runtime-neutral path with its existing behavior.
-- Produces: `createWebWorkers()` from `src/web-runtime/workers.ts`, returning the `main` and `download` adapters assigned to `window.lx.worker`.
+- Produces: `createWebWorkers()` from `src/web-runtime/workers.ts`, returning the `main` and `download` adapters assigned to `window.tuneflow.worker`.
 - Consumed by: Service metadata writer and Web renderer global bootstrap.
 
 - [ ] **Step 1: Extend worker tests to require the Web adapter directly**
@@ -406,7 +406,7 @@ Expected: exit 0. Leave changes uncommitted.
 - Modify: existing Playwright specs as required by intentionally removed desktop UI
 
 **Interfaces:**
-- Documents: Web URL, `${LX_STORAGE_ROOT}/audio`, Docker `/data/audio`, network-only custom-source import, Service-owned local library, and removal of Electron builds.
+- Documents: Web URL, `${TUNEFLOW_STORAGE_ROOT}/audio`, Docker `/data/audio`, network-only custom-source import, Service-owned local library, and removal of Electron builds.
 - Verifies: production Service plus Web artifact at `http://127.0.0.1:3124`.
 
 - [ ] **Step 1: Update operator and developer documentation**
@@ -449,11 +449,11 @@ Regenerate the fingerprint and compare it byte-for-byte. Expected: every command
 Run:
 
 ```bash
-LX_HOST=127.0.0.1 \
-LX_PORT=3124 \
-LX_STORAGE_ROOT=./data \
-LX_WEB_ROOT=./dist/web \
-LX_SERVICE_NODE_MODULES=./dist/server/node_modules \
+TUNEFLOW_HOST=127.0.0.1 \
+TUNEFLOW_PORT=3124 \
+TUNEFLOW_STORAGE_ROOT=./data \
+TUNEFLOW_WEB_ROOT=./dist/web \
+TUNEFLOW_SERVICE_NODE_MODULES=./dist/server/node_modules \
 node dist/server/index.cjs
 ```
 

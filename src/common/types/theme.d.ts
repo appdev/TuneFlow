@@ -1,4 +1,4 @@
-declare namespace LX {
+declare namespace TuneFlow {
 
   interface ThemeColors {
     '--color-000': string
@@ -289,8 +289,8 @@ declare namespace LX {
   }
 
   interface ThemeInfo {
-    themes: LX.Theme[]
-    userThemes: LX.Theme[]
+    themes: TuneFlow.Theme[]
+    userThemes: TuneFlow.Theme[]
     dataPath: string
   }
 

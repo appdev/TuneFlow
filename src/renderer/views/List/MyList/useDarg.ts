@@ -17,11 +17,11 @@ export default ({ dom_lists_list, handleSaveListName, handleMenuClick }: {
     dragingItemClassName: styles.dragingItem,
     filter: 'default-list',
     onUpdate(newIndex: number, oldIndex: number) {
-      void updateUserListPosition({ ids: [userLists[oldIndex - 2].id], position: newIndex - 2 })
+      void updateUserListPosition({ ids: [userLists[oldIndex - 3].id], position: newIndex - 3 })
     },
   })
 
-  const handle_key_mod_down = ({ event }: LX.KeyDownEevent) => {
+  const handle_key_mod_down = ({ event }: TuneFlow.KeyDownEevent) => {
     if (!isModDown.value) {
       // console.log(event)
       switch ((event!.target as HTMLElement).tagName) {

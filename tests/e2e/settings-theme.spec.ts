@@ -43,7 +43,7 @@ const createWave = (): Buffer => {
 }
 
 test('production Web gates desktop features and retains a built-in theme at all required viewports', async({ browser }) => {
-  const root = mkdtempSync(path.join(os.tmpdir(), 'lx-task7-ui-'))
+  const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-task7-ui-'))
   let service: ChildProcess | undefined
 
   try {
@@ -59,11 +59,11 @@ test('production Web gates desktop features and retains a built-in theme at all 
       cwd: process.cwd(),
       env: {
         ...process.env,
-        LX_HOST: '127.0.0.1',
-        LX_PORT: String(port),
-        LX_STORAGE_ROOT: path.join(root, 'storage'),
-        LX_WEB_ROOT: path.join(process.cwd(), 'dist/web'),
-        LX_SERVICE_NODE_MODULES: path.join(process.cwd(), 'dist/server/node_modules'),
+        TUNEFLOW_HOST: '127.0.0.1',
+        TUNEFLOW_PORT: String(port),
+        TUNEFLOW_STORAGE_ROOT: path.join(root, 'storage'),
+        TUNEFLOW_WEB_ROOT: path.join(process.cwd(), 'dist/web'),
+        TUNEFLOW_SERVICE_NODE_MODULES: path.join(process.cwd(), 'dist/server/node_modules'),
       },
       stdio: 'ignore',
     })

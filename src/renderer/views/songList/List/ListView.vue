@@ -11,7 +11,7 @@ import SongList from './components/SongList.vue'
 
 
 const props = defineProps<{
-  source: LX.OnlineSource
+  source: TuneFlow.OnlineSource
   tagId: string
   sortId?: string
   page: number
@@ -23,15 +23,15 @@ const list_ref = ref<any>(null)
 const router = useRouter()
 const route = useRoute()
 
-const getListData = async(source: LX.OnlineSource, tabId: string, sortId: string, page: number) => {
+const getListData = async(source: TuneFlow.OnlineSource, tabId: string, sortId: string, page: number) => {
   // console.log(source, tabId, sortId, page)
   await getAndSetList(source, tabId, sortId, page).then(() => {
-    if (listInfo.key == window.lx.songListInfo.songlistKey && window.lx.songListInfo.songlistPosition) {
+    if (listInfo.key == window.tuneflow.songListInfo.songlistKey && window.tuneflow.songListInfo.songlistPosition) {
       void nextTick(() => {
-        list_ref.value?.scrollTo(window.lx.songListInfo.songlistPosition)
+        list_ref.value?.scrollTo(window.tuneflow.songListInfo.songlistPosition)
       })
     } else if (list_ref.value) {
-      window.lx.songListInfo.songlistKey = null
+      window.tuneflow.songListInfo.songlistKey = null
       void nextTick(() => {
         list_ref.value.scrollTo(0)
       })
@@ -52,18 +52,18 @@ const togglePage = (page: number) => {
 }
 
 watch(() => [props.source, props.tagId, props.sortId, props.page], ([source, tagId, sortId, page]) => {
-  // const source = (await getLeaderboardSetting()).source as LX.OnlineSource
+  // const source = (await getLeaderboardSetting()).source as TuneFlow.OnlineSource
   // console.log(source, tagId, sortId)
   if (!source || !sortId) return
   // console.log(source, tagId, sortId, page)
-  void getListData(source as LX.OnlineSource, tagId as string, sortId as string, page as number)
+  void getListData(source as TuneFlow.OnlineSource, tagId as string, sortId as string, page as number)
 }, {
   immediate: true,
 })
 
 onBeforeRouteLeave(() => {
-  window.lx.songListInfo.songlistKey = listInfo.key
-  if (list_ref.value) window.lx.songListInfo.songlistPosition = list_ref.value.getScrollTop()
+  window.tuneflow.songListInfo.songlistKey = listInfo.key
+  if (list_ref.value) window.tuneflow.songListInfo.songlistPosition = list_ref.value.getScrollTop()
 })
 
 </script>

@@ -2,13 +2,13 @@ import { isMac } from '@common/utils'
 
 const downKeys = new Set<string>()
 
-export type KeyActionType = LX.KeyDownEevent['type']
-export type Keys = LX.KeyDownEevent['keys']
-export type Key = LX.KeyDownEevent['key']
-export type EventKey = LX.KeyDownEevent['eventKey']
-export type Event = LX.KeyDownEevent['event']
+export type KeyActionType = TuneFlow.KeyDownEevent['type']
+export type Keys = TuneFlow.KeyDownEevent['keys']
+export type Key = TuneFlow.KeyDownEevent['key']
+export type EventKey = TuneFlow.KeyDownEevent['eventKey']
+export type Event = TuneFlow.KeyDownEevent['event']
 
-const handleEvent = (type: KeyActionType, event: LX.KeyEvent, keys: Keys, isEditing: boolean) => {
+const handleEvent = (type: KeyActionType, event: TuneFlow.KeyEvent, keys: Keys, isEditing: boolean) => {
   let eventKey = event.key
   if (isMac) {
     let index = keys.indexOf('meta')
@@ -33,7 +33,7 @@ const handleEvent = (type: KeyActionType, event: LX.KeyEvent, keys: Keys, isEdit
 }
 
 // 修饰键处理
-const eventModifiers = (event: LX.KeyEvent): string[] => {
+const eventModifiers = (event: TuneFlow.KeyEvent): string[] => {
   let modifiers: string[] = []
   if (event.ctrlKey) modifiers.push('ctrl')
   if (event.shiftKey) modifiers.push('shift')
@@ -59,7 +59,7 @@ const assertStopCallback = (element: HTMLElement) => {
   }
 }
 
-const handleKeyDown = (event: LX.KeyEvent) => {
+const handleKeyDown = (event: TuneFlow.KeyEvent) => {
   // if (assertStopCallback(event.target)) return
   // event.preventDefault()
   let keys = eventModifiers(event)
@@ -79,7 +79,7 @@ const handleKeyDown = (event: LX.KeyEvent) => {
   handleEvent('down', event, keys, event.target ? assertStopCallback(event.target as HTMLElement) : false)
 }
 
-const handleKeyUp = (event: LX.KeyEvent) => {
+const handleKeyUp = (event: TuneFlow.KeyEvent) => {
   // if (assertStopCallback(event.target)) return
   event.preventDefault()
   let keys = eventModifiers(event)

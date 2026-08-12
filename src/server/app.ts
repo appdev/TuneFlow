@@ -17,8 +17,8 @@ import { SourceRepository } from './sources/repository'
 import { registerSourceRoutes, SourcesService } from './routes/sources'
 import { registerCatalogRoutes } from './routes/catalog'
 import { registerPlaybackRoutes } from './routes/playback'
-import { setRendererUtilsLanguage } from './lxSdk/rendererUtilsShim'
-import { getLyric, getPicture } from './lxSdk'
+import { setRendererUtilsLanguage } from './tuneFlowSdk/rendererUtilsShim'
+import { getLyric, getPicture } from './tuneFlowSdk'
 import { projectBrowserDto } from './playback/browserDto'
 import { LibraryScanner } from './library/scanner'
 import { registerLibraryRoutes } from './routes/library'
@@ -34,7 +34,7 @@ export type { ServerOptions } from './config'
 
 export const createServer = async(options: ServerOptions): Promise<FastifyInstance> => {
   const serverOptions = normalizeServerOptions(options)
-  if (initDatabase(serverOptions.storageRoot) == null) throw new Error('Unable to initialize LX database')
+  if (initDatabase(serverOptions.storageRoot) == null) throw new Error('Unable to initialize TuneFlow database')
 
   const app = Fastify({ ajv: { customOptions: { removeAdditional: false } } }).withTypeProvider<TypeBoxTypeProvider>()
   await registerOpenApi(app)
@@ -115,8 +115,12 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
   registerCatalogRoutes(app, sources)
   registerPlaybackRoutes(app, {
     sources,
+    findLocalTrack: musicInfo => {
+      const filePath = downloads.findCompletedFile(musicInfo)
+      return filePath == null ? undefined : library.findByFilePath(filePath)?.streamUrl
+    },
     // Test fixtures are local by design; production never relaxes the SSRF boundary.
-    allowPrivateNetwork: process.env.NODE_ENV === 'test' && process.env.LX_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS === '1',
+    allowPrivateNetwork: process.env.NODE_ENV === 'test' && process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS === '1',
   })
   registerDownloadRoutes(app, downloads)
   registerLibraryRoutes(app, library)

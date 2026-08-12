@@ -86,7 +86,11 @@ export const proxyPlayback = async(requestFromBrowser: FastifyRequest, reply: Fa
       const headers: Record<string, string> = {}
       for (const name of RESPONSE_HEADERS) {
         const value = upstream.headers[name]
-        if (typeof value === 'string') headers[name] = value
+        if (typeof value === 'string') {
+          headers[name] = name === 'content-type' && value.toLowerCase() === 'audio/x-flac'
+            ? 'audio/flac'
+            : value
+        }
       }
       void reply.code(upstream.statusCode).headers(headers)
       if (requestFromBrowser.method === 'HEAD') {
