@@ -82,8 +82,12 @@ stacks and copy the complete `/data` tree into the new `tuneflow-data` volume
 before starting TuneFlow. Within one storage root, TuneFlow automatically
 renames the previous database file and migrates branded settings keys.
 
-For a trusted-LAN opt-in, change the published port to `0.0.0.0:3124:3124`.
-This only changes reachability and does not add authentication.
+The default `3124:3124` mapping publishes the Service on all host interfaces.
+On the deployment host, open <http://127.0.0.1:3124>; from another device on a
+trusted LAN, open `http://SERVER_IP:3124`. For host-local access only, change
+the mapping to `127.0.0.1:3124:3124`. Publishing the port does not add
+authentication; restrict access with the host firewall or a reverse proxy and
+do not expose the Service directly to the Internet.
 
 To back up the named volume, stop the stack and archive the full `/data`
 contents from a temporary container. Restore into an empty named volume while
