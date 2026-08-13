@@ -3,7 +3,7 @@ import type { ApiFastifyInstance } from '../api/types'
 import { ApiSuccess, ErrorResponses } from '../api/schemas/common'
 import { CatalogCollection, CatalogLyrics, CatalogTrack } from '../api/schemas/domain'
 import { ApiError } from '../errors'
-import { catalogCapabilities, getLeaderboardTracks, getLeaderboards, getLyric, getPicture, search, searchCollections } from '../tuneFlowSdk'
+import { browsePlaylists, catalogCapabilities, getLeaderboardTracks, getLeaderboards, getLyric, getPicture, getPlaylistDetail, getPlaylistTags, search, searchCollections } from '../tuneFlowSdk'
 import type { SourcesService } from './sources'
 
 const TrackInput = Type.Object({
@@ -28,6 +28,23 @@ const LeaderboardTracksInput = Type.Object({
   page: Type.Integer({ minimum: 1 }),
 }, { additionalProperties: false })
 
+const PlaylistSourceInput = Type.Object({
+  source: Type.String({ minLength: 1 }),
+}, { additionalProperties: false })
+
+const PlaylistBrowseInput = Type.Object({
+  source: Type.String({ minLength: 1 }),
+  sortId: Type.String(),
+  tagId: Type.String(),
+  page: Type.Integer({ minimum: 1 }),
+}, { additionalProperties: false })
+
+const PlaylistDetailInput = Type.Object({
+  source: Type.String({ minLength: 1 }),
+  playlistId: Type.String({ minLength: 1, maxLength: 512 }),
+  page: Type.Integer({ minimum: 1 }),
+}, { additionalProperties: false })
+
 const searchResult = (item: typeof CatalogTrack | typeof CatalogCollection) => Type.Object({
   list: Type.Array(item),
   total: Type.Number(),
@@ -42,7 +59,48 @@ const CatalogCapabilities = Type.Object({
     name: Type.String(),
     searchKinds: Type.Array(Type.Union([Type.Literal('track'), Type.Literal('playlist'), Type.Literal('album')])),
     leaderboards: Type.Boolean(),
+    playlistDiscovery: Type.Optional(Type.Object({
+      tags: Type.Boolean(),
+      browse: Type.Boolean(),
+      detail: Type.Boolean(),
+    }, { additionalProperties: false })),
   }, { additionalProperties: false })),
+}, { additionalProperties: false })
+
+const PlaylistTag = Type.Object({
+  id: Type.String({ minLength: 1 }),
+  name: Type.String({ minLength: 1 }),
+}, { additionalProperties: false })
+
+const PlaylistTagGroup = Type.Object({
+  name: Type.String({ minLength: 1 }),
+  tags: Type.Array(PlaylistTag),
+}, { additionalProperties: false })
+
+const PlaylistFilters = Type.Object({
+  source: Type.String({ minLength: 1 }),
+  sorts: Type.Array(PlaylistTag),
+  hotTags: Type.Array(PlaylistTag),
+  groups: Type.Array(PlaylistTagGroup),
+}, { additionalProperties: false })
+
+const PlaylistPageFields = {
+  source: Type.String({ minLength: 1 }),
+  page: Type.Number(),
+  limit: Type.Number(),
+  total: Type.Union([Type.Number(), Type.Null()]),
+  hasMore: Type.Boolean(),
+}
+
+const PlaylistBrowsePage = Type.Object({
+  ...PlaylistPageFields,
+  list: Type.Array(CatalogCollection),
+}, { additionalProperties: false })
+
+const PlaylistDetailPage = Type.Object({
+  ...PlaylistPageFields,
+  playlist: CatalogCollection,
+  tracks: Type.Array(CatalogTrack),
 }, { additionalProperties: false })
 
 const LeaderboardPage = Type.Object({
@@ -58,6 +116,7 @@ const LeaderboardPage = Type.Object({
 const sourceFailure = (error: unknown, message: string): never => {
   if (error instanceof ApiError) throw error
   const code = typeof error === 'object' && error != null && 'code' in error && typeof error.code === 'string' ? error.code : 'SOURCE_PROTOCOL_ERROR'
+  if (code === 'INVALID_PLAYLIST_ID') throw new ApiError(400, code, message)
   throw new ApiError(502, code, message)
 }
 
@@ -111,6 +170,42 @@ export const registerCatalogRoutes = (app: ApiFastifyInstance, sources?: Sources
   }, async(request) => {
     const { source, boardId, page } = request.body
     try { return { data: await getLeaderboardTracks(source, boardId, page) } } catch (error) { return sourceFailure(error, 'Leaderboard track lookup failed') }
+  })
+
+  app.post('/api/v1/catalog/playlists/tags', {
+    schema: {
+      operationId: 'getCatalogPlaylistTags',
+      tags: ['Catalog'],
+      summary: 'List native playlist tags and sorts from a built-in provider',
+      body: PlaylistSourceInput,
+      response: { 200: ApiSuccess(PlaylistFilters), ...ErrorResponses },
+    },
+  }, async(request) => {
+    try { return { data: await getPlaylistTags(request.body.source) } } catch (error) { return sourceFailure(error, 'Playlist tags lookup failed') }
+  })
+
+  app.post('/api/v1/catalog/playlists/browse', {
+    schema: {
+      operationId: 'browseCatalogPlaylists',
+      tags: ['Catalog'],
+      summary: 'Browse native playlists from a built-in provider',
+      body: PlaylistBrowseInput,
+      response: { 200: ApiSuccess(PlaylistBrowsePage), ...ErrorResponses },
+    },
+  }, async(request) => {
+    try { return { data: await browsePlaylists(request.body) } } catch (error) { return sourceFailure(error, 'Playlist browse failed') }
+  })
+
+  app.post('/api/v1/catalog/playlists/detail', {
+    schema: {
+      operationId: 'getCatalogPlaylistDetail',
+      tags: ['Catalog'],
+      summary: 'Get a native playlist and its tracks from a built-in provider',
+      body: PlaylistDetailInput,
+      response: { 200: ApiSuccess(PlaylistDetailPage), ...ErrorResponses },
+    },
+  }, async(request) => {
+    try { return { data: await getPlaylistDetail(request.body) } } catch (error) { return sourceFailure(error, 'Playlist detail lookup failed') }
   })
 
   for (const kind of ['playlists', 'albums'] as const) {

@@ -40,6 +40,7 @@ export const CatalogCollection = Type.Object({
   total: Type.Optional(Type.Number()),
   img: Type.Optional(Type.Union([Type.String(), Type.Null()])),
   description: Type.Optional(Type.String()),
+  playCount: Type.Optional(Type.String()),
 }, { additionalProperties: true })
 
 export const CatalogLyrics = Type.Object({

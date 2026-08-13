@@ -7,7 +7,7 @@ export default {
   _requestObj_hotTags: null,
   _requestObj_list: null,
   limit_list: 36,
-  limit_song: 100000,
+  limit_song: 100,
   successCode: 0,
   sortList: [
     {
@@ -23,10 +23,6 @@ export default {
     hotTagHtml: /class="c_bg_link js_tag_item" data-id="\w+">.+?<\/a>/g,
     hotTag: /data-id="(\w+)">(.+?)<\/a>/,
 
-    // https://y.qq.com/n/yqq/playlist/7217720898.html
-    // https://i.y.qq.com/n2/m/share/details/taoge.html?platform=11&appshare=android_qq&appversion=9050006&id=7217720898&ADTAG=qfshare
-    listDetailLink: /\/playlist\/(\d+)/,
-    listDetailLink2: /id=(\d+)/,
   },
   tagsUrl: 'https://u.y.qq.com/cgi-bin/musicu.fcg?loginUin=0&hostUin=0&format=json&inCharset=utf-8&outCharset=utf-8&notice=0&platform=wk_v15.json&needNewCode=0&data=%7B%22tags%22%3A%7B%22method%22%3A%22get_all_categories%22%2C%22param%22%3A%7B%22qq%22%3A%22%22%7D%2C%22module%22%3A%22playlist.PlaylistAllCategoriesServer%22%7D%7D',
   hotTagUrl: 'https://c.y.qq.com/node/pc/wk_v15/category_playlist.html',
@@ -58,10 +54,6 @@ export default {
           },
       }))}`
   },
-  getListDetailUrl(id) {
-    return `https://c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg?type=1&json=1&utf8=1&onlysong=0&new_format=1&disstid=${id}&loginUin=0&hostUin=0&format=json&inCharset=utf8&outCharset=utf-8&notice=0&platform=yqq.json&needNewCode=0`
-  },
-
   // http://nplserver.kuwo.cn/pl.svc?op=getlistinfo&pid=2849349915&pn=0&rn=100&encode=utf8&keyset=pl2012&identity=kuwo&pcmp4=1&vipver=MUSIC_9.0.5.0_W1&newver=1
   // 获取标签
   getTag(tryNum = 0) {
@@ -167,59 +159,60 @@ export default {
     }
   },
 
-  async handleParseId(link, retryNum = 0) {
-    if (retryNum > 2) return Promise.reject(new Error('link try max num'))
-
-    const requestObj_listDetailLink = httpFetch(link)
-    const { headers: { location }, statusCode } = await requestObj_listDetailLink.promise
-    // console.log(headers)
-    if (statusCode > 400) return this.handleParseId(link, ++retryNum)
-    return location == null ? link : location
-  },
-
-  async getListId(id) {
-    if ((/[?&:/]/.test(id))) {
-      if (!this.regExps.listDetailLink.test(id)) {
-        id = await this.handleParseId(id)
-      }
-      let result = this.regExps.listDetailLink.exec(id)
-      if (!result) {
-        result = this.regExps.listDetailLink2.exec(id)
-        if (!result) throw new Error('failed')
-      }
-      id = result[1]
-      // console.log(id)
+  getListId(id) {
+    const value = typeof id === 'string' ? id : String(id)
+    const numericId = Number(value)
+    if (!/^\d+$/.test(value) || !Number.isSafeInteger(numericId) || numericId <= 0) {
+      throw new Error('Invalid TX playlist id')
     }
-    return id
+    return numericId
   },
   // 获取歌曲列表内的音乐
-  async getListDetail(id, tryNum = 0) {
-    if (tryNum > 2) return Promise.reject(new Error('try max num'))
-
-    id = await this.getListId(id)
-
-    const requestObj_listDetail = httpFetch(this.getListDetailUrl(id), {
+  async getListDetail(id, page = 1) {
+    id = this.getListId(id)
+    const songBegin = (page - 1) * this.limit_song
+    const requestObj_listDetail = httpFetch('https://u.y.qq.com/cgi-bin/musicu.fcg', {
+      method: 'post',
       headers: {
-        Origin: 'https://y.qq.com',
-        Referer: `https://y.qq.com/n/yqq/playsquare/${id}.html`,
+        'User-Agent': 'Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; WOW64; Trident/5.0)',
+      },
+      body: {
+        comm: { ct: 24, cv: 0 },
+        req: {
+          module: 'music.srfDissInfo.aiDissInfo',
+          method: 'uniform_get_Dissinfo',
+          param: {
+            disstid: id,
+            enc_host_uin: '',
+            tag: 1,
+            userinfo: 1,
+            song_begin: songBegin,
+            song_num: this.limit_song,
+          },
+        },
       },
     })
     const { body } = await requestObj_listDetail.promise
-
-    if (body.code !== this.successCode) return this.getListDetail(id, ++tryNum)
-    const cdlist = body.cdlist[0]
+    const data = body?.req?.data
+    const dirinfo = data?.dirinfo
+    if (body?.code !== this.successCode || body?.req?.code !== this.successCode || data == null ||
+      typeof data !== 'object' || dirinfo == null || typeof dirinfo !== 'object' || !Array.isArray(data.songlist)) {
+      throw new Error('Invalid TX playlist detail response')
+    }
+    const total = Number(data.total_song_num ?? dirinfo.songnum)
+    if (!Number.isFinite(total)) throw new Error('Invalid TX playlist detail response')
     return {
-      list: this.filterListDetail(cdlist.songlist),
-      page: 1,
-      limit: cdlist.songlist.length + 1,
-      total: cdlist.songlist.length,
+      list: this.filterListDetail(data.songlist),
+      page,
+      limit: this.limit_song,
+      total,
       source: 'tx',
       info: {
-        name: cdlist.dissname,
-        img: cdlist.logo,
-        desc: decodeName(cdlist.desc).replace(/<br>/g, '\n'),
-        author: cdlist.nickname,
-        play_count: formatPlayCount(cdlist.visitnum),
+        name: dirinfo.title,
+        img: dirinfo.picurl,
+        desc: decodeName(dirinfo.desc).replace(/<br>/g, '\n'),
+        author: dirinfo.creator?.nick ?? dirinfo.host_nick,
+        play_count: formatPlayCount(dirinfo.listennum),
       },
     }
   },
@@ -284,7 +277,7 @@ export default {
   },
 
   async getDetailPageUrl(id) {
-    id = await this.getListId(id)
+    id = this.getListId(id)
 
     return `https://y.qq.com/n/ryqq/playlist/${id}`
   },
