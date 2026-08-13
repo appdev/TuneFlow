@@ -3,7 +3,7 @@ services:
     build:
       context: .
     ports:
-      - "127.0.0.1:3124:3124"
+      - "3124:3124"
     volumes:
       - tuneflow-data:/data
     init: true
