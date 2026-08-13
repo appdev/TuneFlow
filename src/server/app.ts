@@ -17,6 +17,7 @@ import { SourceRepository } from './sources/repository'
 import { registerSourceRoutes, SourcesService } from './routes/sources'
 import { registerCatalogRoutes } from './routes/catalog'
 import { registerPlaybackRoutes } from './routes/playback'
+import { registerPlaybackHistoryRoutes } from './routes/playbackHistory'
 import { setRendererUtilsLanguage } from './tuneFlowSdk/rendererUtilsShim'
 import { getLyric, getPicture } from './tuneFlowSdk'
 import { projectBrowserDto } from './playback/browserDto'
@@ -29,6 +30,7 @@ import { resolveSourceMusicUrl } from './playback/resolver'
 import { getAllUserList } from './db/lists'
 import { LIST_IDS } from '../common/constants'
 import { registerOpenApi } from './api/openapi'
+import { PlaybackHistoryRepository } from './playback/historyRepository'
 
 export type { ServerOptions } from './config'
 
@@ -41,6 +43,7 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
   const settings = new SettingsRepository(serverOptions.storageRoot)
   setRendererUtilsLanguage(settings.getSettings()['common.langId'])
   const appData = new AppDataRepository()
+  const playbackHistory = new PlaybackHistoryRepository()
   const events = new ServiceEvents()
   const sources = new SourcesService(new SourceRepository(serverOptions.storageRoot), alert => {
     events.publish('sources.update-available', alert)
@@ -50,6 +53,7 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
   const downloads = new DownloadManager({
     storageRoot: serverOptions.storageRoot,
     getSettings: () => settings.getSettings(),
+    findExistingFile: async musicInfo => (await library.findMatchingFile(musicInfo))?.filePath,
     resolveListName: listId => ({
       [LIST_IDS.DEFAULT]: 'Default',
       [LIST_IDS.LOVE]: 'Loved',
@@ -115,13 +119,11 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
   registerCatalogRoutes(app, sources)
   registerPlaybackRoutes(app, {
     sources,
-    findLocalTrack: musicInfo => {
-      const filePath = downloads.findCompletedFile(musicInfo)
-      return filePath == null ? undefined : library.findByFilePath(filePath)?.streamUrl
-    },
+    findLocalTrack: async musicInfo => (await library.findMatchingFile(musicInfo))?.track.streamUrl,
     // Test fixtures are local by design; production never relaxes the SSRF boundary.
     allowPrivateNetwork: process.env.NODE_ENV === 'test' && process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS === '1',
   })
+  registerPlaybackHistoryRoutes(app, playbackHistory)
   registerDownloadRoutes(app, downloads)
   registerLibraryRoutes(app, library)
   app.all('/api/v1', { schema: { hide: true } }, async() => {

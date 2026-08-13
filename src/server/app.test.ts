@@ -44,15 +44,17 @@ describe('TuneFlow service', () => {
 
   it('persists settings across a server restart', async() => {
     const { app, storageRoot, webRoot } = await createTestServer()
-    const patched = await app.inject({ method: 'PATCH', url: '/api/v1/settings', payload: { 'player.volume': 0.35 } })
+    const patched = await app.inject({ method: 'PATCH', url: '/api/v1/settings', payload: { 'player.volume': 0.35, 'player.autoDownloadOnPlay': true } })
     expect(patched.statusCode).toBe(200)
     expect(patched.json().data['player.volume']).toBe(0.35)
+    expect(patched.json().data['player.autoDownloadOnPlay']).toBe(true)
     await app.close()
     apps.splice(apps.indexOf(app), 1)
 
     const restarted = await createServer({ storageRoot, webRoot, host: '127.0.0.1', port: 0 })
     apps.push(restarted)
     expect((await restarted.inject({ method: 'GET', url: '/api/v1/settings' })).json().data['player.volume']).toBe(0.35)
+    expect((await restarted.inject({ method: 'GET', url: '/api/v1/settings' })).json().data['player.autoDownloadOnPlay']).toBe(true)
   })
 
   it('migrates legacy branded setting keys without losing their values', async() => {
@@ -128,6 +130,70 @@ describe('TuneFlow service', () => {
     expect((await app.inject({ method: 'GET', url: '/api/v1/events/snapshot' })).json()).toEqual({
       data: { sequence: 1, events: [{ type: 'downloads.updated', data: [], sequence: 1 }] },
     })
+  })
+
+  it('records Service-timestamped playback metadata and lists it newest first', async() => {
+    const { app } = await createTestServer()
+    const track = {
+      id: 'song-1',
+      source: 'kw',
+      name: 'Night Wind',
+      singer: 'Artist',
+      providerOnly: { albumId: 'album-1' },
+    }
+    const before = Date.now()
+
+    const recorded = await app.inject({
+      method: 'POST',
+      url: '/api/v1/playback/history',
+      payload: { track },
+    })
+
+    expect(recorded.statusCode).toBe(200)
+    expect(recorded.json().data.track).toEqual(track)
+    expect(recorded.json().data.playedAt).toBeGreaterThanOrEqual(before)
+    expect(recorded.json().data.playedAt).toBeLessThanOrEqual(Date.now())
+    expect((await app.inject({ method: 'GET', url: '/api/v1/playback/history' })).json())
+      .toEqual({ data: [recorded.json().data] })
+  })
+
+  it('rejects playback history without a non-empty track id and source', async() => {
+    const { app } = await createTestServer()
+
+    for (const track of [{ id: '', source: 'kw' }, { id: 'song-1', source: '' }, { id: 'song-1' }]) {
+      const response = await app.inject({ method: 'POST', url: '/api/v1/playback/history', payload: { track } })
+      expect(response.statusCode).toBe(400)
+      expect(response.json().error.code).toBe('VALIDATION_ERROR')
+    }
+    expect((await app.inject({ method: 'GET', url: '/api/v1/playback/history' })).json()).toEqual({ data: [] })
+  })
+
+  it('moves replayed history metadata to the front and persists it across restart', async() => {
+    const { app, storageRoot, webRoot } = await createTestServer()
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/playback/history',
+      payload: { track: { id: 'same', source: 'kw', name: 'Old' } },
+    })
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/playback/history',
+      payload: { track: { id: 'other', source: 'wy', name: 'Other' } },
+    })
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/playback/history',
+      payload: { track: { id: 'same', source: 'kw', name: 'New' } },
+    })
+    await app.close()
+    apps.splice(apps.indexOf(app), 1)
+
+    const restarted = await createServer({ storageRoot, webRoot, host: '127.0.0.1', port: 0 })
+    apps.push(restarted)
+    const entries = (await restarted.inject({ method: 'GET', url: '/api/v1/playback/history' })).json().data
+    expect(entries).toHaveLength(2)
+    expect(entries.map((entry: { track: { id: string } }) => entry.track.id)).toEqual(['same', 'other'])
+    expect(entries[0].track.name).toBe('New')
   })
 
   it('persists created lists and tracks across a server restart', async() => {

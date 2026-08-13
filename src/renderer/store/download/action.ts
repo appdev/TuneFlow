@@ -85,7 +85,12 @@ export const getDownloadList = async(): Promise<TuneFlow.Download.ListItem[]> =>
   return downloadList
 }
 
-export const createDownloadTasks = async(list: TuneFlow.Music.MusicInfoOnline[], quality: TuneFlow.Quality, listId?: string) => {
+export const createDownloadTasks = async(
+  list: TuneFlow.Music.MusicInfoOnline[],
+  quality: TuneFlow.Quality,
+  listId?: string,
+  options: { skipExisting?: boolean, qualityPolicy?: 'selected' | 'highest' } = {},
+) => {
   if (!list.length) return
   subscribeServiceDownloads()
   for (const musicInfo of list) {
@@ -94,6 +99,7 @@ export const createDownloadTasks = async(list: TuneFlow.Music.MusicInfoOnline[],
       quality,
       qualityList: toRaw(qualityList.value),
       listId,
+      ...options,
     })
   }
   reconcileServiceDownloads(await serviceRequest<ServiceDownloadDto[]>('GET', '/api/v1/downloads'))

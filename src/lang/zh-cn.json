@@ -526,6 +526,8 @@
   "setting__play_advanced_audio_features_tip": "自定义音频输出设备与该功能冲突，启用该功能后音频输出设备将会被重置为默认，目前此问题暂无法解决。是否仍要开启？",
   "setting__play_auto_clean_played_list": "点击与播放列表相同的列表切歌时清空已播放列表",
   "setting__play_auto_clean_played_list_tip": "随机模式下列表内所有歌曲会重新参与随机",
+  "setting__play_auto_download_on_play": "边听边存",
+  "setting__play_auto_download_on_play_tip": "在线歌曲开始播放后自动按最高可用音质下载；若已在下载目录中则跳过",
   "setting__play_auto_skip_on_error": "播放错误时自动切换歌曲",
   "setting__play_detail": "播放详情页设置",
   "setting__play_detail_align": "歌词对齐方式",

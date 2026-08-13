@@ -24,6 +24,7 @@ const defaultSetting: TuneFlow.AppSetting = {
   'common.showChangeLog': true,
 
   'player.startupAutoPlay': false,
+  'player.autoDownloadOnPlay': false,
   'player.togglePlayMethod': 'listLoop',
   'player.playQuality': '128k',
   'player.isShowTaskProgess': true,
@@ -168,4 +169,3 @@ if (new Date().getMonth() < 2) {
 
 
 export default defaultSetting
-

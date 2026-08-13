@@ -4,7 +4,8 @@ import path from 'node:path'
 import Database from 'better-sqlite3'
 import { getDB } from '../db/core/db'
 import { getAudioRoot, isPathInside } from '../config'
-import { getExt, getMusicType, makeDirectoryName, makeFileName, reserveFileName } from './filenames'
+import { QUALITYS } from '../../common/constants'
+import { getExt, getMusicTypes, makeDirectoryName, makeFileName, reserveFileName } from './filenames'
 import { applyDownloadMetadata } from './metadata'
 import type { DownloadCreateInput, DownloadDto, DownloadJobRecord, DownloadStatus, ResolvedDownload } from './types'
 import { isSameMusic } from './matching'
@@ -14,6 +15,7 @@ interface DownloadManagerOptions {
   storageRoot: string
   getSettings: () => TuneFlow.AppSetting
   resolve: (job: DownloadJobRecord, signal: AbortSignal) => Promise<ResolvedDownload>
+  findExistingFile?: (musicInfo: TuneFlow.Music.MusicInfoOnline) => Promise<string | undefined>
   publish?: (jobs: DownloadDto[]) => void
   metadata?: (filePath: string, job: DownloadJobRecord, settings: TuneFlow.AppSetting) => Promise<void>
   resolveListName?: (listId: string) => string | undefined
@@ -107,21 +109,22 @@ export class DownloadManager {
 
   get(id: string): DownloadDto | undefined { return this.list().find(record => record.id === id) }
 
-  findCompletedFile(musicInfo: unknown): string | undefined {
-    const records = [...this.records.values()].reverse()
-    for (const record of records) {
-      if (record.status !== 'completed' || record.finalMissing === true || !isSameMusic(record.musicInfo, musicInfo)) continue
-      const filePath = this.resolveFinal(record.finalRelativePath)
-      if (existsSync(filePath)) return filePath
-    }
-    return undefined
-  }
-
   async create(input: DownloadCreateInput): Promise<DownloadDto> {
     if (this.closed) throw new Error('Download manager is closed')
     const settings = this.options.getSettings()
-    const quality = getMusicType(input.musicInfo, input.quality, input.qualityList)
+    const requestedQuality = input.qualityPolicy === 'highest' ? QUALITYS[0] : input.quality
+    const qualityCandidates = getMusicTypes(input.musicInfo, requestedQuality, input.qualityList)
+    const quality = qualityCandidates[0]
     const extension = getExt(quality)
+    const skipExisting = [input.skipExisting, settings['download.skipExistFile']].includes(true)
+    if (skipExisting) {
+      const active = [...this.records.values()].find(record =>
+        record.status !== 'error' && record.status !== 'completed' && isSameMusic(record.musicInfo, input.musicInfo),
+      )
+      if (active != null) return this.get(active.id)!
+      const existingFile = await this.options.findExistingFile?.(input.musicInfo)
+      if (existingFile != null) return this.adoptExistingFile(input, existingFile, qualityCandidates)
+    }
     const saveRoot = this.checkedSaveRoot()
     const listName = input.listId == null ? undefined : this.options.resolveListName?.(input.listId)
     const listDirectory = settings['download.isSavePathGroupByListName']
@@ -143,6 +146,7 @@ export class DownloadManager {
       status: 'waiting',
       musicInfo: input.musicInfo,
       quality,
+      qualityCandidates,
       extension,
       fileName,
       finalRelativePath: this.relative(path.join(destination, fileName)),
@@ -164,6 +168,7 @@ export class DownloadManager {
     const record = this.required(id)
     if (record.status === 'completed' || record.status === 'running') return
     if (record.partCleanupPending === true && !this.retryPartCleanup(record)) return
+    if (record.status === 'error' && record.qualityCandidates?.[0] != null) this.prepareQuality(record, record.qualityCandidates[0])
     if (record.finalMissing === true) this.update(record, { finalMissing: undefined })
     if (await this.finalizeCompletePart(record)) return
     this.ensureAvailableDestination(record)
@@ -226,9 +231,30 @@ export class DownloadManager {
   private async run(record: DownloadJobRecord, controller: AbortController): Promise<void> {
     try {
       this.update(record, { status: 'running', error: undefined })
-      const resolved = await this.options.resolve(record, controller.signal)
-      await this.transfer(record, resolved, controller.signal, true)
-      if (controller.signal.aborted || record.status === 'paused') return
+      const candidates = record.qualityCandidates ?? [record.quality]
+      const currentIndex = Math.max(0, candidates.indexOf(record.quality))
+      let transferred = false
+      let lastError: unknown
+      for (const quality of candidates.slice(currentIndex)) {
+        if (controller.signal.aborted || record.status === 'paused') return
+        const allowResume = quality === record.quality
+        this.prepareQuality(record, quality)
+        try {
+          const resolved = await this.options.resolve(record, controller.signal)
+          await this.transfer(record, resolved, controller.signal, allowResume)
+          transferred = true
+          break
+        } catch (error) {
+          if (controller.signal.aborted || record.status === 'paused') return
+          lastError = error
+          rmSync(this.resolveRelative(record.partRelativePath), { force: true })
+          this.update(record, { downloaded: 0, total: 0, etag: undefined, lastModified: undefined })
+        }
+      }
+      if (!transferred) {
+        if (lastError instanceof Error) throw lastError
+        throw new Error(lastError == null ? 'No downloadable audio quality is available' : String(lastError))
+      }
       await this.finalize(record)
     } catch (error) {
       if (controller.signal.aborted || record.status === 'paused') return
@@ -286,6 +312,81 @@ export class DownloadManager {
     mkdirSync(this.audioRoot, { recursive: true })
     if (!isPathInside(this.options.storageRoot, this.audioRoot)) throw new Error('Service audio root escaped storage root')
     return this.audioRoot
+  }
+
+  private adoptExistingFile(
+    input: DownloadCreateInput,
+    filePath: string,
+    qualityCandidates: TuneFlow.Quality[],
+  ): DownloadDto {
+    const resolved = path.resolve(filePath)
+    if (!isPathInside(this.audioRoot, resolved) || !existsSync(resolved) || !statSync(resolved).isFile()) {
+      throw new Error('Existing download candidate is unavailable')
+    }
+    const extension = path.extname(resolved).slice(1).toLowerCase() as DownloadJobRecord['extension']
+    if (!['ape', 'flac', 'wav', 'mp3'].includes(extension)) throw new Error('Existing download candidate has an unsupported extension')
+    const previous = [...this.records.values()].reverse().find(record =>
+      record.status === 'completed' && isSameMusic(record.musicInfo, input.musicInfo),
+    )
+    const adoptedQuality: TuneFlow.Quality = previous != null && getExt(previous.quality) === extension
+      ? previous.quality
+      : extension === 'ape' ? 'ape' : extension === 'flac' ? 'flac' : extension === 'wav' ? 'wav' : '128k'
+    const size = statSync(resolved).size
+    if (previous != null) {
+      this.update(previous, {
+        musicInfo: input.musicInfo,
+        quality: adoptedQuality,
+        qualityCandidates,
+        extension,
+        fileName: path.basename(resolved),
+        finalRelativePath: this.relative(resolved),
+        downloaded: size,
+        total: size,
+        finalMissing: undefined,
+        error: undefined,
+      })
+      return this.get(previous.id)!
+    }
+
+    const baseId = `${input.musicInfo.id}_${adoptedQuality}_${extension}`
+    let id = baseId
+    let duplicate = 0
+    while (this.records.has(id)) id = `${baseId}_${++duplicate}`
+    const now = this.now()
+    const record: DownloadJobRecord = {
+      id,
+      status: 'completed',
+      musicInfo: input.musicInfo,
+      quality: adoptedQuality,
+      qualityCandidates,
+      extension,
+      fileName: path.basename(resolved),
+      finalRelativePath: this.relative(resolved),
+      partRelativePath: this.relative(path.join(this.options.storageRoot, 'tmp', `${id}.part`)),
+      downloaded: size,
+      total: size,
+      listId: input.listId,
+      createdAt: now,
+      updatedAt: now,
+    }
+    this.records.set(id, record)
+    this.persist(record)
+    this.publish()
+    return this.get(id)!
+  }
+
+  private prepareQuality(record: DownloadJobRecord, quality: TuneFlow.Quality): void {
+    if (record.quality === quality) return
+    const extension = getExt(quality)
+    const directory = path.dirname(this.resolveFinal(record.finalRelativePath))
+    const requested = makeFileName(this.options.getSettings()['download.fileName'], record.musicInfo.name, record.musicInfo.singer, extension)
+    const fileName = reserveFileName(directory, requested, this.reservedFileNames(directory, record.id))
+    this.update(record, {
+      quality,
+      extension,
+      fileName,
+      finalRelativePath: this.relative(path.join(directory, fileName)),
+    })
   }
 
   private recoverPublication(record: DownloadJobRecord, final: string, part: string): boolean {

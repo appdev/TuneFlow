@@ -7,6 +7,8 @@ export interface DownloadCreateInput {
   quality: TuneFlow.Quality
   qualityList?: TuneFlow.QualityList
   listId?: string
+  skipExisting?: boolean
+  qualityPolicy?: 'selected' | 'highest'
 }
 
 export interface DownloadJobRecord {
@@ -14,6 +16,7 @@ export interface DownloadJobRecord {
   status: DownloadStatus
   musicInfo: TuneFlow.Music.MusicInfoOnline
   quality: TuneFlow.Quality
+  qualityCandidates?: TuneFlow.Quality[]
   extension: DownloadExtension
   fileName: string
   finalRelativePath: string

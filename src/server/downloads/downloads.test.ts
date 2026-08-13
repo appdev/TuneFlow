@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/consistent-type-assertions */
 import { createServer as createHttpServer } from 'node:http'
 import { once } from 'node:events'
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import type { AddressInfo } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import Fastify from 'fastify'
 import { afterEach, describe, expect, it } from 'vitest'
-import { getExt, makeFileName, reserveFileName } from './filenames'
+import { getExt, getMusicTypes, makeFileName, reserveFileName } from './filenames'
 import { DownloadManager } from './manager'
 import { LibraryScanner } from '../library/scanner'
 import { registerLibraryRoutes } from '../routes/library'
@@ -51,13 +51,18 @@ const metadataSettings = (patch: Partial<TuneFlow.AppSetting> = {}): TuneFlow.Ap
   ...patch,
 } as TuneFlow.AppSetting)
 
-const startUpstream = async(options: { range?: boolean, disconnectOnce?: boolean, payload?: Buffer } = {}) => {
+const startUpstream = async(options: { range?: boolean, disconnectOnce?: boolean, payload?: Buffer, status?: number } = {}) => {
   const requests: Array<{ range?: string }> = []
   let disconnect = options.disconnectOnce === true
   const payload = options.payload ?? bytes
   const server = createHttpServer((request, response) => {
     const range = typeof request.headers.range === 'string' ? request.headers.range : undefined
     requests.push({ range })
+    if (options.status != null && options.status >= 400) {
+      response.writeHead(options.status)
+      response.end()
+      return
+    }
     const start = range == null ? 0 : Number(/^bytes=(\d+)-$/.exec(range)?.[1] ?? 0)
     const canRange = options.range !== false && range != null
     response.writeHead(canRange ? 206 : 200, {
@@ -104,6 +109,15 @@ describe('TuneFlow download policy', () => {
     expect(makeFileName('歌名 - 歌手', fixtureTrack.name, fixtureTrack.singer, 'mp3')).toBe('ABSong - One、Two.mp3')
     expect(makeFileName('歌手 - 歌名', fixtureTrack.name, fixtureTrack.singer, 'flac')).toBe('One、Two - ABSong.flac')
     expect(makeFileName('歌名', fixtureTrack.name, fixtureTrack.singer, 'wav')).toBe('ABSong.wav')
+  })
+
+  it('orders available download qualities from the requested ceiling downwards', () => {
+    const track = {
+      ...fixtureTrack,
+      meta: { ...fixtureTrack.meta, _qualitys: { flac24bit: {}, flac: {}, '320k': {}, '128k': {} } },
+    } as TuneFlow.Music.MusicInfoOnline
+    expect(getMusicTypes(track, 'flac24bit', { kw: ['flac24bit', 'flac', '320k', '128k'] })).toEqual(['flac24bit', 'flac', '320k', '128k'])
+    expect(getMusicTypes(track, '320k', { kw: ['flac24bit', 'flac', '320k', '128k'] })).toEqual(['320k', '128k'])
   })
 
   it('clips TuneFlow names and atomically reserves collision suffixes without overwrite', () => {
@@ -171,6 +185,104 @@ describe('TuneFlow download policy', () => {
 })
 
 describe('durable download manager', () => {
+  it('downgrades to the next available quality when a higher quality cannot be resolved', async() => {
+    const root = createRoot()
+    const upstream = await startUpstream()
+    const attempted: TuneFlow.Quality[] = []
+    const manager = new DownloadManager({
+      storageRoot: root,
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async(job) => {
+        attempted.push(job.quality)
+        if (job.quality === 'flac') throw new Error('lossless unavailable')
+        return { url: upstream.url, headers: {} }
+      },
+      metadata: async() => {},
+    })
+
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: 'flac24bit', qualityPolicy: 'highest' })
+    await manager.waitForIdle()
+
+    expect(attempted).toEqual(['flac', '128k'])
+    expect(manager.get(job.id)).toMatchObject({ status: 'completed', quality: '128k', extension: 'mp3', fileName: 'ABSong.mp3' })
+    manager.close()
+  })
+
+  it('downgrades after a higher-quality URL fails during transfer', async() => {
+    const root = createRoot()
+    const unavailable = await startUpstream({ status: 502 })
+    const fallback = await startUpstream()
+    const attempted: TuneFlow.Quality[] = []
+    const manager = new DownloadManager({
+      storageRoot: root,
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async(job) => {
+        attempted.push(job.quality)
+        return { url: job.quality === 'flac' ? unavailable.url : fallback.url, headers: {} }
+      },
+      metadata: async() => {},
+    })
+
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: 'flac24bit', qualityPolicy: 'highest' })
+    await manager.waitForIdle()
+
+    expect(attempted).toEqual(['flac', '128k'])
+    expect(manager.get(job.id)).toMatchObject({ status: 'completed', quality: '128k', extension: 'mp3' })
+    expect(readFileSync(path.join(root, 'audio', 'ABSong.mp3'))).toEqual(bytes)
+    manager.close()
+  })
+
+  it('uses an actual audio file without a database record instead of creating a duplicate', async() => {
+    const root = createRoot()
+    const existing = path.join(root, 'audio', 'ABSong.mp3')
+    writeFileSync(existing, bytes)
+    const scanner = new LibraryScanner(root, () => [path.join(root, 'audio')])
+    let resolved = false
+    const manager = new DownloadManager({
+      storageRoot: root,
+      autoStart: false,
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名', 'download.skipExistFile': true } as TuneFlow.AppSetting),
+      findExistingFile: async musicInfo => (await scanner.findMatchingFile(musicInfo))?.filePath,
+      resolve: async() => { resolved = true; throw new Error('must not resolve') },
+    })
+
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: 'flac24bit', skipExisting: true, qualityPolicy: 'highest' })
+
+    expect(job).toMatchObject({ status: 'completed', quality: '128k', fileName: 'ABSong.mp3', downloaded: bytes.length, total: bytes.length })
+    expect(resolved).toBe(false)
+    expect(readFileSync(existing)).toEqual(bytes)
+    manager.close()
+  })
+
+  it('relocates a stale completed record by scanning the actual audio directory', async() => {
+    const root = createRoot()
+    const upstream = await startUpstream()
+    const scanner = new LibraryScanner(root, () => [path.join(root, 'audio')])
+    const options = {
+      storageRoot: root,
+      autoStart: false,
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名', 'download.skipExistFile': true } as TuneFlow.AppSetting),
+      findExistingFile: async(musicInfo: TuneFlow.Music.MusicInfoOnline) => (await scanner.findMatchingFile(musicInfo))?.filePath,
+      resolve: async() => ({ url: upstream.url, headers: {} }),
+      metadata: async() => {},
+    }
+    const manager = new DownloadManager(options)
+    const first = await manager.create({ musicInfo: fixtureTrack, quality: '128k' })
+    await manager.start(first.id)
+    await manager.waitForIdle()
+    const movedDirectory = path.join(root, 'audio', 'Moved by user')
+    mkdirSync(movedDirectory)
+    const moved = path.join(movedDirectory, first.fileName)
+    renameSync(path.join(root, 'audio', first.fileName), moved)
+
+    const found = await manager.create({ musicInfo: fixtureTrack, quality: '128k', skipExisting: true })
+
+    expect(found).toMatchObject({ id: first.id, status: 'completed', fileName: first.fileName })
+    expect((await scanner.findMatchingFile(fixtureTrack))?.filePath).toBe(realpathSync(moved))
+    expect(readFileSync(moved)).toEqual(bytes)
+    manager.close()
+  })
+
   it('ignores a settings-provided in-storage path and publishes only below the Service audio root', async() => {
     const root = createRoot()
     const upstream = await startUpstream()

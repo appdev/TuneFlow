@@ -28,7 +28,14 @@ export const registerDownloadRoutes = (app: ApiFastifyInstance, manager: Downloa
       operationId: 'createDownload',
       tags: ['Downloads'],
       summary: 'Create a download',
-      body: Type.Object({ musicInfo: Track, quality: Type.String({ minLength: 1 }), qualityList: Type.Optional(Type.Unknown()), listId: Type.Optional(Type.String()) }, { additionalProperties: false }),
+      body: Type.Object({
+        musicInfo: Track,
+        quality: Type.String({ minLength: 1 }),
+        qualityList: Type.Optional(Type.Unknown()),
+        listId: Type.Optional(Type.String()),
+        skipExisting: Type.Optional(Type.Boolean()),
+        qualityPolicy: Type.Optional(Type.Union([Type.Literal('selected'), Type.Literal('highest')])),
+      }, { additionalProperties: false }),
       response: { 201: downloadResponse, ...ErrorResponses },
     },
   }, async(request, reply) => {

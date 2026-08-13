@@ -89,6 +89,11 @@ declare global {
       'player.startupAutoPlay': boolean
 
       /**
+       * 边听边存：播放在线歌曲时自动下载
+       */
+      'player.autoDownloadOnPlay': boolean
+
+      /**
        * 切歌模式
        */
       'player.togglePlayMethod': 'listLoop' | 'random' | 'list' | 'singleLoop' | 'none'

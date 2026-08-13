@@ -526,6 +526,8 @@
   "setting__play_advanced_audio_features_tip": "A custom audio output device conflicts with this feature. After enabling this feature, the audio output device will be reset to the default output device. This problem cannot be solved at the moment. Do you still want to enable it?",
   "setting__play_auto_clean_played_list": "Empty played list when playing the same list as the current playlist",
   "setting__play_auto_clean_played_list_tip": "All songs in the list in shuffle mode will participate in the random again.",
+  "setting__play_auto_download_on_play": "Save while listening",
+  "setting__play_auto_download_on_play_tip": "Automatically download online tracks at the highest available quality after playback starts; skip tracks already in the download folder",
   "setting__play_auto_skip_on_error": "Automatically switch songs when playback error occurs",
   "setting__play_detail": "Playback Detail Page",
   "setting__play_detail_align": "Lyric Alignment",

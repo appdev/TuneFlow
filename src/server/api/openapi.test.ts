@@ -36,7 +36,7 @@ describe('Service OpenAPI contract', () => {
       '/api/v1/catalog/leaderboards', '/api/v1/catalog/leaderboards/tracks',
       '/api/v1/catalog/playlists/tags', '/api/v1/catalog/playlists/browse', '/api/v1/catalog/playlists/detail',
       '/api/v1/catalog/playlists/search', '/api/v1/catalog/albums/search', '/api/v1/catalog/tracks/lyrics',
-      '/api/v1/catalog/tracks/picture', '/api/v1/playback/tracks/resolve', '/api/v1/streams/{token}', '/api/v1/downloads',
+      '/api/v1/catalog/tracks/picture', '/api/v1/playback/tracks/resolve', '/api/v1/playback/history', '/api/v1/streams/{token}', '/api/v1/downloads',
       '/api/v1/downloads/{id}/start', '/api/v1/downloads/{id}/resume', '/api/v1/downloads/{id}/pause', '/api/v1/downloads/{id}',
       '/api/v1/library/tracks', '/api/v1/library/scan', '/api/v1/library/tracks/{id}/stream',
     ]
@@ -49,6 +49,12 @@ describe('Service OpenAPI contract', () => {
     expect(successDataSchema('/api/v1/catalog/playlists/browse').required).toEqual(expect.arrayContaining(['source', 'page', 'limit', 'hasMore', 'list']))
     expect(successDataSchema('/api/v1/catalog/playlists/detail').required).toEqual(expect.arrayContaining(['source', 'page', 'limit', 'hasMore', 'playlist', 'tracks']))
     expect(successDataSchema('/api/v1/catalog/tracks/lyrics').required).toContain('lyric')
+    const historyRequestTrack = document.paths['/api/v1/playback/history'].post.requestBody.content['application/json'].schema.properties.track
+    expect(historyRequestTrack.required).toEqual(expect.arrayContaining(['id', 'source']))
+    expect(historyRequestTrack.additionalProperties).toBe(true)
+    const historyItem = successDataSchema('/api/v1/playback/history', 'get').items
+    expect(historyItem.required).toEqual(expect.arrayContaining(['track', 'playedAt']))
+    expect(historyItem.properties.track.required).toEqual(expect.arrayContaining(['id', 'source']))
     const downloadItem = successDataSchema('/api/v1/downloads', 'get').items
     expect(downloadItem.required).toEqual(expect.arrayContaining(['queuePosition', 'createdAt', 'updatedAt']))
     const operationIds = new Set<string>()

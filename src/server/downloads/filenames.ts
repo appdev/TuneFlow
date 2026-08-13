@@ -16,15 +16,16 @@ export const getExt = (quality: string): DownloadExtension => {
 }
 
 export const getMusicType = (musicInfo: TuneFlow.Music.MusicInfoOnline, requested: TuneFlow.Quality, qualityList?: TuneFlow.QualityList): TuneFlow.Quality => {
-  if (qualityList == null) {
-    return musicInfo.meta._qualitys[requested] == null
-      ? (QUALITYS.slice(Math.max(0, QUALITYS.indexOf(requested))).find(quality => musicInfo.meta._qualitys[quality] != null) ?? '128k')
-      : requested
-  }
-  let available = qualityList[musicInfo.source]
-  if (available == null) return '128k'
-  if (!available.includes(requested)) requested = available[available.length - 1]
-  return QUALITYS.slice(QUALITYS.indexOf(requested)).find(quality => musicInfo.meta._qualitys[quality] != null) ?? '128k'
+  return getMusicTypes(musicInfo, requested, qualityList)[0]
+}
+
+export const getMusicTypes = (musicInfo: TuneFlow.Music.MusicInfoOnline, requested: TuneFlow.Quality, qualityList?: TuneFlow.QualityList): TuneFlow.Quality[] => {
+  const start = Math.max(0, QUALITYS.indexOf(requested))
+  const sourceQualitys = qualityList?.[musicInfo.source]
+  const candidates = QUALITYS.slice(start).filter(quality =>
+    musicInfo.meta._qualitys[quality] != null && (sourceQualitys == null || sourceQualitys.includes(quality)),
+  )
+  return candidates.length > 0 ? [...candidates] : ['128k']
 }
 
 const clipSinger = (singer: string): string => {

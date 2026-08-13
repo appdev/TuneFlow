@@ -248,6 +248,13 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
     await expect(embedPicSetting).not.toBeChecked()
     await expect.poll(async() => ((await (await fetch(`${origin}/api/v1/settings`)).json()) as { data: { 'download.isEmbedPic': boolean } }).data['download.isEmbedPic']).toBe(false)
 
+    await page.getByTestId('settings-tab-SettingPlay').click()
+    const autoDownloadSetting = page.locator('#setting_player_auto_download_on_play')
+    await expect(autoDownloadSetting).not.toBeChecked()
+    await page.getByRole('checkbox', { name: 'Save while listening' }).click()
+    await expect(autoDownloadSetting).toBeChecked()
+    await expect.poll(async() => ((await (await fetch(`${origin}/api/v1/settings`)).json()) as { data: { 'player.autoDownloadOnPlay': boolean } }).data['player.autoDownloadOnPlay']).toBe(true)
+
     await page.goto(`${origin}/#/list?id=default`, { waitUntil: 'networkidle' })
     await page.getByLabel('Create list').click()
     const newListInput = page.locator('#my-list li input').last()
@@ -280,6 +287,10 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
     await playableRow.dblclick()
     await expect.poll(async() => (await audioState(page)).duration).toBeGreaterThanOrEqual(60)
     await expect.poll(async() => (await audioState(page)).paused).toBe(false)
+    await expect.poll(async() => {
+      const body = await (await fetch(`${origin}/api/v1/downloads`)).json() as { data: Array<{ status: string, musicInfo: { name: string } }> }
+      return body.data.find(item => item.musicInfo.name === 'Task8 playable')?.status
+    }, { timeout: 20_000 }).toBe('completed')
     await page.getByLabel('Pause', { exact: true }).click()
     await expect.poll(async() => (await audioState(page)).paused).toBe(true)
     await page.locator('#player').getByText('01:10', { exact: true }).hover()
@@ -302,8 +313,10 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
     await page.getByRole('tab', { name: 'Download', exact: true }).click()
     await page.getByRole('button', { name: /Normal 128K/ }).click()
     await page.goto(`${origin}/#/download`, { waitUntil: 'domcontentloaded' })
-    await page.getByText('Task8 downloaded - Fixture artist', { exact: true }).waitFor({ state: 'visible' })
-    await page.getByLabel('Download is complete').waitFor({ state: 'visible', timeout: 20_000 })
+    const completedDownloadRow = page.getByText('Task8 downloaded - Fixture artist', { exact: true })
+      .locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " list-item ")]')
+    await completedDownloadRow.waitFor({ state: 'visible' })
+    await completedDownloadRow.getByLabel('Download is complete').waitFor({ state: 'visible', timeout: 20_000 })
     await expect.poll(async() => page.evaluate(() => (window as unknown as { __task8DownloadEvents: Array<Array<{ status: string }>> }).__task8DownloadEvents.some(batch => batch.some(item => item.status === 'completed')))).toBe(true)
 
     await expect.poll(async() => {
@@ -339,6 +352,8 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
     await page.locator('#player').getByLabel('Next', { exact: true }).click()
 
     await page.getByRole('tab', { name: 'Settings' }).click()
+    await page.getByTestId('settings-tab-SettingPlay').click()
+    await expect(page.locator('#setting_player_auto_download_on_play')).toBeChecked()
     await page.getByTestId('settings-tab-SettingBasic').click()
     await page.getByTestId('theme-more').click()
     await page.getByTestId('theme-black').click()
