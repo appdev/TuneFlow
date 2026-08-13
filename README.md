@@ -15,7 +15,81 @@ TuneFlow（音流）将音乐搜索、播放、列表、下载与本地媒体库
 
 本仓库只构建 Node.js Service 与 Web UI，不再生成桌面安装包。未来原生客户端通过 Service API 接入。
 
-## 构建与启动
+## Docker 部署（推荐）
+
+公开镜像发布在 Docker Hub：`apkdv/tuneflow-server`。默认只允许本机通过 `127.0.0.1:3124` 访问，并使用 Docker 卷持久化数据库、下载内容和自定义源。
+
+### 使用 docker run
+
+```sh
+docker pull apkdv/tuneflow-server:latest
+docker volume create tuneflow-data
+docker run -d \
+  --name tuneflow-server \
+  --init \
+  --restart unless-stopped \
+  -p 127.0.0.1:3124:3124 \
+  -v tuneflow-data:/data \
+  apkdv/tuneflow-server:latest
+```
+
+浏览器打开 <http://127.0.0.1:3124>。可用以下命令检查运行状态和健康接口：
+
+```sh
+docker ps --filter name=tuneflow-server
+docker logs -f tuneflow-server
+curl --fail http://127.0.0.1:3124/api/v1/health
+```
+
+更新到最新镜像时，删除并重建容器即可；命名卷 `tuneflow-data` 不会随容器删除：
+
+```sh
+docker pull apkdv/tuneflow-server:latest
+docker stop tuneflow-server
+docker rm tuneflow-server
+docker run -d \
+  --name tuneflow-server \
+  --init \
+  --restart unless-stopped \
+  -p 127.0.0.1:3124:3124 \
+  -v tuneflow-data:/data \
+  apkdv/tuneflow-server:latest
+```
+
+### 使用 Docker Compose
+
+将以下内容保存为 `compose.yaml`：
+
+```yaml
+services:
+  tuneflow-server:
+    image: apkdv/tuneflow-server:latest
+    container_name: tuneflow-server
+    ports:
+      - "127.0.0.1:3124:3124"
+    volumes:
+      - tuneflow-data:/data
+    init: true
+    restart: unless-stopped
+
+volumes:
+  tuneflow-data:
+```
+
+然后运行：
+
+```sh
+docker compose pull
+docker compose up -d
+docker compose ps
+curl --fail http://127.0.0.1:3124/api/v1/health
+```
+
+升级时再次运行 `docker compose pull && docker compose up -d`。停止服务可运行 `docker compose down`；不要添加 `-v`，否则会删除持久化数据卷。
+
+当前 Docker Hub 镜像发布为 `linux/amd64`。ARM 主机需要配置 AMD64 模拟支持。若要在可信局域网访问，可将端口映射改为 `0.0.0.0:3124:3124`，并通过主机防火墙或反向代理限制访问。本服务没有身份认证、多租户隔离或公网安全加固，请勿直接暴露到互联网。
+
+## 源码构建与启动
 
 安装 Node.js 22 或更高版本，然后运行：
 
@@ -25,7 +99,7 @@ npm run build:service
 npm run start:server
 ```
 
-浏览器打开 <http://127.0.0.1:3124>。默认只监听本机回环地址；若要在可信局域网使用，可显式设置 `TUNEFLOW_HOST=0.0.0.0`，并通过主机防火墙或反向代理限制访问。本服务没有身份认证、多租户隔离或公网安全加固，请勿直接暴露到互联网。
+浏览器打开 <http://127.0.0.1:3124>。默认只监听本机回环地址；若要在可信局域网使用，可显式设置 `TUNEFLOW_HOST=0.0.0.0`，并通过主机防火墙或反向代理限制访问。
 
 ### 数据存储目录
 
