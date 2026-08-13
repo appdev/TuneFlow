@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
 import { parentPort, workerData } from 'node:worker_threads'
 import vm from 'node:vm'
 import { normalizeSourceRuntimeApi } from './parser'
@@ -23,8 +24,10 @@ interface WorkerBridge {
 // Do not place a host-realm function, Buffer, timer, or Node object in this
 // context. The script and this bootstrap exchange JSON strings through queues.
 const context = vm.createContext(Object.create(null), { codeGeneration: { strings: false, wasm: false } })
+const timerDispatchKey = `__tuneflowTimer_${randomBytes(16).toString('hex')}`
+const timerDispatchSecret = randomBytes(32).toString('hex')
 const bootstrap = `
-(() => {
+((timerDispatchKey, timerDispatchSecret) => {
   ${cryptoJsSource}
   ${pakoSource}
   const EVENT_NAMES = ${serialize(EVENT_NAMES)};
@@ -33,6 +36,7 @@ const bootstrap = `
   const arrayIsArray = Array.isArray;
   const jsonParse = JSON.parse;
   const jsonStringify = JSON.stringify;
+  const numberIsFinite = Number.isFinite;
   const numberIsInteger = Number.isInteger;
   const numberIsSafeInteger = Number.isSafeInteger;
   const promiseResolve = Promise.resolve.bind(Promise);
@@ -41,10 +45,13 @@ const bootstrap = `
   const legacyVerbatimKey = ['l', 'x', 'lyric'].join('');
   const outbound = [];
   const callbacks = Object.create(null);
+  const timers = Object.create(null);
   let requestHandler;
   let initialized = false;
   let showedUpdate = false;
   let requestSequence = 0;
+  let timerSequence = 0;
+  let timerCount = 0;
   let invocationActive = false;
   const entropyUnavailable = () => { const error = new Error('Source entropy pool exhausted'); error.code = 'SOURCE_PROTOCOL_ERROR'; throw error; };
   let consumeEntropy = entropyUnavailable;
@@ -52,6 +59,30 @@ const bootstrap = `
     const encoded = jsonStringify(value);
     if (encoded.length > MAX_MESSAGE_CHARS) throw Object.assign(new Error('Worker message exceeds limit'), { code: 'SOURCE_PROTOCOL_ERROR' });
     outbound.push(encoded);
+  };
+  const emitTimer = (type, id, delay) => {
+    outbound.push('{"type":"' + type + '","id":' + id + (delay == null ? '' : ',"delay":' + delay) + '}');
+  };
+  const normalizeTimerDelay = value => {
+    const delay = Number(value);
+    if (!numberIsFinite(delay) || delay <= 0) return 0;
+    return Math.min(Math.floor(delay), 60_000);
+  };
+  const setTimeout = (callback, delay, ...args) => {
+    if (typeof callback !== 'function') throw Object.assign(new TypeError('Timer callback must be a function'), { code: 'SOURCE_PROTOCOL_ERROR' });
+    if (timerCount >= 64) throw Object.assign(new Error('Too many pending source timers'), { code: 'SOURCE_PROTOCOL_ERROR' });
+    const id = ++timerSequence;
+    timers[id] = { callback, args };
+    timerCount++;
+    emitTimer('timer-schedule', id, normalizeTimerDelay(delay));
+    return id;
+  };
+  const clearTimeout = id => {
+    const timerId = Number(id);
+    if (!numberIsSafeInteger(timerId) || timers[timerId] == null) return;
+    delete timers[timerId];
+    timerCount--;
+    emitTimer('timer-cancel', timerId);
   };
   const bytes = value => value instanceof TuneFlowBuffer ? value : new TuneFlowBuffer(value instanceof Uint8Array ? value : []);
   const byteHex = value => Array.from(bytes(value), byte => byte.toString(16).padStart(2, '0')).join('');
@@ -155,6 +186,8 @@ const bootstrap = `
   globalThis.window = globalThis;
   globalThis.window.tuneflow = tuneflow;
   globalThis[legacyRuntimeKey] = tuneflow;
+  globalThis.setTimeout = setTimeout;
+  globalThis.clearTimeout = clearTimeout;
   const drain = () => {
     const messages = [];
     for (let index = 0; index < outbound.length; index++) messages[index] = outbound[index];
@@ -168,6 +201,16 @@ const bootstrap = `
     const error = value.error == null ? null : Object.assign(new Error(value.error.message || value.error.code), { code: value.error.code });
     apply(callback, tuneflow, [error, value.response, value.body]);
   };
+  const fireTimer = raw => {
+    const value = jsonParse(raw);
+    if (value.secret !== timerDispatchSecret) throw Object.assign(new Error('Invalid timer dispatch'), { code: 'SOURCE_PROTOCOL_ERROR' });
+    const timer = timers[value.id];
+    if (timer == null) return;
+    delete timers[value.id];
+    timerCount--;
+    apply(timer.callback, globalThis, timer.args);
+  };
+  Object.defineProperty(globalThis, timerDispatchKey, { value: fireTimer, configurable: false, enumerable: false, writable: false });
   const invoke = raw => {
     const packet = jsonParse(raw);
     if (typeof requestHandler !== 'function') { emit({ type: 'response-error', id: packet.id, code: 'SOURCE_PROTOCOL_ERROR', message: 'Request event is not defined' }); return; }
@@ -216,8 +259,11 @@ const bootstrap = `
     ]);
   };
   return Object.freeze({ deliver, drain, invoke });
-})()
+})(${serialize(timerDispatchKey)}, ${serialize(timerDispatchSecret)})
 `
+
+const timerHandles = new Map<number, ReturnType<typeof setTimeout>>()
+let sourceInitialized = false
 
 let bridge: WorkerBridge
 try {
@@ -228,15 +274,57 @@ try {
   throw error
 }
 
-const drain = () => {
+const dispatchTimer = (id: number): void => {
+  timerHandles.delete(id)
+  try {
+    const result = new vm.Script(`(() => {
+      try {
+        globalThis[${serialize(timerDispatchKey)}](${serialize(serialize({ id, secret: timerDispatchSecret }))});
+        return ${serialize(serialize({ ok: true }))};
+      } catch {
+        return ${serialize(serialize({ ok: false, message: 'Source timer callback failed' }))};
+      }
+    })()`, { filename: 'tuneflow-timer-dispatch.js' })
+      .runInContext(context, { timeout: 2_000 })
+    const outcome = JSON.parse(String(result)) as { ok?: unknown, message?: unknown }
+    if (outcome.ok !== true) throw new Error(typeof outcome.message === 'string' ? outcome.message : 'Source timer callback failed')
+    drain()
+  } catch (error) {
+    port.postMessage({ type: sourceInitialized ? 'timer-error' : 'init-error', ...errorInfo(error) })
+  }
+}
+
+const drain = (): void => {
   try {
     const messages = JSON.parse(bridge.drain()) as unknown[]
-    for (const message of messages) port.postMessage(JSON.parse(String(message)))
+    for (const encoded of messages) {
+      const message = JSON.parse(String(encoded)) as { type?: unknown, id?: unknown, delay?: unknown }
+      if (message.type === 'timer-schedule') {
+        if (!Number.isSafeInteger(message.id) || !Number.isSafeInteger(message.delay) || (message.delay as number) < 0 || (message.delay as number) > 60_000 || timerHandles.has(message.id as number) || timerHandles.size >= 64) throw new Error('Invalid source timer schedule')
+        const id = message.id as number
+        const handle = setTimeout(() => { dispatchTimer(id) }, message.delay as number)
+        timerHandles.set(id, handle)
+      } else if (message.type === 'timer-cancel') {
+        if (!Number.isSafeInteger(message.id)) throw new Error('Invalid source timer cancellation')
+        const id = message.id as number
+        const handle = timerHandles.get(id)
+        if (handle != null) clearTimeout(handle)
+        timerHandles.delete(id)
+      } else {
+        if (message.type === 'initialized') sourceInitialized = true
+        port.postMessage(message)
+      }
+    }
   } catch (error) {
-    port.postMessage({ type: 'init-error', ...errorInfo(error) })
+    port.postMessage({ type: sourceInitialized ? 'timer-error' : 'init-error', ...errorInfo(error) })
   }
 }
 setInterval(drain, 5)
+
+process.once('exit', () => {
+  for (const handle of timerHandles.values()) clearTimeout(handle)
+  timerHandles.clear()
+})
 
 port.on('message', (message: { type: string, id: number, request?: unknown, entropy?: number[], error?: { code: string, message: string }, response?: unknown, body?: unknown }) => {
   try {

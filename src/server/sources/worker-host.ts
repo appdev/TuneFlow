@@ -72,7 +72,7 @@ export class SourceWorkerHost {
           }
           return
         }
-        if (message?.type === 'init-error') {
+        if (message?.type === 'init-error' || message?.type === 'timer-error') {
           clearTimeout(initTimeout)
           const error = new SourceServiceError('SOURCE_PROTOCOL_ERROR', message.message)
           this.reset(error)

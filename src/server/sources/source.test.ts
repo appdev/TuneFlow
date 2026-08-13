@@ -69,6 +69,132 @@ runtime.send(${legacyName}.EVENT_NAMES.inited, {
       fixture: { type: 'music', actions: ['musicUrl'], qualitys: ['128k'] },
     })
   })
+
+  it('initializes a legacy source through an isolated timeout callback', async() => {
+    const timerSource = script('Timer compatibility', `
+setTimeout((source, quality) => {
+  window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
+    sources: { [source]: { type: 'music', actions: ['musicUrl'], qualitys: [quality] } },
+  })
+}, 1, 'fixture', '320k')`)
+    const host = new SourceWorkerHost({ id: 'timer-compatibility', ...parseSourceScript(timerSource), script: timerSource })
+    hosts.push(host)
+
+    await expect(host.capabilities()).resolves.toEqual({
+      fixture: { type: 'music', actions: ['musicUrl'], qualitys: ['320k'] },
+    })
+  })
+
+  it('cancels a sandbox timeout without invoking its callback', async() => {
+    const timerSource = script('Timer cancellation', `
+const cancelled = setTimeout(() => { throw new Error('cancelled timer fired') }, 0)
+clearTimeout(cancelled)
+clearTimeout(cancelled)
+setTimeout(() => window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
+  sources: { fixture: { type: 'music', actions: ['musicUrl'], qualitys: [] } },
+}), 1)`)
+    const host = new SourceWorkerHost({ id: 'timer-cancellation', ...parseSourceScript(timerSource), script: timerSource })
+    hosts.push(host)
+
+    await expect(host.capabilities()).resolves.toHaveProperty('fixture')
+  })
+
+  it('rejects more than sixty-four pending sandbox timers', async() => {
+    const timerSource = script('Timer cap', `
+for (let index = 0; index < 65; index++) setTimeout(() => {}, 60_000)
+window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, { sources: {} })`)
+    const host = new SourceWorkerHost({ id: 'timer-cap', ...parseSourceScript(timerSource), script: timerSource })
+    hosts.push(host)
+
+    await expect(host.capabilities()).rejects.toMatchObject({ code: 'SOURCE_PROTOCOL_ERROR' })
+  })
+
+  it('rejects string timeout callbacks without enabling dynamic code', async() => {
+    const timerSource = script('String timer rejection', `
+setTimeout('window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, { sources: {} })', 0)`)
+    const host = new SourceWorkerHost({ id: 'string-timer', ...parseSourceScript(timerSource), script: timerSource })
+    hosts.push(host)
+
+    await expect(host.capabilities()).rejects.toMatchObject({ code: 'SOURCE_PROTOCOL_ERROR' })
+  })
+
+  it('reports timeout callback exceptions as source protocol errors', async() => {
+    const timerSource = script('Timer callback error', 'setTimeout(() => { throw new Error(\'timer callback failed\') }, 0)')
+    const host = new SourceWorkerHost({ id: 'timer-callback-error', ...parseSourceScript(timerSource), script: timerSource }, { requestTimeoutMs: 100 })
+    hosts.push(host)
+
+    await expect(host.capabilities()).rejects.toMatchObject({ code: 'SOURCE_PROTOCOL_ERROR', message: 'Source timer callback failed' })
+  })
+
+  it('does not use source-controlled global properties to dispatch timers', async() => {
+    const timerSource = script('Timer dispatch isolation', `
+Object.defineProperty(globalThis, '__tuneflowTimerDispatch__', { set() { while (true) {} }, configurable: false })
+Object.defineProperty(globalThis, '__tuneflowTimerPacket__', { set() { while (true) {} }, configurable: false })
+setTimeout(() => window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
+  sources: { fixture: { type: 'music', actions: ['musicUrl'], qualitys: [] } },
+}), 0)`)
+    const host = new SourceWorkerHost({ id: 'timer-dispatch-isolation', ...parseSourceScript(timerSource), script: timerSource }, { requestTimeoutMs: 200 })
+    hosts.push(host)
+
+    await expect(host.capabilities()).resolves.toHaveProperty('fixture')
+  })
+
+  it('does not let source JSON hooks rewrite normalized timer messages', async() => {
+    const timerSource = script('Timer serialization isolation', `
+Object.prototype.toJSON = function() {
+  return this.type === 'timer-schedule' ? { type: 'timer-schedule', id: this.id, delay: 60_001 } : this
+}
+setTimeout(() => window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
+  sources: { fixture: { type: 'music', actions: ['musicUrl'], qualitys: [] } },
+}), 0)`)
+    const host = new SourceWorkerHost({ id: 'timer-serialization-isolation', ...parseSourceScript(timerSource), script: timerSource }, { requestTimeoutMs: 200 })
+    hosts.push(host)
+
+    await expect(host.capabilities()).resolves.toHaveProperty('fixture')
+  })
+
+  it('does not expose the timer dispatch secret through function reflection', async() => {
+    const timerSource = script('Timer secret isolation', `
+const timerId = setTimeout(() => window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
+  sources: { fixture: { type: 'music', actions: ['musicUrl'], qualitys: ['bypassed'] } },
+}), 60_000)
+for (const key of Object.getOwnPropertyNames(globalThis)) {
+  const candidate = globalThis[key]
+  if (typeof candidate !== 'function') continue
+  const secret = /[0-9a-f]{64}/.exec(Function.prototype.toString.call(candidate))?.[0]
+  if (secret) candidate(JSON.stringify({ id: timerId, secret }))
+}`)
+    const host = new SourceWorkerHost({ id: 'timer-secret-isolation', ...parseSourceScript(timerSource), script: timerSource }, { requestTimeoutMs: 200 })
+    hosts.push(host)
+
+    await expect(host.capabilities()).rejects.toMatchObject({ code: 'SOURCE_TIMEOUT' })
+  })
+
+  it('sanitizes timeout callback exceptions inside the bounded VM execution', async() => {
+    const timerSource = script('Timer error sanitization', `
+setTimeout(() => {
+  throw { get message() { while (true) {} } }
+}, 0)`)
+    const host = new SourceWorkerHost({ id: 'timer-error-sanitization', ...parseSourceScript(timerSource), script: timerSource }, { requestTimeoutMs: 3_000 })
+    hosts.push(host)
+
+    await expect(host.capabilities()).rejects.toMatchObject({ code: 'SOURCE_PROTOCOL_ERROR', message: 'Source timer callback failed' })
+  })
+
+  it('resets a source after a post-initialization timeout callback fails', async() => {
+    const timerSource = script('Post-init timer error', `
+window.tuneflow.on(window.tuneflow.EVENT_NAMES.request, () => new Promise(() => {}))
+window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
+  sources: { fixture: { type: 'music', actions: ['lyric'], qualitys: [] } },
+})
+setTimeout(() => { throw new Error('post-init timer failed') }, 10)`)
+    const host = new SourceWorkerHost({ id: 'post-init-timer-error', ...parseSourceScript(timerSource), script: timerSource })
+    hosts.push(host)
+
+    await host.capabilities()
+    await expect(host.request<{ lyric: string }>({ source: 'fixture', action: 'lyric' })).rejects.toMatchObject({ code: 'SOURCE_PROTOCOL_ERROR', message: 'Source timer callback failed' })
+  })
+
   it('parses a valid TuneFlow script header', () => {
     expect(parseSourceScript(fixtureScript)).toMatchObject({ name: 'Deterministic fixture', version: '1.0.0' })
   })
