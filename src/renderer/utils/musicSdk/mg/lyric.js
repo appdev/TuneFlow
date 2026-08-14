@@ -2,6 +2,11 @@ import { httpFetch } from '../../request'
 import { getMusicInfo } from './musicInfo'
 import { decrypt } from './utils/mrc'
 
+const lyricUnavailable = () => Object.assign(new Error('Migu lyric metadata is unavailable'), { code: 'SOURCE_LYRIC_UNAVAILABLE' })
+const hasPrimaryLyricUrl = info =>
+  (typeof info?.mrcUrl === 'string' && info.mrcUrl.length > 0) ||
+  (typeof info?.lrcUrl === 'string' && info.lrcUrl.length > 0)
+
 const mrcTools = {
   rxps: {
     lineTime: /^\s*\[(\d+),\d+\]/,
@@ -74,9 +79,11 @@ const mrcTools = {
     return this.getText(url)
   },
   async getMusicInfo(songInfo) {
-    return songInfo.mrcUrl == null
-      ? getMusicInfo(songInfo.copyrightId)
-      : songInfo
+    if (hasPrimaryLyricUrl(songInfo)) return songInfo
+    if (songInfo.copyrightId == null) throw lyricUnavailable()
+    const info = await getMusicInfo(songInfo.copyrightId)
+    if (!hasPrimaryLyricUrl(info)) throw lyricUnavailable()
+    return info
   },
   getLyric(songInfo) {
     return {
@@ -84,7 +91,7 @@ const mrcTools = {
         let p
         if (info.mrcUrl) p = this.getMrc(info.mrcUrl)
         else if (info.lrcUrl) p = this.getLrc(info.lrcUrl)
-        if (p == null) return Promise.reject(new Error('获取歌词失败'))
+        if (p == null) return Promise.reject(lyricUnavailable())
         return Promise.all([p, this.getTrc(info.trcUrl)]).then(([lrcInfo, tlyric]) => {
           lrcInfo.tlyric = tlyric
           return lrcInfo

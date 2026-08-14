@@ -124,6 +124,17 @@ const activeSourceFor = (sources: SourcesService | undefined, provider: string, 
   ?.list()
   .find(source => source.active && source.sources?.[provider]?.actions.includes(action))
 
+const rejectReplacementCharacters = <T>(lyrics: T): T => {
+  if (typeof lyrics !== 'object' || lyrics == null) return lyrics
+  const value = lyrics as Record<string, unknown>
+  for (const field of ['lyric', 'tlyric', 'rlyric', 'verbatimLyric']) {
+    if (typeof value[field] === 'string' && value[field].includes('\uFFFD')) {
+      throw Object.assign(new Error(`Lyric provider returned replacement characters in ${field}`), { code: 'SOURCE_PROTOCOL_ERROR' })
+    }
+  }
+  return lyrics
+}
+
 export const registerCatalogRoutes = (app: ApiFastifyInstance, sources?: SourcesService): void => {
   app.get('/api/v1/catalog/capabilities', {
     schema: {
@@ -236,9 +247,9 @@ export const registerCatalogRoutes = (app: ApiFastifyInstance, sources?: Sources
     try {
       const active = activeSourceFor(sources, request.body.source, 'lyric')
       return {
-        data: active == null
+        data: rejectReplacementCharacters(active == null
           ? await getLyric(request.body.source, request.body.musicInfo)
-          : await sources!.requestSource(active.id, { source: request.body.source, action: 'lyric', info: request.body.musicInfo }),
+          : await sources!.requestSource(active.id, { source: request.body.source, action: 'lyric', info: request.body.musicInfo })),
       }
     } catch (error) { return sourceFailure(error, 'Lyric lookup failed') }
   })

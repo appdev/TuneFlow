@@ -111,4 +111,27 @@ describe('catalog routes', () => {
     })
     await app.close()
   })
+
+  it('rejects provider lyrics containing Unicode replacement characters', async() => {
+    const sources = {
+      list: () => [{ id: 'user_api_fixture', active: true, sources: { kw: { type: 'music', actions: ['lyric'], qualitys: [] } } }],
+      requestSource: vi.fn(async() => ({
+        lyric: '[00:00.00]clean',
+        tlyric: '[00:00.00]broken\uFFFDtranslation',
+        verbatimLyric: '[00:00.00]<0,100>clean',
+      })),
+    }
+    const app = appWithProductionErrors()
+    registerCatalogRoutes(app as never, sources as never)
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/catalog/tracks/lyrics',
+      payload: { source: 'kw', musicInfo: { id: 'track', source: 'kw' } },
+    })
+
+    expect(response.statusCode).toBe(502)
+    expect(response.json()).toEqual({ error: { code: 'SOURCE_PROTOCOL_ERROR', message: 'Lyric lookup failed' } })
+    await app.close()
+  })
 })

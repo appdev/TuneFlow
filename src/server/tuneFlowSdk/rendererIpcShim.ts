@@ -1,19 +1,22 @@
 import { inflate } from 'node:zlib'
 import { promisify } from 'node:util'
+import iconv from 'iconv-lite'
 import { decryptQrc } from 'qrc-decoder'
 import { WIN_MAIN_RENDERER_EVENT_NAME } from '../../common/ipcNames'
 
 const inflateAsync = promisify(inflate)
 
+const gb18030ToUtf8Base64 = (source: Buffer): string => Buffer.from(iconv.decode(source, 'gb18030'), 'utf8').toString('base64')
+
 const decodeKwLyric = async({ lrcBase64, isGetLyricx }: { lrcBase64: string, isGetLyricx: boolean }): Promise<string> => {
   const source = Buffer.from(lrcBase64, 'base64')
   if (source.toString('utf8', 0, 10) !== 'tp=content') return ''
   const lyric = await inflateAsync(source.subarray(source.indexOf('\r\n\r\n') + 4))
-  if (!isGetLyricx) return lyric.toString('base64')
+  if (!isGetLyricx) return gb18030ToUtf8Base64(lyric)
   const encoded = Buffer.from(lyric.toString(), 'base64')
   const key = Buffer.from('yeelion')
   for (let index = 0; index < encoded.length; index++) encoded[index] ^= key[index % key.length]
-  return encoded.toString('base64')
+  return gb18030ToUtf8Base64(encoded)
 }
 
 const decodeTxLyric = async({ lrc = '', tlrc = '', rlrc = '' }: { lrc?: string, tlrc?: string, rlrc?: string }): Promise<{ lyric: string, tlyric: string, rlyric: string }> => ({
