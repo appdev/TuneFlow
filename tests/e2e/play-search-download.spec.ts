@@ -98,6 +98,7 @@ test('original UI persists search, list, playback, download, library, settings, 
         ...process.env,
         NODE_ENV: 'test',
         TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS: '1',
+        TUNEFLOW_TEST_ALLOW_PRIVATE_SOURCE_TARGETS: '1',
         HTTP_PROXY: `http://127.0.0.1:${proxyPort}`,
         TUNEFLOW_HOST: '127.0.0.1',
         TUNEFLOW_PORT: String(servicePort),
@@ -155,7 +156,7 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
         response.writeHead(404).end()
         return
       }
-      response.writeHead(200, { 'access-control-allow-origin': '*', 'content-type': 'application/javascript' })
+      response.writeHead(200, { 'content-type': 'application/javascript' })
       response.end(fixtureSource)
     })
     const sourcePort = await listen(sourceServer)
@@ -287,6 +288,16 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
     await playableRow.dblclick()
     await expect.poll(async() => (await audioState(page)).duration).toBeGreaterThanOrEqual(60)
     await expect.poll(async() => (await audioState(page)).paused).toBe(false)
+    let firstPlaybackId = ''
+    await expect.poll(async() => {
+      const body = await (await fetch(`${origin}/api/v1/playback/history`)).json() as {
+        data: Array<{ playbackId: string, platform: string, endedAt: number | null, track: { name?: string } }>
+      }
+      const session = body.data.find(item => item.track.name === 'Task8 playable')
+      if (session == null) return 'missing'
+      firstPlaybackId = session.playbackId
+      return `${session.platform}:${session.endedAt == null ? 'active' : 'ended'}`
+    }).toBe('web:active')
     await expect.poll(async() => {
       const body = await (await fetch(`${origin}/api/v1/downloads`)).json() as { data: Array<{ status: string, musicInfo: { name: string } }> }
       return body.data.find(item => item.musicInfo.name === 'Task8 playable')?.status
@@ -338,6 +349,13 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
     await downloadedFallback.locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " list-item ")]').dblclick()
     await expect.poll(() => libraryResponses.slice(localFallbackResponsesBefore).some(item => item.status === 200 || item.status === 206)).toBe(true)
     await expect.poll(async() => (await audioState(page)).src).toMatch(/\/api\/v1\/library\/tracks\/[a-f0-9]{64}\/stream/)
+    await expect.poll(async() => {
+      const body = await (await fetch(`${origin}/api/v1/playback/history`)).json() as {
+        data: Array<{ playbackId: string, completed: boolean, endedAt: number | null }>
+      }
+      const session = body.data.find(item => item.playbackId === firstPlaybackId)
+      return session == null ? 'missing' : `${session.completed}:${session.endedAt == null ? 'active' : 'ended'}`
+    }).toBe('false:ended')
     await page.unroute(`${origin}/api/v1/streams/**`)
     simulatingFailedPlayback = false
 

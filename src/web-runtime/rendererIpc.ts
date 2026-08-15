@@ -70,6 +70,7 @@ classify({ kind: 'route' }, [
   PLAYER_EVENT_NAME.list_music_check_exist,
   PLAYER_EVENT_NAME.list_music_get_list_ids,
   WIN_MAIN_RENDERER_EVENT_NAME.import_user_api,
+  WIN_MAIN_RENDERER_EVENT_NAME.import_user_api_from_url,
   WIN_MAIN_RENDERER_EVENT_NAME.remove_user_api,
   WIN_MAIN_RENDERER_EVENT_NAME.set_user_api,
   WIN_MAIN_RENDERER_EVENT_NAME.get_user_api_list,
@@ -205,6 +206,11 @@ export const createWebRuntime = (dependencies: WebRuntimeDependencies = {}): Web
     [PLAYER_EVENT_NAME.list_music_get_list_ids, async params => request('GET', `/api/v1/tracks/${encodeURIComponent(String(params))}/playlists`)],
     [WIN_MAIN_RENDERER_EVENT_NAME.import_user_api, async params => {
       const apiInfo = await request('POST', '/api/v1/sources', { script: params })
+      const apiList = await request('GET', '/api/v1/sources')
+      return { apiInfo, apiList }
+    }],
+    [WIN_MAIN_RENDERER_EVENT_NAME.import_user_api_from_url, async params => {
+      const apiInfo = await request('POST', '/api/v1/sources/import', { url: params })
       const apiList = await request('GET', '/api/v1/sources')
       return { apiInfo, apiList }
     }],

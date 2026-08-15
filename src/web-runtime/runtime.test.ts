@@ -103,6 +103,22 @@ describe('typed Web runtime HTTP transport', () => {
     })
   })
 
+  it('imports a source URL through the Service instead of fetching it in the browser', async() => {
+    const fetch = vi.fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(jsonResponse({ data: { id: 'user_api_fixture', active: false } }))
+      .mockResolvedValueOnce(jsonResponse({ data: [{ id: 'user_api_fixture', active: false }] }))
+    const runtime = createWebRuntime({ fetch, EventSource: FakeEventSource })
+
+    await expect(runtime.invoke(WIN_MAIN_RENDERER_EVENT_NAME.import_user_api_from_url, 'https://source.test/source.js')).resolves.toEqual({
+      apiInfo: { id: 'user_api_fixture', active: false },
+      apiList: [{ id: 'user_api_fixture', active: false }],
+    })
+    expect(fetch).toHaveBeenNthCalledWith(1, '/api/v1/sources/import', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: 'https://source.test/source.js' }),
+    })
+    expect(fetch).toHaveBeenNthCalledWith(2, '/api/v1/sources', { method: 'GET' })
+  })
+
   it('rejects unknown IPC locally without making a request', async() => {
     const fetch = vi.fn<typeof globalThis.fetch>()
     const runtime = createWebRuntime({ fetch, EventSource: FakeEventSource })

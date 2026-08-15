@@ -2,7 +2,9 @@ import { Type } from '@fastify/type-provider-typebox'
 import { readFileSync } from 'node:fs'
 import { type SourceRepository } from '../sources/repository'
 import { SourceWorkerHost } from '../sources/worker-host'
+import { requestSourceNetwork, type SourceNetworkOptions } from '../sources/network'
 import { SourceServiceError, type SourceRequest, type SourceSummary } from '../sources/types'
+import { MAX_SOURCE_SCRIPT_BYTES } from '../../common/constants'
 import { ApiError } from '../errors'
 import type { ApiFastifyInstance } from '../api/types'
 import { ApiSuccess, ErrorResponses } from '../api/schemas/common'
@@ -11,7 +13,9 @@ import type { ServiceEvents } from './events'
 
 const asApiError = (error: unknown): never => {
   if (error instanceof SourceServiceError) {
-    const status = error.code === 'SOURCE_NOT_FOUND' ? 404 : error.code === 'SOURCE_DUPLICATE' || error.code === 'SOURCE_INVALID_METADATA' ? 400 : 502
+    const status = error.code === 'SOURCE_NOT_FOUND'
+      ? 404
+      : ['SOURCE_DUPLICATE', 'SOURCE_INVALID_METADATA', 'SOURCE_INVALID_URL', 'SOURCE_SCRIPT_TOO_LARGE', 'SOURCE_TARGET_BLOCKED'].includes(error.code) ? 400 : 502
     throw new ApiError(status, error.code, error.message)
   }
   throw error
@@ -20,12 +24,35 @@ const asApiError = (error: unknown): never => {
 export class SourcesService {
   private readonly workers = new Map<string, SourceWorkerHost>()
 
-  constructor(private readonly repository: SourceRepository, private readonly publishUpdateAlert: (alert: { log: string, updateUrl?: string }) => void = () => {}) {}
+  constructor(
+    private readonly repository: SourceRepository,
+    private readonly publishUpdateAlert: (alert: { log: string, updateUrl?: string }) => void = () => {},
+    private readonly networkOptions: SourceNetworkOptions = {},
+  ) {}
 
   list(): SourceSummary[] { return this.repository.listSources() }
 
   async installSource(script: string): Promise<SourceSummary> {
     try { return await this.repository.installSource(script) } catch (error) { return asApiError(error) }
+  }
+
+  async installSourceFromUrl(url: string): Promise<SourceSummary> {
+    try {
+      let target: URL
+      try { target = new URL(url) } catch { throw new SourceServiceError('SOURCE_INVALID_URL', 'Invalid source URL') }
+      if (target.protocol !== 'http:' && target.protocol !== 'https:') throw new SourceServiceError('SOURCE_INVALID_URL', 'Source URL must use HTTP or HTTPS')
+      const response = await requestSourceNetwork(target.href, {
+        headers: { accept: 'application/javascript, text/javascript, text/plain, */*' },
+      }, undefined, this.networkOptions)
+      if (response.statusCode < 200 || response.statusCode >= 300) throw new SourceServiceError('SOURCE_DOWNLOAD_FAILED', `Source URL returned HTTP ${response.statusCode}`)
+      if (response.raw.byteLength > MAX_SOURCE_SCRIPT_BYTES) throw new SourceServiceError('SOURCE_SCRIPT_TOO_LARGE', 'Source script exceeds 1 MiB')
+      const script = new TextDecoder().decode(response.raw).replace(/^\ufeff/, '')
+      return await this.repository.installSource(script)
+    } catch (error) {
+      return asApiError(error instanceof SourceServiceError
+        ? error
+        : new SourceServiceError('SOURCE_DOWNLOAD_FAILED', 'Unable to download source script'))
+    }
   }
 
   async activate(id: string): Promise<SourceSummary> {
@@ -82,6 +109,7 @@ export class SourcesService {
 
 const sourceResponse = ApiSuccess(SourceSummarySchema)
 const sourceListResponse = ApiSuccess(Type.Array(SourceSummarySchema))
+const sourceInstallBodyLimit = MAX_SOURCE_SCRIPT_BYTES * 6 + 1024
 
 export const registerSourceRoutes = (app: ApiFastifyInstance, service: SourcesService, events?: ServiceEvents): void => {
   app.get('/api/v1/sources', {
@@ -90,17 +118,33 @@ export const registerSourceRoutes = (app: ApiFastifyInstance, service: SourcesSe
     },
   }, async() => ({ data: service.list() }))
   app.post('/api/v1/sources', {
+    bodyLimit: sourceInstallBodyLimit,
     schema: {
       operationId: 'installSource',
       tags: ['Sources'],
       summary: 'Install a source script',
-      body: Type.Object({ script: Type.String({ minLength: 1 }) }, { additionalProperties: false }),
+      body: Type.Object({ script: Type.String({ minLength: 1, maxLength: MAX_SOURCE_SCRIPT_BYTES }) }, { additionalProperties: false }),
       response: { 200: sourceResponse, ...ErrorResponses },
     },
   }, async(request) => {
     const body = request.body as { script?: unknown } | null
     if (body == null || typeof body.script !== 'string') throw new ApiError(400, 'SOURCE_INVALID_METADATA', 'A source script is required')
     const source = await service.installSource(body.script)
+    events?.publishSnapshot('sources.updated', service.list())
+    return { data: source }
+  })
+  app.post('/api/v1/sources/import', {
+    schema: {
+      operationId: 'importSourceFromUrl',
+      tags: ['Sources'],
+      summary: 'Import a source script from a network URL',
+      body: Type.Object({ url: Type.String({ minLength: 1, maxLength: 2048, pattern: '^https?://' }) }, { additionalProperties: false }),
+      response: { 200: sourceResponse, ...ErrorResponses },
+    },
+  }, async(request) => {
+    const body = request.body as { url?: unknown } | null
+    if (body == null || typeof body.url !== 'string') throw new ApiError(400, 'SOURCE_INVALID_URL', 'A source URL is required')
+    const source = await service.installSourceFromUrl(body.url)
     events?.publishSnapshot('sources.updated', service.list())
     return { data: source }
   })

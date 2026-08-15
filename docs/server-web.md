@@ -108,8 +108,13 @@ URLs.
 
 ## Source trust boundary
 
-Custom sources are imported from a network URL. The Web UI has no local source
-file chooser.
+Custom sources can be imported from a network URL or from a script selected in
+the browser. Network imports are downloaded by the Service through the same
+bounded network layer used by source workers, so they do not depend on the
+remote server enabling browser CORS. Redirects and resolved targets are checked
+against the Service SSRF policy. Local imports use the browser file picker and
+send only the selected script contents to the Service; browser file paths are
+never exposed. Source scripts are limited to 1 MiB for both import paths.
 
 Imported music-source scripts are third-party code. They execute in the
 Service's restricted worker compatibility layer, but it is not a process-grade

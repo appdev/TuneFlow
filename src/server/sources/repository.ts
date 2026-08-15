@@ -1,6 +1,7 @@
 import { existsSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
+import { MAX_SOURCE_SCRIPT_BYTES } from '../../common/constants'
 import { getDB } from '../db/core/db'
 import { parseSourceScript } from './parser'
 import { SourceServiceError, type InstalledSource, type SourceSummary } from './types'
@@ -65,6 +66,7 @@ export class SourceRepository {
   }
 
   async installSource(script: string): Promise<SourceSummary> {
+    if (Buffer.byteLength(script, 'utf8') > MAX_SOURCE_SCRIPT_BYTES) throw new SourceServiceError('SOURCE_SCRIPT_TOO_LARGE', 'Source script exceeds 1 MiB')
     const info = parseSourceScript(script)
     const hash = createHash('sha256').update(script).digest('hex')
     const id = `user_api_${hash}`

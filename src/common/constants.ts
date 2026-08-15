@@ -1,5 +1,7 @@
 export const URL_SCHEME_RXP = /^tuneflow:\/\//
 
+export const MAX_SOURCE_SCRIPT_BYTES = 1024 * 1024
+
 export const SPLIT_CHAR = {
   DISLIKE_NAME: '@',
   DISLIKE_NAME_ALIAS: '#',

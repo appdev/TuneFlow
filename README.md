@@ -4,7 +4,23 @@
 
 <p align="center">支持自行部署的 TuneFlow Web 音乐服务</p>
 
-## 说明
+<a id="目录"></a>
+
+## 目录
+
+- [产品介绍](#product-overview)
+- [功能边界](#feature-boundaries)
+- [用户界面](#user-interface)
+- [如何使用](#usage)
+  - [Docker 部署（推荐）](#docker-deployment)
+  - [源码构建与启动](#source-build)
+  - [数据存储目录](#data-storage)
+- [贡献代码](#contributing)
+- [项目协议](#project-agreement)
+
+<a id="product-overview"></a>
+
+## 产品介绍
 
 TuneFlow（音流）将音乐搜索、播放、列表、下载与本地媒体库带到浏览器：由 Node.js Service 提供数据与媒体能力，通过 Vue Web UI 使用。你可以将它部署在自己的电脑或服务器上，也可以使用 Docker 运行；播放列表、下载内容和其他持久化数据均由你自己的存储空间管理。
 
@@ -15,11 +31,29 @@ TuneFlow（音流）将音乐搜索、播放、列表、下载与本地媒体库
 
 本仓库只构建 Node.js Service 与 Web UI，不再生成桌面安装包。未来原生客户端通过 Service API 接入。
 
-## Docker 部署（推荐）
+<a id="feature-boundaries"></a>
+
+## 功能边界
+
+Web UI 支持导航、搜索、列表、播放、Service 下载与本地媒体库、网络导入自定义源、常规设置、本地快捷键和内置主题。不支持桌面窗口/托盘、桌面歌词、全局快捷键、安装更新、原桌面同步与开放 API、原生文件对话框、系统字体枚举或文件型自定义主题编辑。
+
+<a id="user-interface"></a>
+
+## 用户界面
+
+<p><img width="100%" src="./doc/images/app.png" alt="TuneFlow 音流 Web UI"></p>
+
+<a id="usage"></a>
+
+## 如何使用
+
+<a id="docker-deployment"></a>
+
+### Docker 部署（推荐）
 
 公开镜像发布在 Docker Hub：`apkdv/tuneflow-server`。默认将服务发布到宿主机的 `3124` 端口，并使用 Docker 卷持久化数据库、下载内容和自定义源。
 
-### 使用 docker run
+#### 使用 docker run
 
 ```sh
 docker pull apkdv/tuneflow-server:latest
@@ -56,7 +90,7 @@ docker run -d \
   apkdv/tuneflow-server:latest
 ```
 
-### 使用 Docker Compose
+#### 使用 Docker Compose
 
 将以下内容保存为 `compose.yaml`：
 
@@ -89,7 +123,9 @@ curl --fail http://127.0.0.1:3124/api/v1/health
 
 当前 Docker Hub 镜像发布为 `linux/amd64`。ARM 主机需要配置 AMD64 模拟支持。上述端口映射会监听宿主机的所有网络接口，仅应在可信局域网中使用，并通过主机防火墙或反向代理限制访问。如果只需本机访问，可将端口映射改为 `127.0.0.1:3124:3124`。本服务没有身份认证、多租户隔离或公网安全加固，请勿直接暴露到互联网。
 
-## 源码构建与启动
+<a id="source-build"></a>
+
+### 源码构建与启动
 
 安装 Node.js 22 或更高版本，然后运行：
 
@@ -100,6 +136,8 @@ npm run start:server
 ```
 
 浏览器打开 <http://127.0.0.1:3124>。默认只监听本机回环地址；若要在可信局域网使用，可显式设置 `TUNEFLOW_HOST=0.0.0.0`，并通过主机防火墙或反向代理限制访问。
+
+<a id="data-storage"></a>
 
 ### 数据存储目录
 
@@ -113,13 +151,9 @@ Service 独占所有持久化数据。数据根目录由 `TUNEFLOW_STORAGE_ROOT`
 
 从旧版本升级时，Service 会在同一数据根目录内自动迁移旧数据库文件和旧设置键。Docker 服务名与数据卷已改为 TuneFlow 命名；使用旧命名卷的部署需先将完整 `/data` 内容复制到 `tuneflow-data` 卷，再启动新容器。
 
-## 功能边界
+构建、启动、环境变量、Docker、数据备份、媒体目录、功能边界与安全注意事项请参阅 [Server + Web 文档](./docs/server-web.md)。
 
-Web UI 支持导航、搜索、列表、播放、Service 下载与本地媒体库、网络导入自定义源、常规设置、本地快捷键和内置主题。不支持桌面窗口/托盘、桌面歌词、全局快捷键、安装更新、原桌面同步与开放 API、原生文件对话框、系统字体枚举或文件型自定义主题编辑。
-
-## 用户界面
-
-<p><img width="100%" src="./doc/images/app.png" alt="TuneFlow 音流 Web UI"></p>
+<a id="contributing"></a>
 
 ## 贡献代码
 
@@ -131,9 +165,7 @@ Web UI 支持导航、搜索、列表、播放、Service 下载与本地媒体�
 
 提交代码前请至少运行与变更相关的测试；涉及生产构建边界时还应运行 `npm run build:service`。
 
-## 源码使用方法
-
-构建、启动、环境变量、Docker、数据备份、媒体目录、功能边界与安全注意事项请参阅 [Server + Web 文档](./docs/server-web.md)。
+<a id="project-agreement"></a>
 
 ## 项目协议
 

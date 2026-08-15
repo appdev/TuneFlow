@@ -83,7 +83,7 @@ export class PlaybackResolver {
   async resolveTrack(input: ResolveTrackInput): Promise<ResolvedTrack> {
     const source = this.sources.list().find(item => item.active)
     if (source == null) throw new ApiError(409, 'SOURCE_NOT_FOUND', 'No active source')
-    if (input.preferLocal === true) {
+    if (input.preferLocal !== false) {
       const localUrl = await this.findLocal?.(originalMusicInfo(input.info))
       if (localUrl != null) return this.createResolvedTrack({ url: localUrl }, input.quality)
     }

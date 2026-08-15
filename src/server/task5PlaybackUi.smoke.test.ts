@@ -115,6 +115,7 @@ describe('Task 5 production Web prepared Service playback UI smoke', () => {
         ...process.env,
         NODE_ENV: 'test',
         TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS: '1',
+        TUNEFLOW_TEST_ALLOW_PRIVATE_SOURCE_TARGETS: '1',
         HTTP_PROXY: `http://127.0.0.1:${proxyPort}`,
         TUNEFLOW_HOST: '127.0.0.1',
         TUNEFLOW_PORT: String(originPort),
@@ -203,7 +204,6 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
         response.end()
         return
       }
-      response.setHeader('access-control-allow-origin', '*')
       response.setHeader('content-type', 'application/javascript')
       response.end(fixtureSource)
     })

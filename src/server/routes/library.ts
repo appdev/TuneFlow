@@ -1,4 +1,4 @@
-import { createReadStream, statSync } from 'node:fs'
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { Type } from '@fastify/type-provider-typebox'
 import type { FastifyReply, FastifyRequest } from 'fastify'
@@ -64,4 +64,48 @@ export const registerLibraryRoutes = (app: ApiFastifyInstance, scanner: LibraryS
   const streamSchema = { tags: ['Library'], summary: 'Stream a local library track', params: IdParams }
   app.get('/api/v1/library/tracks/:id/stream', { exposeHeadRoute: false, schema: { ...streamSchema, operationId: 'streamLibraryTrack' } }, stream)
   app.head('/api/v1/library/tracks/:id/stream', { schema: { ...streamSchema, operationId: 'headLibraryTrack' } }, stream)
+
+  const picture = async(request: FastifyRequest, reply: FastifyReply) => {
+    const entry = scanner.get((request.params as { id: string }).id)
+    if (entry == null) throw new ApiError(404, 'LIBRARY_TRACK_NOT_FOUND', 'Library track not found')
+    const resource = entry.resources.picture
+    if (resource == null || !existsSync(resource.filePath)) {
+      throw new ApiError(404, 'LIBRARY_TRACK_PICTURE_NOT_FOUND', 'Library track picture not found')
+    }
+    void reply.headers({
+      'content-type': resource.mimeType,
+      'content-length': String(resource.byteLength),
+      etag: `"${resource.etag}"`,
+      'cache-control': 'private, max-age=31536000, immutable',
+    })
+    if (request.method === 'HEAD') return reply.send()
+    return reply.send(createReadStream(resource.filePath))
+  }
+  const pictureSuccess = Type.String({ contentEncoding: 'binary', contentMediaType: 'application/octet-stream' })
+  const pictureSchema = {
+    tags: ['Library'],
+    summary: 'Read an embedded local library picture',
+    params: IdParams,
+    response: { 200: pictureSuccess, ...ErrorResponses },
+  }
+  app.get('/api/v1/library/tracks/:id/picture', { exposeHeadRoute: false, schema: { ...pictureSchema, operationId: 'getLibraryTrackPicture' } }, picture)
+  app.head('/api/v1/library/tracks/:id/picture', { schema: { ...pictureSchema, operationId: 'headLibraryTrackPicture' } }, picture)
+
+  app.get('/api/v1/library/tracks/:id/lyrics', {
+    schema: {
+      operationId: 'getLibraryTrackLyrics',
+      tags: ['Library'],
+      summary: 'Read local library lyrics',
+      params: IdParams,
+      response: { 200: ApiSuccess(Type.Object({ lyric: Type.String() })), ...ErrorResponses },
+    },
+  }, async(request) => {
+    const entry = scanner.get((request.params as { id: string }).id)
+    if (entry == null) throw new ApiError(404, 'LIBRARY_TRACK_NOT_FOUND', 'Library track not found')
+    const resource = entry.resources.lyrics
+    if (resource == null || !existsSync(resource.filePath)) {
+      throw new ApiError(404, 'LIBRARY_TRACK_LYRICS_NOT_FOUND', 'Library track lyrics not found')
+    }
+    return { data: { lyric: readFileSync(resource.filePath, 'utf8') } }
+  })
 }

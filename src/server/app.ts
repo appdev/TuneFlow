@@ -22,8 +22,10 @@ import { setRendererUtilsLanguage } from './tuneFlowSdk/rendererUtilsShim'
 import { getLyric, getPicture } from './tuneFlowSdk'
 import { projectBrowserDto } from './playback/browserDto'
 import { LibraryScanner } from './library/scanner'
+import { LibraryResourceStore } from './library/resources'
 import { registerLibraryRoutes } from './routes/library'
 import { DownloadManager } from './downloads/manager'
+import type { DownloadFileIntegrity } from './downloads/types'
 import { registerDownloadRoutes } from './routes/downloads'
 import { applyDownloadMetadata } from './downloads/metadata'
 import { resolveSourceMusicUrl } from './playback/resolver'
@@ -47,8 +49,18 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
   const events = new ServiceEvents()
   const sources = new SourcesService(new SourceRepository(serverOptions.storageRoot), alert => {
     events.publish('sources.update-available', alert)
+  }, {
+    // Test fixtures are local by design; production never relaxes the source-import SSRF boundary.
+    allowPrivateNetwork: process.env.NODE_ENV === 'test' && process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_SOURCE_TARGETS === '1',
   })
-  const library = new LibraryScanner(serverOptions.storageRoot, () => [getAudioRoot(serverOptions.storageRoot)])
+  let integrityLookup: (filePath: string) => DownloadFileIntegrity | undefined = () => undefined
+  const libraryResources = new LibraryResourceStore(serverOptions.storageRoot)
+  const library = new LibraryScanner(
+    serverOptions.storageRoot,
+    () => [getAudioRoot(serverOptions.storageRoot)],
+    filePath => integrityLookup(filePath),
+    libraryResources,
+  )
   await library.refresh()
   const downloads = new DownloadManager({
     storageRoot: serverOptions.storageRoot,
@@ -76,11 +88,13 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
       getPicture: async musicInfo => getPicture(musicInfo.source, musicInfo).catch(() => musicInfo.meta.picUrl ?? null),
       getLyrics: async musicInfo => getLyric(musicInfo.source, musicInfo).catch(() => null),
     }),
+    materializeResources: async filePath => { await libraryResources.ensure(filePath) },
     publish: jobs => {
       events.publishSnapshot('downloads.updated', jobs)
     },
     onCompleted: async() => library.refresh(),
   })
+  integrityLookup = filePath => downloads.expectedIntegrity(filePath)
 
   app.setErrorHandler((error, _request, reply) => {
     const validation = typeof error === 'object' && error != null && 'validation' in error && Array.isArray(error.validation)
@@ -123,7 +137,30 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
     // Test fixtures are local by design; production never relaxes the SSRF boundary.
     allowPrivateNetwork: process.env.NODE_ENV === 'test' && process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS === '1',
   })
-  registerPlaybackHistoryRoutes(app, playbackHistory)
+  registerPlaybackHistoryRoutes(app, {
+    history: playbackHistory,
+    onStarted: async session => {
+      if (!settings.getSettings()['player.autoDownloadOnPlay'] || session.track.source === 'local') return
+      const meta = typeof session.track.meta === 'object' && session.track.meta != null
+        ? session.track.meta as Record<string, unknown>
+        : {}
+      const musicInfo: TuneFlow.Music.MusicInfoOnline = {
+        ...session.track,
+        source: session.track.source as TuneFlow.OnlineSource,
+        name: typeof session.track.name === 'string' ? session.track.name : session.track.id,
+        singer: typeof session.track.singer === 'string' ? session.track.singer : '',
+        interval: typeof session.track.interval === 'string' ? session.track.interval : null,
+        meta: {
+          ...meta,
+          songId: typeof meta.songId === 'string' || typeof meta.songId === 'number' ? meta.songId : session.track.id,
+          albumName: typeof meta.albumName === 'string' ? meta.albumName : '',
+          qualitys: Array.isArray(meta.qualitys) ? meta.qualitys as TuneFlow.Music.MusicQualityType[] : [],
+          _qualitys: typeof meta._qualitys === 'object' && meta._qualitys != null ? meta._qualitys as TuneFlow.Music._MusicQualityType : {},
+        },
+      }
+      await downloads.createForPlayback(musicInfo)
+    },
+  })
   registerDownloadRoutes(app, downloads)
   registerLibraryRoutes(app, library)
   app.all('/api/v1', { schema: { hide: true } }, async() => {

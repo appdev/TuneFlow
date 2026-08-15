@@ -737,6 +737,7 @@
   "user_api__import_file": "選取自訂來源 API 腳本檔案",
   "user_api__init_failed_alert": "自訂來源 API「{name}」初始化失敗：",
   "user_api__max_tip": "最多只能同時存在 20 個 API 哦🤪\n想要繼續匯入的話，請先移除一些舊的 API 騰出位置吧",
+  "user_api__script_too_large": "音源腳本不能超過 1 MiB",
   "user_api__noitem": "這裡竟然是空的😲",
   "user_api__note": "提示：雖然我們已經盡可能地隔離了 API 腳本的執行環境，但匯入包含惡意行為的 API 腳本仍可能會影響你的系統，請謹慎匯入。",
   "user_api__readme": "API 編寫說明：",

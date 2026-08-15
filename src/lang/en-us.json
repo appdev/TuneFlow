@@ -737,6 +737,7 @@
   "user_api__import_file": "Choose Music API script file",
   "user_api__init_failed_alert": "Failed to initialize Music API \"{name}\": ",
   "user_api__max_tip": "There can only be a maximum of 20 APIs at the same time🤪.\n\nIf you want to continue importing, please remove some unnecessary APIs to make room.",
+  "user_api__script_too_large": "The source script cannot exceed 1 MiB",
   "user_api__noitem": "There is nothing here...😲",
   "user_api__note": "TIP: Although we have isolated the API script's running environment as much as possible, importing API scripts containing malicious behaviors may still affect your system. Please import them with caution.",
   "user_api__readme": "API writing instructions: ",

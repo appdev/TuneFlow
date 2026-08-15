@@ -1,131 +1,246 @@
-# Server-Owned Playback History Design
+# Server-Owned Playback Session History Design
 
 **Date:** 2026-08-14
+**Status:** Approved for implementation
 
 ## Goal
 
-Move recent-playback ownership from Flutter client data into a dedicated Service API and persistent store. A history entry is created only after the Flutter audio player confirms that a newly loaded track has actually started playing. The Service keeps at most 50 entries and becomes the source of truth for all clients.
+Replace the bounded, de-duplicated recent-playback list with a 30-day playback-session history suitable for later AI analysis and recommendation. Every successful start creates an independent session. The client reports lifecycle facts that only its audio player can observe, while the Service owns identifiers, timestamps, retention, persistence, server-local playback resolution, and save-while-listening behavior.
 
-## Current Behavior
+The Service and its Docker-hosted Web UI live in this repository. Flutter remains a separate project at `/Volumes/ext/MusicFree/flutter-client` and will be changed through a coordinated follow-up task after the Service contract is implemented and verified.
 
-Flutter currently writes the full `Track.toJson()` payload plus a client-generated `playedAt` timestamp to the opaque `flutter.playback-history.v1` client-data key. It de-duplicates entries by `source + id`, retains 50 entries, and reads the same value for the home screen.
+## Scope and Assumptions
 
-The Service can observe online and library stream requests, but it cannot observe playback from Flutter's local media cache. Stream requests are also an imperfect playback signal because probes, range requests, and prefetching do not prove that the player started.
+- One Service instance still represents one user. This work does not add accounts or user identity.
+- Supported playback platforms are `android`, `ios`, `macos`, `windows`, `linux`, `web`, and `other`.
+- The Docker-hosted browser client reports `web`; Docker itself is not a playback platform.
+- Every successful playback start creates a new row, including repeated plays of the same track.
+- The initial implementation records start/end timestamps, completion, last position, and media duration. Exact active-listening time excluding pause, seek, buffering, and playback-rate effects is deferred.
+- Existing test-stage playback-history rows may be deleted during schema replacement. No legacy migration is required.
 
-## Architecture
+## Ownership and Data Flow
 
-Playback history uses a client-event/server-ownership split:
+Playback uses a client-event/Service-ownership split:
 
-- Flutter determines when actual playback starts because it owns the audio player state.
-- Flutter reports the track metadata, but does not generate the playback timestamp or maintain the history list.
-- The Service validates, timestamps, de-duplicates, limits, persists, and returns history.
-- The Service does not independently infer playback from stream-resolution or stream-transfer requests.
+1. A client asks the Service to resolve a track. The Service prefers an existing file in its download directory or media library and uses an online source only when no matching server-local file exists.
+2. The audio-owning client confirms that playback actually started.
+3. The client creates a playback session with the track snapshot and its platform.
+4. The Service generates the playback ID and start time, persists the row, and, when the global `player.autoDownloadOnPlay` setting is enabled, asynchronously creates a server download task.
+5. The client retains the returned playback ID while that logical play remains active.
+6. Natural completion or an interruption updates that same row.
 
-This produces one playback signal for online streams, Service library streams, and Flutter cache hits without duplicate server and client detection paths.
+Stream resolution, HTTP range requests, prefetching, and download activity do not independently create playback sessions because none proves that audio actually started.
 
 ## API Contract
 
-### Record playback
+### Start a playback session
 
 `POST /api/v1/playback/history`
 
-The request contains one track using the existing extensible track schema. The Service requires a non-empty track identity and source while preserving provider-specific metadata accepted by that schema.
+Request:
 
-The Service generates `playedAt` at request handling time. A client-supplied timestamp is neither required nor trusted.
+```json
+{
+  "track": {
+    "id": "stable-track-id",
+    "source": "kw",
+    "name": "Track name",
+    "singer": "Artist"
+  },
+  "platform": "android"
+}
+```
 
-On success, the endpoint returns the stored history entry containing:
+`track` uses the existing extensible track schema. A non-empty `id` and `source` are required, and provider-specific metadata is preserved. The Service accepts only the supported platform values.
 
-- `track`: the normalized/preserved track object;
-- `playedAt`: the Service-generated Unix timestamp in milliseconds.
+The successful response contains the complete stored session:
+
+```json
+{
+  "data": {
+    "playbackId": "opaque-service-generated-id",
+    "track": {},
+    "platform": "android",
+    "startedAt": 1786665600000,
+    "endedAt": null,
+    "completed": false,
+    "lastPositionSeconds": null,
+    "durationSeconds": null
+  }
+}
+```
+
+The Service, rather than the client, generates `playbackId` and `startedAt`. A successful start response means the row is durable. Automatic download scheduling is best-effort and does not delay or change the response.
+
+### End a playback session
+
+`PATCH /api/v1/playback/history/{playbackId}`
+
+Request:
+
+```json
+{
+  "completed": false,
+  "lastPositionSeconds": 37.4,
+  "durationSeconds": 241.8
+}
+```
+
+The numeric fields are finite, non-negative seconds. The Service generates `endedAt`. Natural media completion sends `completed=true`; switching tracks, stopping, or clearing the active queue sends `completed=false`.
+
+Ending is idempotent and first-terminal-write-wins. Repeating an end request returns the already-ended row without changing its original terminal facts. An unknown playback ID returns the existing structured not-found error.
 
 ### Read playback history
 
 `GET /api/v1/playback/history`
 
-The response contains at most 50 entries ordered by `playedAt` descending. Each entry has the same `track` and `playedAt` shape returned by the record endpoint.
+The response contains every retained session whose Service-generated `startedAt` is within the trailing 30-day window, ordered by `startedAt` descending with a deterministic database tie-breaker. There is no count limit and no `source + track_id` de-duplication.
 
-The endpoints are added to the OpenAPI contract. The existing `client-data` API remains available for unrelated opaque client state.
+All three operations are represented in OpenAPI. The existing `client-data` API remains available for unrelated client state.
 
 ## Persistence and Retention
 
-Playback history is stored in a dedicated SQLite table rather than `web_app_data`. Each row stores the stable identity fields, the complete track JSON, and the Service-generated playback time.
+The Service performs a one-time schema-shape check for `web_playback_history`. When it detects the legacy 50-row schema, it drops and recreates that table transactionally; once the new shape exists, later Service starts preserve it. Each row stores:
 
-Recording is atomic:
+- `sequence`, an integer ordering tie-breaker;
+- `playback_id`, the opaque unique session identifier;
+- `source` and `track_id`, the stable track identity;
+- `track_json`, the complete safe track snapshot;
+- `platform`;
+- `started_at` and nullable `ended_at`, in Unix milliseconds;
+- `completed`, initially false;
+- nullable `last_position_seconds` and `duration_seconds`.
 
-1. remove or replace the existing row matching `source + id`;
-2. store the new metadata and timestamp;
-3. delete every row outside the newest 50.
+The repository deletes rows with `started_at` older than the exact trailing 30-day cutoff. Cleanup runs during repository initialization and before or within history read/write operations, so an idle Service cleans up on its next playback-history interaction. The retention rule replaces the former 50-row limit.
 
-Ordering uses the playback timestamp plus a deterministic database tie-breaker so simultaneous writes have stable results. Replaying a track moves it to the front and updates its stored metadata. This Service currently has no user identity, so the table represents one global history for the Service instance.
+Before persistence, the Service applies its browser-safe track projection and removes private path, opaque stream-token, request-header, and temporary audio-URL fields while retaining artwork and provider metadata needed to identify the music. Online tracks are replayable from `source + track_id + track_json`. Service-local tracks retain their stable library identity and same-origin library stream locator already exposed by the safe API DTO.
 
-No migration is performed from `flutter.playback-history.v1`. Existing opaque data remains untouched but is no longer read or written by Flutter after migration. The new history therefore begins empty.
+## Server-Local-First Playback
 
-## Flutter Integration
+Playback resolution becomes server-local-first for normal clients:
 
-The Flutter client is a separate project rooted at `/Volumes/ext/MusicFree/flutter-client` rather than this Service repository's former `flutter-client/` directory.
+1. refresh and match the requested track against the actual files in the Service download directory and scanned media library;
+2. return `/api/v1/library/tracks/{id}/stream` when found;
+3. otherwise resolve the original online provider;
+4. if that provider fails, retain the existing alternative-provider fallback behavior.
 
-The playback reporting path is attached to successful startup of a newly loaded track. `ServiceAudioHandler._startPlayback()` already waits until the audio player reports `playing=true` and is used by both cached and streamed tracks. The controller invokes the Service history reporter only after the corresponding cached or streamed playback method succeeds.
+The resolve API continues to expose only same-origin, safe stream paths. Existing compatibility input such as `preferLocal` may remain, but omitted/default behavior must prefer Service-local media. First-party Web and Flutter clients explicitly request local preference so their behavior is unambiguous.
 
-The integration must preserve these semantics:
+Database download state is never sufficient proof that media exists. A completed record whose file was deleted or moved must be reconciled against a fresh filesystem scan. A relocated valid file may be adopted at its actual path; a missing file is treated as absent and online resolution/download may proceed.
 
-- cached playback is reported;
-- online and Service-library playback is reported;
-- resolution, loading, or playback failures are not reported;
-- prefetching and stream probes are not reported;
-- pausing and resuming the already loaded track does not create another entry;
-- selecting the same track as a new playback action may report it again and move it to the front;
-- reporting failure never interrupts or marks audio playback as failed.
+A file counts as Service-local only when it is a regular supported audio file and passes integrity validation. Newly completed downloads retain their final post-metadata size and SHA-256 digest. If such a file later differs, it is treated as modified or damaged and is not selected for local playback or `skipExisting`. Legacy or manually added files without a retained digest must at least parse as supported audio. Invalid files are preserved for user recovery; a replacement download uses the existing collision-safe filename allocator and never overwrites the invalid file.
 
-Flutter replaces the playback-history-specific behavior in `ClientDataRepository` with a dedicated playback-history repository backed by the two new endpoints. The home controller reads recent playback from that repository. Other client-data uses remain unchanged.
+## Service-Owned Save While Listening
 
-## Coordination Boundary
+`player.autoDownloadOnPlay` remains a Service-global setting. Any client may read or toggle it through the existing settings API, but clients do not implement download policy.
 
-Service work establishes the database repository, routes, schemas, OpenAPI contract, and tests first. Once that contract is available, a separate coordinated Flutter task receives:
+After a playback session is durably created, the Service checks the setting. If enabled for an online track, the playback layer tells the download module only “download this track.” It does not pass quality, filename, directory, list/folder context, or other download-policy fields.
 
-- the exact request and response contract;
-- the actual-playback reporting rules;
-- the requirement to remove playback-history reads and writes from client data;
-- the home-screen repository migration;
-- required controller, repository, and home tests.
+The download module owns the entire decision:
 
-The Flutter task is constrained to `/Volumes/ext/MusicFree/flutter-client` unless a contract defect requires coordination with the Service implementation. It must load and follow that project's own instructions. Service and Flutter files are in separate repositories; any contract correction is coordinated explicitly rather than silently changing both sides of the interface.
+- when the normal download feature is enabled, use its effective download settings for naming, directory grouping, concurrency, metadata, and collision behavior;
+- when the normal download feature is disabled, save-while-listening still runs and uses the download module's complete default configuration;
+- request the highest quality advertised by the source, then fall back through the existing ordered quality candidates until one resolves and transfers successfully;
+- force actual-file `skipExisting` behavior for save-while-listening even if the normal manual-download skip preference is off;
+- serialize creation by stable track identity so simultaneous successful-start reports return or reuse one task instead of racing through the asynchronous filesystem check.
+
+The existence check refreshes the actual filesystem and applies the integrity rules above. Database rows are reconciliation hints only. Completion records the final integrity evidence and refreshes the media library as it does today.
+
+This is a separate server download task started after confirmed playback; it does not copy bytes from the active playback response. Download creation or transfer failure is observable through existing download state/logging but never fails the start-history response or active playback.
+
+The Docker Web UI's current `playerPlaying` download-task hook is removed to prevent duplicate policy implementations and duplicate requests.
+
+## Client Lifecycle Semantics
+
+- Resolution, loading, or audio-start failure creates no session.
+- Pause and resume retain the current playback ID and create no additional session.
+- Natural completion ends the current session with `completed=true` before automatic next-track behavior begins.
+- User next/previous/direct selection, stop, or queue clearing ends the current session with `completed=false` before the next logical playback begins.
+- Repeat-one naturally completes the current session and creates a new session for the next iteration.
+- A technical reload of the same logical play, including a quality change or expired stream retry, retains the existing playback ID rather than creating a new session.
+- App closure, browser closure, process death, network loss, or crash may prevent the terminal request. Such a row remains `completed=false` with `endedAt=null` and is still useful as an interrupted/unknown-end signal.
+- History start/end requests are best-effort from the player's perspective. Reporting failure must not interrupt playback, switching, or queue progression.
+
+## Web Integration
+
+The Docker-hosted Web UI reports `platform=web` and adopts the session lifecycle above. It stores only the active opaque playback ID in memory. The integration uses actual player events, not stream request activity, and covers natural completion, interruption, repeat-one, and technical reloads.
+
+The Web UI no longer decides whether save-while-listening should create a download. It only exposes the existing Service setting and reports successful playback starts.
+
+## Flutter Coordination Boundary
+
+Service repository work establishes and verifies the database, routes, OpenAPI contract, local-first behavior, Service-owned automatic downloads, and Web integration first. The frozen contract is then sent through a separate coordinated Codex task rooted at `/Volumes/ext/MusicFree/flutter-client`.
+
+That Flutter task must:
+
+- load and follow the Flutter repository's own instructions;
+- report the runtime platform using the approved enum;
+- retain the Service-generated playback ID for the active logical play;
+- end natural completion and interruption with position and duration;
+- preserve the ID across pause/resume, quality reload, and stream retry;
+- create a new session for repeat-one iterations and distinct replay actions;
+- keep device-local cache behavior independent from Service-local downloads;
+- explicitly request Service-local-first resolution;
+- stop implementing any client-owned automatic Service download trigger if one is introduced elsewhere;
+- treat reporting failure as non-fatal;
+- update focused repository/controller tests.
+
+The Flutter task may change only the Flutter repository unless it reports a concrete contract defect. Contract corrections are coordinated explicitly and verified in both repositories. Existing unrelated dirty-worktree changes in both repositories must be preserved.
 
 ## Error Handling
 
-- Invalid track identities or malformed payloads return the existing structured API validation errors and do not change history.
-- Persistence errors return a Service error and do not report a successful write.
-- Flutter treats recording as best-effort and swallows the reporting failure after making it observable through existing diagnostic mechanisms where available.
-- History read failures participate in the home screen's existing partial-error/stale-state behavior.
+- Malformed tracks, unsupported platforms, negative/non-finite positions, and malformed IDs return structured validation errors without mutating history.
+- Database start failures return an error and do not report a playback ID.
+- Terminal updates for unknown IDs return not found.
+- Repeated terminal updates return the original terminal row.
+- Download scheduling failure is isolated from history persistence and playback.
+- History read failure follows each client's existing partial-error or stale-state behavior.
+- A failed terminal report leaves the session open; retention eventually removes it after 30 days.
 
 ## Verification
 
 Service tests cover:
 
-- record and read response schemas;
-- Service-generated timestamps;
-- descending order;
-- `source + id` de-duplication and metadata replacement;
-- retention of exactly the newest 50 entries;
+- one-time transactional replacement of the test-stage legacy table without deleting rows on later starts;
+- one independent row for every successful start, including the same track repeatedly;
+- Service-generated opaque IDs and timestamps;
+- supported and rejected platforms;
+- terminal completion and interruption updates;
+- first-terminal-write-wins idempotency;
+- position/duration validation;
+- descending deterministic ordering;
+- exact 30-day boundary cleanup with no count cap;
 - persistence across Service restart;
-- rejection of malformed records;
-- OpenAPI route and schema exposure.
+- auto-download enabled/disabled behavior, including default download configuration when the normal download feature is disabled;
+- track-only handoff from playback history to the download module, with no client/list/path/name/quality policy leakage;
+- highest-to-lowest quality fallback, actual-file skip, and atomic concurrent task de-duplication;
+- stale completed records, deleted files, relocated files, damaged known downloads, and invalid legacy/manual files;
+- collision-safe replacement that preserves a damaged user-visible file;
+- server-local-first resolution followed by online and alternative-provider fallback;
+- OpenAPI request and response schemas.
 
-Flutter tests cover:
+Web tests cover:
 
-- reporting after successful cached playback;
-- reporting after successful streamed playback;
-- no reporting on resolve or audio startup failure;
-- no duplicate report on pause/resume;
-- reporting failure does not fail playback;
-- history repository decoding and malformed-entry handling;
-- home screen loading from the new history endpoint rather than client data.
+- successful-start reporting with `platform=web`;
+- no start record for failed playback;
+- completion before automatic next;
+- incomplete terminal updates for switching, stop, and queue clearing;
+- no new session for pause/resume or quality reload;
+- a new session for repeat-one;
+- reporting failures not changing playback behavior;
+- removal of the client-owned automatic-download request;
+- Service-local-first playback.
 
-A final integration pass runs the focused Service and Flutter suites and checks the combined diff for accidental changes to the user's existing download and auto-download work.
+The coordinated Flutter task covers the equivalent device-cached, Service-local, and online playback cases plus runtime platform mapping. A successful device-cache start still reports the playback session, allowing the Service to schedule its own download independently. Final handoff reports Service and Flutter verification separately because they are independent repositories.
+
+After local verification, the authorized Docker deployment preserves the existing data volume and captures the pre-deploy image for rollback. Live verification covers enabled and disabled switches, normal online playback, device-cache reporting through the Flutter client, existing valid media, a deleted completed file, a relocated file, a deliberately damaged file, concurrent duplicate starts, quality fallback where the source permits it, playback fallback after an online failure, container health/restart state, and exact cleanup of test artifacts. Destructive fault injection is limited to test-created media; user media is never modified for testing.
 
 ## Non-Goals
 
-- Per-user playback history before the Service has an identity/authentication model.
-- Playback position, listened duration, completion state, play counts, or scrobbling thresholds.
-- Inferring playback from stream GET/HEAD/range activity.
-- Migrating the legacy Flutter client-data history.
-- Changing the retention limit from 50.
+- Multiple users or authentication.
+- Exact active-listening seconds, scrobbling thresholds, or periodic heartbeat events.
+- Inferring playback from stream requests.
+- Storing temporary provider URLs, stream tokens, credentials, or absolute filesystem paths.
+- Migrating existing test playback-history rows.
+- Deleting downloaded media or adding a media-retention policy.
+- Implementing the AI recommendation model in this change.

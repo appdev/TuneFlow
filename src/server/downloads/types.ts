@@ -2,6 +2,11 @@ export type DownloadStatus = 'waiting' | 'running' | 'paused' | 'error' | 'compl
 export type DownloadExtension = 'ape' | 'flac' | 'wav' | 'mp3'
 export type DownloadFileNamePattern = '歌名 - 歌手' | '歌手 - 歌名' | '歌名'
 
+export interface DownloadFileIntegrity {
+  size: number
+  sha256: string
+}
+
 export interface DownloadCreateInput {
   musicInfo: TuneFlow.Music.MusicInfoOnline
   quality: TuneFlow.Quality
@@ -30,6 +35,8 @@ export interface DownloadJobRecord {
     sha256: string
     size: number
   }
+  finalIntegrity?: DownloadFileIntegrity
+  useDefaultDownloadSettings?: boolean
   partCleanupPending?: boolean
   finalMissing?: boolean
   warning?: string

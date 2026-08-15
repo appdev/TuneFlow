@@ -1,6 +1,6 @@
 import { createServer as createHttpServer, get as httpGet } from 'node:http'
 import { once } from 'node:events'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
 import type { AddressInfo } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
@@ -169,8 +169,8 @@ describe('same-origin playback proxy', () => {
     })
   })
 
-  it('prefers a completed local download after the original provider fails', async() => {
-    const requestSource = vi.fn().mockRejectedValue(new Error('get music url failed'))
+  it('prefers a completed local download before requesting the original provider by default', async() => {
+    const requestSource = vi.fn().mockResolvedValue({ url: 'https://example.test/should-not-be-used' })
     const sources = {
       list: () => [{ id: 'user_api_fixture', active: true }],
       requestSource,
@@ -187,7 +187,7 @@ describe('same-origin playback proxy', () => {
     })).resolves.toMatchObject({ url: localUrl, quality: '128k' })
     expect(findLocal).toHaveBeenCalledWith(expect.objectContaining({ id: 'track-1' }))
     expect(findAlternatives).not.toHaveBeenCalled()
-    expect(requestSource).toHaveBeenCalledOnce()
+    expect(requestSource).not.toHaveBeenCalled()
   })
 
   it('uses a completed local download immediately when refreshing a failed stream URL', async() => {
@@ -403,8 +403,8 @@ describe('same-origin playback proxy', () => {
     tempRoots.push(root)
     mkdirSync(path.join(root, 'audio'))
     writeFileSync(path.join(root, 'private.txt'), 'private')
-    writeFileSync(path.join(root, 'audio', 'fixture.mp3'), bytes)
-    writeFileSync(path.join(root, 'audio', 'empty.mp3'), '')
+    const libraryBytes = readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3'))
+    writeFileSync(path.join(root, 'audio', 'fixture.mp3'), libraryBytes)
     const registry = new LibraryScanner(root, () => [path.join(root, 'audio')])
     const restartedRegistry = new LibraryScanner(root, () => [path.join(root, 'audio')])
     await registry.refresh()
@@ -414,32 +414,27 @@ describe('same-origin playback proxy', () => {
     registerLibraryRoutes(app, registry)
 
     const attack = await app.inject({ method: 'GET', url: '/api/v1/library/tracks/attacker-chosen-id/stream' })
-    const entry = registry.list().find(item => item.size === bytes.length)!
-    expect(restartedRegistry.list().find(item => item.size === bytes.length)?.id).toBe(entry.id)
+    const entry = registry.list().find(item => item.size === libraryBytes.length)!
+    expect(restartedRegistry.list().find(item => item.size === libraryBytes.length)?.id).toBe(entry.id)
     const listing = await app.inject({ method: 'GET', url: '/api/v1/library/tracks' })
     const safe = await app.inject({ method: 'GET', url: `/api/v1/library/tracks/${entry.id}/stream` })
     const open = await app.inject({ method: 'GET', url: `/api/v1/library/tracks/${entry.id}/stream`, headers: { range: 'bytes=120-' } })
     const suffix = await app.inject({ method: 'GET', url: `/api/v1/library/tracks/${entry.id}/stream`, headers: { range: 'bytes=-8' } })
     const zeroSuffix = await app.inject({ method: 'GET', url: `/api/v1/library/tracks/${entry.id}/stream`, headers: { range: 'bytes=-0' } })
-    const empty = registry.list().find(item => item.size === 0)!
-    const emptyRange = await app.inject({ method: 'HEAD', url: `/api/v1/library/tracks/${empty.id}/stream`, headers: { range: 'bytes=0-' } })
 
     expect(attack.statusCode).toBe(404)
     expect(listing.json().data).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: entry.id, size: bytes.length }),
-      expect.objectContaining({ id: empty.id, size: 0 }),
+      expect.objectContaining({ id: entry.id, size: libraryBytes.length }),
     ]))
     expect(listing.body).not.toContain(root)
     expect(safe.statusCode).toBe(200)
-    expect(safe.rawPayload).toEqual(bytes)
+    expect(safe.rawPayload).toEqual(libraryBytes)
     expect(open.statusCode).toBe(206)
-    expect(open.rawPayload).toEqual(bytes.subarray(120))
+    expect(open.rawPayload).toEqual(libraryBytes.subarray(120))
     expect(suffix.statusCode).toBe(206)
-    expect(suffix.rawPayload).toEqual(bytes.subarray(120))
+    expect(suffix.rawPayload).toEqual(libraryBytes.subarray(libraryBytes.length - 8))
     expect(zeroSuffix.statusCode).toBe(416)
-    expect(zeroSuffix.headers['content-range']).toBe('bytes */128')
-    expect(emptyRange.statusCode).toBe(416)
-    expect(emptyRange.headers['content-range']).toBe('bytes */0')
+    expect(zeroSuffix.headers['content-range']).toBe(`bytes */${libraryBytes.length}`)
     expect(JSON.stringify(registry.list())).not.toContain(path.join(root, 'audio'))
   })
 

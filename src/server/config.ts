@@ -9,10 +9,13 @@ export interface ServerOptions {
 }
 
 export const getAudioRoot = (storageRoot: string): string => path.join(storageRoot, 'audio')
+export const getCoverRoot = (storageRoot: string): string => path.join(storageRoot, 'cover')
+export const getLyricsRoot = (storageRoot: string): string => path.join(storageRoot, 'lyrics')
+export const getLibraryResourceIndexRoot = (storageRoot: string): string => path.join(storageRoot, 'library-resource-index')
 
 const ensureWritableStorage = (storageRoot: string) => {
   mkdirSync(storageRoot, { recursive: true })
-  for (const name of ['audio', 'sources', 'tmp', 'logs', 'backups']) {
+  for (const name of ['audio', 'cover', 'lyrics', 'library-resource-index', 'sources', 'tmp', 'logs', 'backups']) {
     mkdirSync(path.join(storageRoot, name), { recursive: true })
   }
   accessSync(storageRoot, constants.W_OK)

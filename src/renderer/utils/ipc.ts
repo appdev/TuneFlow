@@ -29,6 +29,9 @@ export const getHotKeyConfig = async() => {
 export const importUserApi = async(fileText: string) => {
   return rendererInvoke<string, TuneFlow.UserApi.ImportUserApi>(WIN_MAIN_RENDERER_EVENT_NAME.import_user_api, fileText)
 }
+export const importUserApiFromUrl = async(url: string) => {
+  return rendererInvoke<string, TuneFlow.UserApi.ImportUserApi>(WIN_MAIN_RENDERER_EVENT_NAME.import_user_api_from_url, url)
+}
 export const setUserApi = async(source: TuneFlow.UserApi.UserApiSetApiParams): Promise<void> => {
   return rendererInvoke<TuneFlow.UserApi.UserApiSetApiParams>(WIN_MAIN_RENDERER_EVENT_NAME.set_user_api, source)
 }

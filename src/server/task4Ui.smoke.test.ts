@@ -82,7 +82,6 @@ describe('Task 4 prepared Service UI smoke', () => {
         response.end()
         return
       }
-      response.setHeader('access-control-allow-origin', '*')
       response.setHeader('content-type', 'application/javascript')
       response.end(fixtureSource)
     })
@@ -108,6 +107,8 @@ describe('Task 4 prepared Service UI smoke', () => {
       cwd: process.cwd(),
       env: {
         ...process.env,
+        NODE_ENV: 'test',
+        TUNEFLOW_TEST_ALLOW_PRIVATE_SOURCE_TARGETS: '1',
         HTTP_PROXY: `http://127.0.0.1:${proxyPort}`,
         TUNEFLOW_HOST: '127.0.0.1',
         TUNEFLOW_PORT: String(servicePort),
@@ -139,11 +140,17 @@ describe('Task 4 prepared Service UI smoke', () => {
       await page.getByRole('button', { name: 'Import from Network' }).click()
       await page.locator('input[type="url"]').fill(`http://127.0.0.1:${sourcePort}/source.js`)
       await page.getByRole('button', { name: 'Import', exact: true }).click()
-      await page.getByRole('heading', { name: /UI smoke source/ }).waitFor({ state: 'visible' })
-      const closeSourceManager = page.getByRole('heading', { name: /UI smoke source/ }).locator('xpath=ancestor::main/preceding-sibling::header/button')
+      await page.getByRole('heading', { name: /^UI smoke source/ }).waitFor({ state: 'visible' })
+      await page.locator('input[type="file"]').setInputFiles({
+        name: 'local-source.js',
+        mimeType: 'application/javascript',
+        buffer: Buffer.from(fixtureSource.replace('@name UI smoke source', '@name Local UI smoke source')),
+      })
+      await page.getByRole('heading', { name: /^Local UI smoke source/ }).waitFor({ state: 'visible' })
+      const closeSourceManager = page.getByRole('heading', { name: /^UI smoke source/ }).locator('xpath=ancestor::main/preceding-sibling::header/button')
       await closeSourceManager.click()
-      await page.getByRole('heading', { name: /UI smoke source/ }).waitFor({ state: 'detached' })
-      await page.getByRole('radio', { name: /UI smoke source/ }).press('Enter')
+      await page.getByRole('heading', { name: /^UI smoke source/ }).waitFor({ state: 'detached' })
+      await page.getByRole('radio', { name: /^UI smoke source/ }).press('Enter')
       await expect.poll(async() => {
         const data = await (await fetch(`${origin}/api/v1/settings`)).json() as { data: { 'common.apiSource': string } }
         return data.data['common.apiSource']

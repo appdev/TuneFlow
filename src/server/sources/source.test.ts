@@ -10,6 +10,7 @@ import { SourceWorkerHost } from './worker-host'
 import { requestSourceNetwork } from './network'
 import { SourcesService } from '../routes/sources'
 import { close as closeDatabase, getDB, init as initDatabase } from '../db/core/db'
+import { MAX_SOURCE_SCRIPT_BYTES } from '../../common/constants'
 
 process.env.TUNEFLOW_SERVICE_NODE_MODULES = path.join(process.cwd(), 'dist/server/node_modules')
 
@@ -220,6 +221,67 @@ setTimeout(() => { throw new Error('post-init timer failed') }, 10)`)
     const first = await repository.installSource(fixtureScript)
     await expect(repository.installSource(fixtureScript)).rejects.toMatchObject({ code: 'SOURCE_DUPLICATE' })
     expect(repository.listSources()).toEqual([first])
+  })
+
+  it('rejects source scripts larger than one MiB before persistence', async() => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-source-large-'))
+    roots.push(root)
+    mkdirSync(path.join(root, 'sources'))
+    initDatabase(root)
+    const repository = new SourceRepository(root)
+
+    await expect(repository.installSource(`${fixtureScript}${' '.repeat(MAX_SOURCE_SCRIPT_BYTES)}`))
+      .rejects.toMatchObject({ code: 'SOURCE_SCRIPT_TOO_LARGE' })
+    expect(repository.listSources()).toEqual([])
+  })
+
+  it('imports a source URL without browser CORS headers and strips a UTF-8 BOM', async() => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-source-url-'))
+    roots.push(root)
+    mkdirSync(path.join(root, 'sources'))
+    initDatabase(root)
+    const service = new SourcesService(new SourceRepository(root), () => {}, {
+      lookup: async() => ['203.0.113.1'],
+      fetch: async() => new Response(`\ufeff${fixtureScript}`, { status: 200, headers: { 'content-type': 'application/javascript' } }),
+    })
+
+    await expect(service.installSourceFromUrl('https://source.test/source.js')).resolves.toMatchObject({
+      name: 'Deterministic fixture', version: '1.0.0', active: false,
+    })
+    expect(service.list()).toHaveLength(1)
+    await service.close()
+  })
+
+  it('rejects invalid, unsuccessful, and oversized source URL responses', async() => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-source-url-errors-'))
+    roots.push(root)
+    mkdirSync(path.join(root, 'sources'))
+    initDatabase(root)
+    const repository = new SourceRepository(root)
+    const unsuccessful = new SourcesService(repository, () => {}, {
+      lookup: async() => ['203.0.113.1'],
+      fetch: async() => new Response('missing', { status: 404 }),
+    })
+    await expect(unsuccessful.installSourceFromUrl('not a URL')).rejects.toMatchObject({ code: 'SOURCE_INVALID_URL', statusCode: 400 })
+    await expect(unsuccessful.installSourceFromUrl('https://source.test/missing.js')).rejects.toMatchObject({ code: 'SOURCE_DOWNLOAD_FAILED', statusCode: 502 })
+
+    const unavailable = new SourcesService(repository, () => {}, {
+      lookup: async() => ['203.0.113.1'],
+      fetch: async() => { throw new Error('connection details must not escape') },
+    })
+    await expect(unavailable.installSourceFromUrl('https://source.test/unavailable.js')).rejects.toMatchObject({
+      code: 'SOURCE_DOWNLOAD_FAILED', statusCode: 502, message: 'Unable to download source script',
+    })
+
+    const oversized = new SourcesService(repository, () => {}, {
+      lookup: async() => ['203.0.113.1'],
+      fetch: async() => new Response(new Uint8Array(MAX_SOURCE_SCRIPT_BYTES + 1)),
+    })
+    await expect(oversized.installSourceFromUrl('https://source.test/large.js')).rejects.toMatchObject({ code: 'SOURCE_SCRIPT_TOO_LARGE', statusCode: 400 })
+    expect(repository.listSources()).toEqual([])
+    await unsuccessful.close()
+    await unavailable.close()
+    await oversized.close()
   })
 
   it('resolves an installed script from the current storage root after data is moved', async() => {

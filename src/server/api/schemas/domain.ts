@@ -104,5 +104,7 @@ export const LibraryTrack = Type.Intersect([
     extension: Type.String(),
     codec: Type.Optional(Type.String()),
     streamUrl: Type.String(),
+    pictureUrl: Type.Optional(Type.String()),
+    lyricsUrl: Type.Optional(Type.String()),
   }),
 ])

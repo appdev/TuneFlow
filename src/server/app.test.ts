@@ -132,7 +132,7 @@ describe('TuneFlow service', () => {
     })
   })
 
-  it('records Service-timestamped playback metadata and lists it newest first', async() => {
+  it('creates independent playback sessions and ends one idempotently', async() => {
     const { app } = await createTestServer()
     const track = {
       id: 'song-1',
@@ -146,44 +146,75 @@ describe('TuneFlow service', () => {
     const recorded = await app.inject({
       method: 'POST',
       url: '/api/v1/playback/history',
-      payload: { track },
+      payload: { track, platform: 'web' },
+    })
+    const replayed = await app.inject({
+      method: 'POST',
+      url: '/api/v1/playback/history',
+      payload: { track: { ...track, name: 'Night Wind replay' }, platform: 'android' },
     })
 
     expect(recorded.statusCode).toBe(200)
     expect(recorded.json().data.track).toEqual(track)
-    expect(recorded.json().data.playedAt).toBeGreaterThanOrEqual(before)
-    expect(recorded.json().data.playedAt).toBeLessThanOrEqual(Date.now())
-    expect((await app.inject({ method: 'GET', url: '/api/v1/playback/history' })).json())
-      .toEqual({ data: [recorded.json().data] })
+    expect(recorded.json().data.startedAt).toBeGreaterThanOrEqual(before)
+    expect(recorded.json().data.startedAt).toBeLessThanOrEqual(Date.now())
+    expect(recorded.json().data).toMatchObject({ platform: 'web', endedAt: null, completed: false })
+    expect(replayed.json().data.playbackId).not.toBe(recorded.json().data.playbackId)
+
+    const playbackId = recorded.json().data.playbackId
+    const ended = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/playback/history/${encodeURIComponent(playbackId)}`,
+      payload: { completed: false, lastPositionSeconds: 37.5, durationSeconds: 180 },
+    })
+    const repeated = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/playback/history/${encodeURIComponent(playbackId)}`,
+      payload: { completed: true, lastPositionSeconds: 180, durationSeconds: 180 },
+    })
+
+    expect(ended.statusCode).toBe(200)
+    expect(ended.json().data).toMatchObject({ playbackId, completed: false, lastPositionSeconds: 37.5, durationSeconds: 180 })
+    expect(repeated.json().data).toEqual(ended.json().data)
+    const entries = (await app.inject({ method: 'GET', url: '/api/v1/playback/history' })).json().data
+    expect(entries).toHaveLength(2)
+    expect(entries.map((entry: { playbackId: string }) => entry.playbackId))
+      .toEqual([replayed.json().data.playbackId, playbackId])
   })
 
-  it('rejects playback history without a non-empty track id and source', async() => {
+  it('rejects invalid playback sessions and returns not found for an unknown id', async() => {
     const { app } = await createTestServer()
 
     for (const track of [{ id: '', source: 'kw' }, { id: 'song-1', source: '' }, { id: 'song-1' }]) {
-      const response = await app.inject({ method: 'POST', url: '/api/v1/playback/history', payload: { track } })
+      const response = await app.inject({ method: 'POST', url: '/api/v1/playback/history', payload: { track, platform: 'web' } })
       expect(response.statusCode).toBe(400)
       expect(response.json().error.code).toBe('VALIDATION_ERROR')
     }
+    expect((await app.inject({
+      method: 'POST', url: '/api/v1/playback/history', payload: { track: { id: 'song-1', source: 'kw' }, platform: 'docker' },
+    })).statusCode).toBe(400)
+    expect((await app.inject({
+      method: 'PATCH', url: '/api/v1/playback/history/missing', payload: { completed: false, lastPositionSeconds: -1, durationSeconds: 10 },
+    })).statusCode).toBe(400)
+    const missing = await app.inject({
+      method: 'PATCH', url: '/api/v1/playback/history/missing', payload: { completed: false, lastPositionSeconds: 0, durationSeconds: 10 },
+    })
+    expect(missing.statusCode).toBe(404)
+    expect(missing.json().error.code).toBe('NOT_FOUND')
     expect((await app.inject({ method: 'GET', url: '/api/v1/playback/history' })).json()).toEqual({ data: [] })
   })
 
-  it('moves replayed history metadata to the front and persists it across restart', async() => {
+  it('persists independent playback sessions across restart', async() => {
     const { app, storageRoot, webRoot } = await createTestServer()
-    await app.inject({
+    const first = await app.inject({
       method: 'POST',
       url: '/api/v1/playback/history',
-      payload: { track: { id: 'same', source: 'kw', name: 'Old' } },
+      payload: { track: { id: 'same', source: 'kw', name: 'Old' }, platform: 'ios' },
     })
-    await app.inject({
+    const second = await app.inject({
       method: 'POST',
       url: '/api/v1/playback/history',
-      payload: { track: { id: 'other', source: 'wy', name: 'Other' } },
-    })
-    await app.inject({
-      method: 'POST',
-      url: '/api/v1/playback/history',
-      payload: { track: { id: 'same', source: 'kw', name: 'New' } },
+      payload: { track: { id: 'same', source: 'kw', name: 'New' }, platform: 'macos' },
     })
     await app.close()
     apps.splice(apps.indexOf(app), 1)
@@ -192,8 +223,39 @@ describe('TuneFlow service', () => {
     apps.push(restarted)
     const entries = (await restarted.inject({ method: 'GET', url: '/api/v1/playback/history' })).json().data
     expect(entries).toHaveLength(2)
-    expect(entries.map((entry: { track: { id: string } }) => entry.track.id)).toEqual(['same', 'other'])
-    expect(entries[0].track.name).toBe('New')
+    expect(entries.map((entry: { playbackId: string }) => entry.playbackId))
+      .toEqual([second.json().data.playbackId, first.json().data.playbackId])
+  })
+
+  it('uses the Service setting to create automatic downloads after playback starts', async() => {
+    const { app } = await createTestServer()
+    const track = { id: 'auto-save', source: 'kw', name: 'Auto save', singer: 'Artist', meta: {} }
+
+    await app.inject({ method: 'POST', url: '/api/v1/playback/history', payload: { track, platform: 'web' } })
+    expect((await app.inject({ method: 'GET', url: '/api/v1/downloads' })).json().data).toEqual([])
+
+    await app.inject({ method: 'PATCH', url: '/api/v1/settings', payload: { 'player.autoDownloadOnPlay': true } })
+    await app.inject({ method: 'POST', url: '/api/v1/playback/history', payload: { track, platform: 'android' } })
+    await new Promise(resolve => setImmediate(resolve))
+    expect((await app.inject({ method: 'GET', url: '/api/v1/downloads' })).json().data).toHaveLength(1)
+
+    await app.inject({ method: 'POST', url: '/api/v1/playback/history', payload: { track: { id: 'local', source: 'local' }, platform: 'web' } })
+    await new Promise(resolve => setImmediate(resolve))
+    expect((await app.inject({ method: 'GET', url: '/api/v1/downloads' })).json().data).toHaveLength(1)
+  })
+
+  it('coalesces simultaneous playback starts into one Service download task', async() => {
+    const { app } = await createTestServer()
+    const track = { id: 'simultaneous-save', source: 'kw', name: 'Simultaneous save', singer: 'Artist', meta: {} }
+    await app.inject({ method: 'PATCH', url: '/api/v1/settings', payload: { 'player.autoDownloadOnPlay': true } })
+
+    await Promise.all([
+      app.inject({ method: 'POST', url: '/api/v1/playback/history', payload: { track, platform: 'web' } }),
+      app.inject({ method: 'POST', url: '/api/v1/playback/history', payload: { track, platform: 'android' } }),
+    ])
+    await new Promise(resolve => setImmediate(resolve))
+
+    expect((await app.inject({ method: 'GET', url: '/api/v1/downloads' })).json().data).toHaveLength(1)
   })
 
   it('persists created lists and tracks across a server restart', async() => {

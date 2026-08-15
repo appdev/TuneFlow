@@ -1,4 +1,4 @@
-import { createWriteStream, existsSync, mkdirSync, openSync, closeSync, fsyncSync, readSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs'
+import { createWriteStream, existsSync, mkdirSync, openSync, closeSync, fsyncSync, readSync, readdirSync, realpathSync, renameSync, rmSync, statSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import Database from 'better-sqlite3'
@@ -7,9 +7,10 @@ import { getAudioRoot, isPathInside } from '../config'
 import { QUALITYS } from '../../common/constants'
 import { getExt, getMusicTypes, makeDirectoryName, makeFileName, reserveFileName } from './filenames'
 import { applyDownloadMetadata } from './metadata'
-import type { DownloadCreateInput, DownloadDto, DownloadJobRecord, DownloadStatus, ResolvedDownload } from './types'
+import type { DownloadCreateInput, DownloadDto, DownloadFileIntegrity, DownloadJobRecord, DownloadStatus, ResolvedDownload } from './types'
 import { isSameMusic } from './matching'
 import { migrateLegacyDatabaseFiles } from '../db/databasePath'
+import defaultSetting from '../../common/defaultSetting'
 
 interface DownloadManagerOptions {
   storageRoot: string
@@ -18,6 +19,7 @@ interface DownloadManagerOptions {
   findExistingFile?: (musicInfo: TuneFlow.Music.MusicInfoOnline) => Promise<string | undefined>
   publish?: (jobs: DownloadDto[]) => void
   metadata?: (filePath: string, job: DownloadJobRecord, settings: TuneFlow.AppSetting) => Promise<void>
+  materializeResources?: (filePath: string) => Promise<void>
   resolveListName?: (listId: string) => string | undefined
   finalizationCheckpoint?: (
     point: 'before-marker' | 'after-marker' | 'after-rename' | 'after-publication',
@@ -48,6 +50,7 @@ const normalizePersistedTrackId = (record: DownloadJobRecord): void => {
 export class DownloadManager {
   private readonly records = new Map<string, DownloadJobRecord>()
   private readonly active = new Map<string, { controller: AbortController, promise: Promise<void> }>()
+  private readonly playbackCreations = new Map<string, Promise<DownloadDto>>()
   private readonly db: Database.Database
   private readonly ownsDb: boolean
   private readonly audioRoot: string
@@ -109,9 +112,50 @@ export class DownloadManager {
 
   get(id: string): DownloadDto | undefined { return this.list().find(record => record.id === id) }
 
+  expectedIntegrity(filePath: string): DownloadFileIntegrity | undefined {
+    let resolved: string
+    try { resolved = realpathSync(filePath) } catch { return undefined }
+    if (!isPathInside(this.audioRoot, resolved)) return undefined
+    return [...this.records.values()].find(record =>
+      record.status === 'completed' && existsSync(this.resolveFinal(record.finalRelativePath)) &&
+        realpathSync(this.resolveFinal(record.finalRelativePath)) === resolved,
+    )?.finalIntegrity
+  }
+
+  async createForPlayback(musicInfo: TuneFlow.Music.MusicInfoOnline): Promise<DownloadDto> {
+    const key = `${musicInfo.source}\0${musicInfo.id}`
+    const pending = this.playbackCreations.get(key)
+    if (pending != null) return pending
+    const creation = this.schedulePlaybackDownload(musicInfo).finally(() => {
+      if (this.playbackCreations.get(key) === creation) this.playbackCreations.delete(key)
+    })
+    this.playbackCreations.set(key, creation)
+    return creation
+  }
+
+  private async schedulePlaybackDownload(musicInfo: TuneFlow.Music.MusicInfoOnline): Promise<DownloadDto> {
+    const reusable = [...this.records.values()].reverse().find(record =>
+      record.status !== 'completed' && isSameMusic(record.musicInfo, musicInfo),
+    )
+    if (reusable != null) {
+      if (reusable.status === 'error') await this.start(reusable.id)
+      return this.get(reusable.id)!
+    }
+    return this.createInternal({
+      musicInfo,
+      quality: QUALITYS[0],
+      qualityPolicy: 'highest',
+      skipExisting: true,
+    }, !this.options.getSettings()['download.enable'])
+  }
+
   async create(input: DownloadCreateInput): Promise<DownloadDto> {
+    return this.createInternal(input, false)
+  }
+
+  private async createInternal(input: DownloadCreateInput, useDefaultDownloadSettings: boolean): Promise<DownloadDto> {
     if (this.closed) throw new Error('Download manager is closed')
-    const settings = this.options.getSettings()
+    const settings = this.effectiveSettings(useDefaultDownloadSettings)
     const requestedQuality = input.qualityPolicy === 'highest' ? QUALITYS[0] : input.quality
     const qualityCandidates = getMusicTypes(input.musicInfo, requestedQuality, input.qualityList)
     const quality = qualityCandidates[0]
@@ -123,7 +167,7 @@ export class DownloadManager {
       )
       if (active != null) return this.get(active.id)!
       const existingFile = await this.options.findExistingFile?.(input.musicInfo)
-      if (existingFile != null) return this.adoptExistingFile(input, existingFile, qualityCandidates)
+      if (existingFile != null) return this.adoptExistingFile(input, existingFile, qualityCandidates, useDefaultDownloadSettings)
     }
     const saveRoot = this.checkedSaveRoot()
     const listName = input.listId == null ? undefined : this.options.resolveListName?.(input.listId)
@@ -153,6 +197,7 @@ export class DownloadManager {
       partRelativePath: this.relative(path.join(this.options.storageRoot, 'tmp', `${id}.part`)),
       downloaded: 0,
       total: 0,
+      useDefaultDownloadSettings: useDefaultDownloadSettings || undefined,
       listId: input.listId,
       createdAt: now,
       updatedAt: now,
@@ -215,7 +260,10 @@ export class DownloadManager {
 
   private pump(): void {
     if (this.closed) return
-    const maximum = Math.max(1, Math.floor(Number(this.options.getSettings()['download.maxDownloadNum']) || 1))
+    const usesPlaybackDefaults = [...this.records.values()].some(record =>
+      (record.status === 'waiting' || record.status === 'running') && record.useDefaultDownloadSettings === true,
+    )
+    const maximum = Math.max(1, Math.floor(Number(this.effectiveSettings(usesPlaybackDefaults)['download.maxDownloadNum']) || 1))
     for (const record of this.records.values()) {
       if (this.active.size >= maximum) return
       if (record.status !== 'waiting') continue
@@ -318,6 +366,7 @@ export class DownloadManager {
     input: DownloadCreateInput,
     filePath: string,
     qualityCandidates: TuneFlow.Quality[],
+    useDefaultDownloadSettings: boolean,
   ): DownloadDto {
     const resolved = path.resolve(filePath)
     if (!isPathInside(this.audioRoot, resolved) || !existsSync(resolved) || !statSync(resolved).isFile()) {
@@ -332,6 +381,7 @@ export class DownloadManager {
       ? previous.quality
       : extension === 'ape' ? 'ape' : extension === 'flac' ? 'flac' : extension === 'wav' ? 'wav' : '128k'
     const size = statSync(resolved).size
+    const finalIntegrity = { size, sha256: sha256File(resolved) }
     if (previous != null) {
       this.update(previous, {
         musicInfo: input.musicInfo,
@@ -342,6 +392,8 @@ export class DownloadManager {
         finalRelativePath: this.relative(resolved),
         downloaded: size,
         total: size,
+        finalIntegrity,
+        useDefaultDownloadSettings: useDefaultDownloadSettings || undefined,
         finalMissing: undefined,
         error: undefined,
       })
@@ -365,6 +417,8 @@ export class DownloadManager {
       partRelativePath: this.relative(path.join(this.options.storageRoot, 'tmp', `${id}.part`)),
       downloaded: size,
       total: size,
+      finalIntegrity,
+      useDefaultDownloadSettings: useDefaultDownloadSettings || undefined,
       listId: input.listId,
       createdAt: now,
       updatedAt: now,
@@ -379,7 +433,7 @@ export class DownloadManager {
     if (record.quality === quality) return
     const extension = getExt(quality)
     const directory = path.dirname(this.resolveFinal(record.finalRelativePath))
-    const requested = makeFileName(this.options.getSettings()['download.fileName'], record.musicInfo.name, record.musicInfo.singer, extension)
+    const requested = makeFileName(this.effectiveSettings(record.useDefaultDownloadSettings === true)['download.fileName'], record.musicInfo.name, record.musicInfo.singer, extension)
     const fileName = reserveFileName(directory, requested, this.reservedFileNames(directory, record.id))
     this.update(record, {
       quality,
@@ -478,6 +532,7 @@ export class DownloadManager {
     record.status = 'completed'
     record.downloaded = size
     record.total = size
+    record.finalIntegrity = { size, sha256: sha256File(final) }
     record.publication = undefined
     record.partCleanupPending = undefined
     record.error = undefined
@@ -508,12 +563,26 @@ export class DownloadManager {
     if (await this.options.finalizationCheckpoint?.('after-publication', record) === 'simulate-crash') return
     let warning: string | undefined
     try {
-      await (this.options.metadata ?? applyDownloadMetadata)(final, record, this.options.getSettings())
+      await (this.options.metadata ?? applyDownloadMetadata)(final, record, this.effectiveSettings(record.useDefaultDownloadSettings === true))
     } catch (error) {
       warning = `Metadata: ${error instanceof Error ? error.message : String(error)}`
     }
+    try {
+      await this.options.materializeResources?.(final)
+    } catch (error) {
+      const resourceWarning = `Resources: ${error instanceof Error ? error.message : String(error)}`
+      warning = warning == null ? resourceWarning : `${warning}; ${resourceWarning}`
+    }
     const size = statSync(final).size
-    this.update(record, { status: 'completed', downloaded: size, total: size, publication: undefined, finalMissing: undefined, warning })
+    this.update(record, {
+      status: 'completed',
+      downloaded: size,
+      total: size,
+      finalIntegrity: { size, sha256: sha256File(final) },
+      publication: undefined,
+      finalMissing: undefined,
+      warning,
+    })
     await this.options.onCompleted?.()
   }
 
@@ -528,6 +597,17 @@ export class DownloadManager {
     record.updatedAt = this.now()
     this.persist(record)
     this.publish()
+  }
+
+  private effectiveSettings(useDefaults: boolean): TuneFlow.AppSetting {
+    const current = this.options.getSettings()
+    if (!useDefaults) return current
+    const effective: TuneFlow.AppSetting = { ...current }
+    for (const [key, value] of Object.entries(defaultSetting)) {
+      if (key.startsWith('download.')) (effective as unknown as Record<string, unknown>)[key] = value
+    }
+    effective['download.savePath'] = current['download.savePath']
+    return effective
   }
 
   private reservedFileNames(directory: string, excludedId?: string): Set<string> {

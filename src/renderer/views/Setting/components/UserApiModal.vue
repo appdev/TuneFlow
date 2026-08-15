@@ -23,9 +23,11 @@ material-modal(:show="modelValue" bg-close teleport="#view" @close="handleClose"
         span.hover.underline(aria-label="https://github.com/appdev/TuneFlow/blob/main/FAQ.md" @click="handleOpenUrl('https://github.com/appdev/TuneFlow/blob/main/FAQ.md')") FAQ
       p {{ $t('user_api__note') }}
     div(:class="$style.footer")
-      base-btn(data-testid="user-api-import-network" :class="$style.footerBtn" @click="isShowOnlineImportModal = true") {{ $t('user_api__btn_import_online') }}
+      input(ref="sourceFileInput" :class="$style.fileInput" type="file" accept=".js,text/javascript,application/javascript" @change="handleLocalFileChange")
+      base-btn(data-testid="user-api-import-network" :class="$style.footerBtn" @click="handleNetworkImport") {{ $t('user_api__btn_import_online') }}
+      base-btn(data-testid="user-api-import-local" :class="$style.footerBtn" @click="handleLocalImport") {{ $t('user_api__btn_import') }}
       //- base-btn(:class="$style.footerBtn" @click="handleExport") {{ $t('user_api__btn_export') }}
-    UserApiOnlineImportModal(v-model:show="isShowOnlineImportModal" @import="importUserApi")
+    UserApiOnlineImportModal(v-model:show="isShowOnlineImportModal" @imported="handleImportResult")
 </template>
 
 <script>
@@ -35,6 +37,7 @@ import apiSourceInfo from '@renderer/utils/musicSdk/api-source-info'
 import { userApi } from '@renderer/store'
 import { appSetting, updateSetting } from '@renderer/store/setting'
 import { computed, ref } from '@common/utils/vueTools'
+import { MAX_SOURCE_SCRIPT_BYTES } from '@common/constants'
 import { dialog } from '@renderer/plugins/Dialog'
 
 import UserApiOnlineImportModal from './UserApiOnlineImportModal.vue'
@@ -62,12 +65,44 @@ export default {
     }
   },
   methods: {
+    handleImportResult({ apiList }) {
+      userApi.list = apiList
+    },
     async importUserApi(script) {
-      return importUserApi(script).then(({ apiList }) => {
-        userApi.list = apiList
+      return importUserApi(script).then((result) => {
+        this.handleImportResult(result)
       }).catch((err) => {
         void dialog(this.$t('user_api_import__failed', { message: err.message }))
       })
+    },
+    canImport() {
+      if (this.userApi.list.length < 20) return true
+      void dialog({
+        message: this.$t('user_api__max_tip'),
+        confirmButtonText: this.$t('ok'),
+      })
+      return false
+    },
+    handleNetworkImport() {
+      if (this.canImport()) this.isShowOnlineImportModal = true
+    },
+    handleLocalImport() {
+      if (this.canImport()) this.$refs.sourceFileInput.click()
+    },
+    async handleLocalFileChange(event) {
+      const input = event.target
+      const file = input.files?.[0]
+      input.value = ''
+      if (!file) return
+      if (file.size > MAX_SOURCE_SCRIPT_BYTES) {
+        void dialog(this.$t('user_api_import__failed', { message: this.$t('user_api__script_too_large') }))
+        return
+      }
+      try {
+        await this.importUserApi(await file.text())
+      } catch (err) {
+        void dialog(this.$t('user_api_import__failed', { message: err.message }))
+      }
     },
     async handleRemove(index) {
       const api = this.apiList[index]
@@ -203,7 +238,11 @@ export default {
   padding: 0 7px;
   margin-top: 15px;
   display: flex;
-  flex-flow: row nowrap;
+  flex-flow: row wrap;
+  gap: 10px;
+}
+.fileInput {
+  display: none;
 }
 .footerBtn {
   flex: auto;
@@ -212,9 +251,6 @@ export default {
   padding: 0 10px !important;
   width: 150px;
   .mixin-ellipsis-1();
-  + .footerBtn {
-    margin-left: 15px;
-  }
 }
 .ruleLink {
   .mixin-ellipsis-1();

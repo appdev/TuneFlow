@@ -36,7 +36,7 @@ import usePlaybackRate from './usePlaybackRate'
 import useSoundEffect from './useSoundEffect'
 import useMaxOutputChannelCount from './useMaxOutputChannelCount'
 import usePreloadNextMusic from './usePreloadNextMusic'
-import useAutoDownload from './useAutoDownload'
+import usePlaybackSession from './usePlaybackSession'
 
 
 export default () => {
@@ -52,7 +52,7 @@ export default () => {
   usePlaybackRate()
   useWatchList()
   usePreloadNextMusic()
-  useAutoDownload()
+  usePlaybackSession()
 
   const handlePlayNext = () => {
     void playNext()

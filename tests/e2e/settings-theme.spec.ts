@@ -130,7 +130,7 @@ test('production Web gates desktop features and retains a built-in theme at all 
       await page.getByTestId('settings-tab-SettingBasic').click()
       await page.getByRole('button', { name: 'Music API Management' }).click()
       await expect(page.getByRole('button', { name: 'Import from Network' })).toHaveCount(1)
-      await expect(page.getByRole('button', { name: 'Import from Local File' })).toHaveCount(0)
+      await expect(page.getByRole('button', { name: 'Import from Local File' })).toHaveCount(1)
       await page.getByTestId('modal').locator('header button').click()
       await page.getByTestId('modal').waitFor({ state: 'detached' })
       await page.getByTestId('theme-more').click()
