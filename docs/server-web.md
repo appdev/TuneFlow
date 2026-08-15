@@ -133,6 +133,33 @@ only sources you trust and accept responsibility for the source and returned
 content. Never put source code, resolved audio URLs, credentials, cookies, or
 request headers into screenshots, issue reports, or logs.
 
+### Ordered multi-source fallback
+
+The Service can keep several installed source scripts enabled in an explicit
+order. Every new playback, download, lyric, or artwork request starts again at
+the first configured source; a transient failure never promotes a backup or
+changes the saved order. The legacy active-source endpoint now promotes one
+source to the front while preserving the remaining enabled backups.
+
+Local library audio, lyrics, and artwork always take precedence. For online
+playback, the Service evaluates source-provided audio, lyrics, and artwork as a
+bundle. It prefers the earliest source with all three usable resources, using a
+four-second enrichment budget and a 500 ms hedge before starting each backup.
+If no source provides a complete bundle, validated components may be combined
+and the response reports `mixed` or `audio-only` completeness.
+
+Audio is probed with a bounded byte range and artwork is fetched and validated
+before selection. Browser and native clients receive only same-origin opaque
+stream and artwork URLs; resolved targets, request headers, cookies, lyric
+bodies, and image bytes are excluded from public diagnostics and structured
+source-attempt logs.
+
+Stream failover is allowed only before response headers or body bytes are
+committed. The Service never joins bytes from two sources. Downloads apply the
+same rule at file scope: a failed or unparseable candidate is discarded, the
+temporary file is cleared, and the next source restarts at byte zero before
+normal quality downgrade is considered.
+
 ## Web feature boundary
 
 The Web build supports navigation, search, lists, player,

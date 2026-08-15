@@ -32,18 +32,25 @@ describe('Service OpenAPI contract', () => {
       '/api/v1/playlists', '/api/v1/playlists/{id}', '/api/v1/playlists/{id}/tracks', '/api/v1/playlists/{id}/tracks/remove',
       '/api/v1/playlists/reorder', '/api/v1/playlists/tracks/move', '/api/v1/playlists/{id}/tracks/reorder', '/api/v1/playlists/import',
       '/api/v1/playlists/{id}/tracks/{trackId}/exists', '/api/v1/tracks/{id}/playlists', '/api/v1/events/snapshot', '/api/v1/events',
-      '/api/v1/sources', '/api/v1/sources/import', '/api/v1/sources/active', '/api/v1/sources/{id}', '/api/v1/catalog/capabilities', '/api/v1/catalog/tracks/search',
+      '/api/v1/sources', '/api/v1/sources/import', '/api/v1/sources/active', '/api/v1/sources/enabled', '/api/v1/sources/{id}', '/api/v1/catalog/capabilities', '/api/v1/catalog/tracks/search',
       '/api/v1/catalog/leaderboards', '/api/v1/catalog/leaderboards/tracks',
       '/api/v1/catalog/playlists/tags', '/api/v1/catalog/playlists/browse', '/api/v1/catalog/playlists/detail',
       '/api/v1/catalog/playlists/search', '/api/v1/catalog/albums/search', '/api/v1/catalog/tracks/lyrics',
-      '/api/v1/catalog/tracks/picture', '/api/v1/playback/tracks/resolve', '/api/v1/playback/history', '/api/v1/playback/history/{id}', '/api/v1/streams/{token}', '/api/v1/downloads',
+      '/api/v1/catalog/tracks/picture', '/api/v1/playback/tracks/resolve', '/api/v1/playback/resources/{token}/picture', '/api/v1/playback/history', '/api/v1/playback/history/{id}', '/api/v1/streams/{token}', '/api/v1/downloads',
       '/api/v1/downloads/{id}/start', '/api/v1/downloads/{id}/resume', '/api/v1/downloads/{id}/pause', '/api/v1/downloads/{id}',
-      '/api/v1/library/tracks', '/api/v1/library/scan', '/api/v1/library/tracks/{id}/stream',
+      '/api/v1/library/tracks', '/api/v1/library/scan', '/api/v1/library/tracks/{id}', '/api/v1/library/tracks/{id}/stream',
       '/api/v1/library/tracks/{id}/picture', '/api/v1/library/tracks/{id}/lyrics',
     ]
     expect(Object.keys(document.paths).sort()).toEqual(expectedPaths.sort())
     expect(JSON.stringify(document.paths)).not.toMatch(/\/api\/v1\/(?:lists|search|lyrics|stream\/|playback\/resolve|library\{)/)
     const successDataSchema = (pathName: string, method = 'post') => document.paths[pathName][method].responses['200'].content['application/json'].schema.properties.data
+    const sourceListSchema = successDataSchema('/api/v1/sources', 'get')
+    expect(sourceListSchema.items.required).toEqual(expect.arrayContaining(['active', 'enabled', 'priority']))
+    expect(document.paths['/api/v1/sources/enabled'].put.operationId).toBe('configureEnabledSources')
+    expect(document.paths['/api/v1/sources/enabled'].put.requestBody.content['application/json'].schema).toMatchObject({
+      required: ['sourceIds'],
+      additionalProperties: false,
+    })
     expect(successDataSchema('/api/v1/catalog/tracks/search').properties.list.items.required).toEqual(expect.arrayContaining(['id', 'songmid', 'name', 'singer', 'source', 'interval']))
     expect(successDataSchema('/api/v1/catalog/playlists/search').properties.list.items.required).toEqual(expect.arrayContaining(['id', 'kind', 'name', 'source']))
     expect(successDataSchema('/api/v1/catalog/playlists/tags').required).toEqual(expect.arrayContaining(['source', 'sorts', 'hotTags', 'groups']))
@@ -64,6 +71,7 @@ describe('Service OpenAPI contract', () => {
     const downloadItem = successDataSchema('/api/v1/downloads', 'get').items
     expect(downloadItem.required).toEqual(expect.arrayContaining(['queuePosition', 'createdAt', 'updatedAt']))
     const libraryItem = successDataSchema('/api/v1/library/tracks', 'get').items
+    expect(document.paths['/api/v1/library/tracks/{id}'].delete.operationId).toBe('deleteLibraryTrack')
     const libraryResourceProperties = libraryItem.allOf.find((schema: { properties?: Record<string, unknown> }) => schema.properties?.streamUrl != null).properties
     expect(libraryItem.allOf.find((schema: { required?: string[] }) => schema.required?.includes('downloadedAt'))?.properties.downloadedAt)
       .toMatchObject({ type: 'number', minimum: 0 })

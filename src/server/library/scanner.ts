@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { closeSync, lstatSync, openSync, readSync, readdirSync, realpathSync, statSync, type Dirent } from 'node:fs'
+import { closeSync, lstatSync, openSync, readSync, readdirSync, realpathSync, rmSync, statSync, type Dirent } from 'node:fs'
 import path from 'node:path'
 import { parseFile } from 'music-metadata'
 import { isPathInside } from '../config'
@@ -115,6 +115,22 @@ export class LibraryScanner {
     )))
     const byName = [...this.entries.values()].find(entry => expected.has(normalizedFileName(path.basename(entry.filePath))))
     return byName == null ? undefined : { filePath: byName.filePath, track: byName.dto }
+  }
+
+  async remove(id: string): Promise<{ filePath: string } | undefined> {
+    await this.refresh()
+    const entry = this.entries.get(id)
+    if (entry == null) return undefined
+
+    const sidecarPath = entry.filePath.slice(0, -path.extname(entry.filePath).length) + '.lrc'
+    const sidecarIsShared = [...this.entries.entries()].some(([otherId, other]) =>
+      otherId !== id && other.filePath.slice(0, -path.extname(other.filePath).length) + '.lrc' === sidecarPath)
+    this.resourceStore?.remove(entry.filePath, entry.resources)
+    rmSync(entry.filePath)
+    if (!sidecarIsShared) rmSync(sidecarPath, { force: true })
+    this.metadataCache.delete(entry.filePath)
+    this.entries.delete(id)
+    return { filePath: entry.filePath }
   }
 
   async refresh(): Promise<LibraryTrackDto[]> {

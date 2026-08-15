@@ -24,6 +24,7 @@ import {
 } from '../config'
 
 const maxPictureBytes = 20 * 1024 * 1024
+const resourceDerivationRevision = '2'
 const pictureExtensions = new Map([
   ['image/jpeg', 'jpg'],
   ['image/png', 'png'],
@@ -64,6 +65,25 @@ interface ResourceDependencies {
 const sha256 = (value: string | Uint8Array): string => createHash('sha256').update(value).digest('hex')
 
 const normalizedRelative = (value: string): string => value.split(path.sep).join('/')
+
+const formatLrcTimestamp = (timestamp: number): string => {
+  const total = Math.max(0, Math.trunc(timestamp))
+  const minutes = Math.floor(total / 60_000)
+  const seconds = Math.floor(total % 60_000 / 1_000)
+  const milliseconds = total % 1_000
+  return `[${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}]`
+}
+
+const synchronizedLyricsText = (metadata: IAudioMetadata): string | undefined => {
+  for (const lyrics of metadata.common.lyrics ?? []) {
+    const entries = lyrics.syncText?.filter(entry =>
+      Number.isFinite(entry.timestamp) && entry.timestamp >= 0 && typeof entry.text === 'string')
+    if (entries != null && entries.length > 0) {
+      return entries.map(entry => `${formatLrcTimestamp(entry.timestamp)}${entry.text}`).join('\n')
+    }
+  }
+  return undefined
+}
 
 export class LibraryResourceStore {
   private readonly audioRoot: string
@@ -126,6 +146,28 @@ export class LibraryResourceStore {
     }
   }
 
+  remove(audioFilePath: string, knownResources: LibraryDerivedResources = {}): void {
+    const resolved = path.resolve(audioFilePath)
+    if (!isPathInside(this.audioRoot, resolved)) {
+      throw new Error('Library resource audio path escaped the audio root')
+    }
+    if (knownResources.picture != null) {
+      const picturePath = path.resolve(knownResources.picture.filePath)
+      if (!isPathInside(this.coverRoot, picturePath)) throw new Error('Library picture path escaped the cover root')
+      rmSync(picturePath, { force: true })
+    }
+    if (knownResources.lyrics != null) {
+      const lyricsPath = path.resolve(knownResources.lyrics.filePath)
+      if (!isPathInside(this.lyricsRoot, lyricsPath)) throw new Error('Library lyrics path escaped the lyrics root')
+      rmSync(lyricsPath, { force: true })
+    }
+    const audioRelativePath = normalizedRelative(path.relative(this.audioRoot, resolved))
+    const markerPath = this.markerPath(audioRelativePath)
+    const marker = this.readMarker(markerPath)
+    if (marker != null) this.removeMarkerResources(marker)
+    rmSync(markerPath, { force: true })
+  }
+
   private async ensureActual(audioFilePath: string): Promise<LibraryDerivedResources> {
     const audioRelativePath = normalizedRelative(path.relative(this.audioRoot, audioFilePath))
     const markerPath = this.markerPath(audioRelativePath)
@@ -137,7 +179,7 @@ export class LibraryResourceStore {
           return `${sidecarStat.size}\0${sidecarStat.mtimeMs}`
         })()
       : 'missing'
-    const signature = `${stat.size}\0${stat.mtimeMs}\0${sidecarSignature}`
+    const signature = `${resourceDerivationRevision}\0${stat.size}\0${stat.mtimeMs}\0${sidecarSignature}`
     const previous = this.readMarker(markerPath)
     if (previous?.audioRelativePath === audioRelativePath &&
       previous.signature === signature && this.markerFilesExist(previous)) {
@@ -191,7 +233,7 @@ export class LibraryResourceStore {
     relativePath: string
     text: string
   } | undefined {
-    let text = metadata.common.lyrics?.map(value => value.text?.trim()).find(value => value != null && value !== '')
+    let text = synchronizedLyricsText(metadata) ?? metadata.common.lyrics?.map(value => value.text?.trim()).find(value => value != null && value !== '')
     if (text == null) {
       const sidecar = this.sidecarPath(audioFilePath)
       if (existsSync(sidecar)) text = readFileSync(sidecar, 'utf8').replace(/^\ufeff/, '').trim()

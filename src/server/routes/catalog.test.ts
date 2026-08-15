@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { registerCatalogRoutes } from './catalog'
 import musicSdk from '../../renderer/utils/musicSdk'
 import { ApiError } from '../errors'
+import { SourceServiceError } from '../sources/types'
+import { PlaybackResourceStore } from '../playback/resourceStore'
 
 afterEach(() => { vi.restoreAllMocks() })
 
@@ -132,6 +134,71 @@ describe('catalog routes', () => {
 
     expect(response.statusCode).toBe(502)
     expect(response.json()).toEqual({ error: { code: 'SOURCE_PROTOCOL_ERROR', message: 'Lyric lookup failed' } })
+    await app.close()
+  })
+
+  it('uses ordered sources for lyrics after a trusted network failure', async() => {
+    const requestSource = vi.fn(async(sourceId: string) => {
+      if (sourceId === 'a') throw new SourceServiceError('SOURCE_NETWORK_ERROR', 'offline', 'service-network')
+      return { lyric: '[00:00.00]backup' }
+    })
+    const sources = {
+      snapshot: () => [{ id: 'a', priority: 0 }, { id: 'b', priority: 1 }],
+      requestSource,
+    }
+    const app = appWithProductionErrors()
+    registerCatalogRoutes(app as never, sources as never)
+
+    const response = await app.inject({
+      method: 'POST', url: '/api/v1/catalog/tracks/lyrics', payload: { source: 'kw', musicInfo: { id: 'track', source: 'kw' } },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({ data: { lyric: '[00:00.00]backup' } })
+    expect(requestSource.mock.calls.map(call => call[0])).toEqual(['a', 'b'])
+    await app.close()
+  })
+
+  it('does not cross a terminal source-script failure', async() => {
+    const requestSource = vi.fn(async(sourceId: string) => {
+      if (sourceId === 'a') throw new SourceServiceError('SOURCE_PROTOCOL_ERROR', 'broken script', 'script')
+      return { lyric: '[00:00.00]must not run' }
+    })
+    const sources = {
+      snapshot: () => [{ id: 'a', priority: 0 }, { id: 'b', priority: 1 }],
+      requestSource,
+    }
+    const app = appWithProductionErrors()
+    registerCatalogRoutes(app as never, sources as never)
+
+    const response = await app.inject({
+      method: 'POST', url: '/api/v1/catalog/tracks/lyrics', payload: { source: 'kw', musicInfo: { id: 'track', source: 'kw' } },
+    })
+
+    expect(response.statusCode).toBe(502)
+    expect(requestSource.mock.calls.map(call => call[0])).toEqual(['a'])
+    await app.close()
+  })
+
+  it('validates source artwork and returns an opaque same-origin URL', async() => {
+    const resources = new PlaybackResourceStore()
+    const sources = {
+      snapshot: () => [{ id: 'a', priority: 0 }],
+      requestSource: vi.fn(async() => 'https://secret.test/picture'),
+    }
+    const mediaClient = {
+      fetchArtwork: vi.fn(async() => ({ bytes: Uint8Array.from([1, 2, 3]), mimeType: 'image/png' })),
+    }
+    const app = appWithProductionErrors()
+    registerCatalogRoutes(app as never, sources as never, { mediaClient: mediaClient as never, resourceStore: resources })
+
+    const response = await app.inject({
+      method: 'POST', url: '/api/v1/catalog/tracks/picture', payload: { source: 'kw', musicInfo: { id: 'track', source: 'kw' } },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json().data.url).toMatch(/^\/api\/v1\/playback\/resources\/[a-f0-9]{64}\/picture$/)
+    expect(response.body).not.toContain('secret.test')
     await app.close()
   })
 })

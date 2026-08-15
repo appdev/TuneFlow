@@ -19,7 +19,7 @@ import { registerCatalogRoutes } from './routes/catalog'
 import { registerPlaybackRoutes } from './routes/playback'
 import { registerPlaybackHistoryRoutes } from './routes/playbackHistory'
 import { setRendererUtilsLanguage } from './tuneFlowSdk/rendererUtilsShim'
-import { getLyric, getPicture } from './tuneFlowSdk'
+import { findAlternativeMusic, getLyric, getPicture } from './tuneFlowSdk'
 import { projectBrowserDto } from './playback/browserDto'
 import { LibraryScanner } from './library/scanner'
 import { LibraryResourceStore } from './library/resources'
@@ -28,11 +28,13 @@ import { DownloadManager } from './downloads/manager'
 import type { DownloadFileIntegrity } from './downloads/types'
 import { registerDownloadRoutes } from './routes/downloads'
 import { applyDownloadMetadata } from './downloads/metadata'
-import { resolveSourceMusicUrl } from './playback/resolver'
 import { getAllUserList } from './db/lists'
 import { LIST_IDS } from '../common/constants'
 import { registerOpenApi } from './api/openapi'
 import { PlaybackHistoryRepository } from './playback/historyRepository'
+import { MediaClient } from './playback/mediaClient'
+import { PlaybackResourceStore } from './playback/resourceStore'
+import { PlaybackBundleResolver } from './playback/bundleResolver'
 
 export type { ServerOptions } from './config'
 
@@ -64,7 +66,31 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
     filePath => downloadedAtLookup(filePath),
   )
   await library.refresh()
+  const allowPrivatePlaybackTargets = process.env.NODE_ENV === 'test' && process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS === '1'
+  const mediaClient = new MediaClient({ allowPrivateNetwork: allowPrivatePlaybackTargets })
+  const playbackResources = new PlaybackResourceStore()
+  const findLocalPlayback = async(musicInfo: unknown) => {
+    const match = await library.findMatchingFile(musicInfo)
+    return match == null
+      ? undefined
+      : {
+          streamUrl: match.track.streamUrl,
+          pictureUrl: match.track.pictureUrl,
+          lyricsUrl: match.track.lyricsUrl,
+        }
+  }
+  const bundleResolver = new PlaybackBundleResolver({
+    sources,
+    mediaClient,
+    resourceStore: playbackResources,
+    findLocal: findLocalPlayback,
+    findAlternatives: findAlternativeMusic,
+    getBuiltinLyrics: async(provider, musicInfo) => await getLyric(provider, musicInfo),
+    getBuiltinPicture: async(provider, musicInfo) => await getPicture(provider, musicInfo),
+    onAttempt: attempt => { app.log.info({ sourceAttempt: attempt }) },
+  })
   const downloads = new DownloadManager({
+    mediaClient,
     storageRoot: serverOptions.storageRoot,
     getSettings: () => settings.getSettings(),
     findExistingFile: async musicInfo => (await library.findMatchingFile(musicInfo))?.filePath,
@@ -75,20 +101,26 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
       [LIST_IDS.DOWNLOAD]: 'Downloads',
     })[listId] ?? getAllUserList().find(list => list.id === listId)?.name,
     resolve: async(job, signal) => {
-      const source = sources.list().find(item => item.active)
-      if (source == null) throw new ApiError(409, 'SOURCE_NOT_FOUND', 'No active source')
-      const value = await resolveSourceMusicUrl(sources, source.id, {
+      const bundle = await bundleResolver.resolve({
         source: job.musicInfo.source,
         quality: job.quality,
         info: { type: job.quality, musicInfo: job.musicInfo },
-      }, undefined, signal)
-      if (typeof value.url !== 'string' || value.url.length === 0) throw new ApiError(502, 'SOURCE_PROTOCOL_ERROR', 'Download source returned no URL')
-      const headers = Object.fromEntries(Object.entries(value.headers ?? {}).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
-      return { url: value.url, headers }
+        preferLocal: false,
+      }, signal)
+      const pictureToken = /^\/api\/v1\/playback\/resources\/([a-f0-9]{64})\/picture$/.exec(bundle.resources.pictureUrl ?? '')?.[1]
+      const picture = pictureToken == null ? undefined : playbackResources.getPicture(pictureToken)
+      return {
+        candidates: bundle.streamCandidates,
+        resources: {
+          ...(picture == null ? {} : { pictureBytes: picture.bytes, pictureMimeType: picture.mimeType }),
+          ...(bundle.resources.lyrics == null ? {} : { lyrics: bundle.resources.lyrics }),
+        },
+      }
     },
-    metadata: async(filePath, job, currentSettings) => applyDownloadMetadata(filePath, job, currentSettings, {
+    metadata: async(filePath, job, currentSettings, resources) => applyDownloadMetadata(filePath, job, currentSettings, {
       getPicture: async musicInfo => getPicture(musicInfo.source, musicInfo).catch(() => musicInfo.meta.picUrl ?? null),
       getLyrics: async musicInfo => getLyric(musicInfo.source, musicInfo).catch(() => null),
+      ...resources,
     }),
     materializeResources: async filePath => { await libraryResources.ensure(filePath) },
     publish: jobs => {
@@ -134,12 +166,15 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
   registerListRoutes(app, events)
   registerEventRoutes(app, events)
   registerSourceRoutes(app, sources, events)
-  registerCatalogRoutes(app, sources)
+  registerCatalogRoutes(app, sources, { mediaClient, resourceStore: playbackResources })
   registerPlaybackRoutes(app, {
     sources,
     findLocalTrack: async musicInfo => (await library.findMatchingFile(musicInfo))?.track.streamUrl,
+    bundleResolver,
+    mediaClient,
+    resourceStore: playbackResources,
     // Test fixtures are local by design; production never relaxes the SSRF boundary.
-    allowPrivateNetwork: process.env.NODE_ENV === 'test' && process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS === '1',
+    allowPrivateNetwork: allowPrivatePlaybackTargets,
   })
   registerPlaybackHistoryRoutes(app, {
     history: playbackHistory,
@@ -166,7 +201,10 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
     },
   })
   registerDownloadRoutes(app, downloads)
-  registerLibraryRoutes(app, library)
+  registerLibraryRoutes(app, library, {
+    onDeleted: filePath => { downloads.removeCompletedForFile(filePath) },
+    publish: tracks => { events.publishSnapshot('library.updated', tracks) },
+  })
   app.all('/api/v1', { schema: { hide: true } }, async() => {
     throw new ApiError(404, 'NOT_FOUND', 'API route not found')
   })

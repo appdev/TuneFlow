@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { type SourceRepository } from '../sources/repository'
 import { SourceWorkerHost } from '../sources/worker-host'
 import { requestSourceNetwork, type SourceNetworkOptions } from '../sources/network'
-import { SourceServiceError, type SourceRequest, type SourceSummary } from '../sources/types'
+import { SourceServiceError, type SourceAction, type SourceCandidate, type SourceRequest, type SourceSummary } from '../sources/types'
 import { MAX_SOURCE_SCRIPT_BYTES } from '../../common/constants'
 import { ApiError } from '../errors'
 import type { ApiFastifyInstance } from '../api/types'
@@ -23,6 +23,7 @@ const asApiError = (error: unknown): never => {
 
 export class SourcesService {
   private readonly workers = new Map<string, SourceWorkerHost>()
+  private configurationTail: Promise<void> = Promise.resolve()
 
   constructor(
     private readonly repository: SourceRepository,
@@ -31,6 +32,14 @@ export class SourcesService {
   ) {}
 
   list(): SourceSummary[] { return this.repository.listSources() }
+
+  snapshot(provider: string, action: SourceAction): ReadonlyArray<Readonly<SourceCandidate>> {
+    const candidates = this.repository.listSources()
+      .filter(source => source.enabled && source.priority != null && source.sources?.[provider]?.actions.includes(action) === true)
+      .sort((a, b) => a.priority! - b.priority!)
+      .map(source => Object.freeze({ id: source.id, priority: source.priority! }))
+    return Object.freeze(candidates)
+  }
 
   async installSource(script: string): Promise<SourceSummary> {
     try { return await this.repository.installSource(script) } catch (error) { return asApiError(error) }
@@ -49,38 +58,42 @@ export class SourcesService {
       const script = new TextDecoder().decode(response.raw).replace(/^\ufeff/, '')
       return await this.repository.installSource(script)
     } catch (error) {
-      return asApiError(error instanceof SourceServiceError
+      return asApiError(error instanceof SourceServiceError && !['SOURCE_NETWORK_ERROR', 'SOURCE_TIMEOUT'].includes(error.code)
         ? error
         : new SourceServiceError('SOURCE_DOWNLOAD_FAILED', 'Unable to download source script'))
     }
   }
 
   async activate(id: string): Promise<SourceSummary> {
-    try {
-      const worker = await this.getWorker(id)
-      const sources = await worker.capabilities()
-      const previous = this.repository.listSources().find(source => source.active)
-      const source = this.repository.activateSource(id)
-      this.repository.setSourceCapabilities(id, sources)
-      if (previous != null && previous.id !== id) {
-        const previousWorker = this.workers.get(previous.id)
-        if (previousWorker != null) await previousWorker.close()
-        this.workers.delete(previous.id)
+    return await this.serializeConfiguration(async() => {
+      try {
+        const worker = await this.getWorker(id)
+        const sources = await worker.capabilities()
+        this.repository.setSourceCapabilities(id, sources)
+        return { ...this.repository.promoteSource(id), sources }
+      } catch (error) {
+        await this.discardWorker(id)
+        return asApiError(error)
       }
-      return { ...source, sources }
-    } catch (error) {
-      const worker = this.workers.get(id)
-      if (worker != null) await worker.close()
-      this.workers.delete(id)
-      return asApiError(error)
-    }
+    })
+  }
+
+  async configureEnabled(ids: readonly string[]): Promise<SourceSummary[]> {
+    return await this.serializeConfiguration(async() => {
+      try {
+        for (const id of ids) {
+          const sources = await (await this.getWorker(id)).capabilities()
+          this.repository.setSourceCapabilities(id, sources)
+        }
+        return this.repository.setEnabledSourceIds(ids)
+      } catch (error) {
+        return asApiError(error)
+      }
+    })
   }
 
   async requestSource<T>(sourceId: string, request: SourceRequest, signal?: AbortSignal): Promise<T> {
-    try {
-      if (!this.repository.listSources().some(source => source.id === sourceId && source.active)) throw new SourceServiceError('SOURCE_NOT_FOUND', 'Source is not active')
-      return await (await this.getWorker(sourceId)).request<T>(request, signal)
-    } catch (error) { return asApiError(error) }
+    return await (await this.getWorker(sourceId)).request<T>(request, signal)
   }
 
   async remove(id: string): Promise<void> {
@@ -104,6 +117,18 @@ export class SourcesService {
     })
     this.workers.set(id, worker)
     return worker
+  }
+
+  private async discardWorker(id: string): Promise<void> {
+    const worker = this.workers.get(id)
+    if (worker != null) await worker.close()
+    this.workers.delete(id)
+  }
+
+  private async serializeConfiguration<T>(work: () => Promise<T>): Promise<T> {
+    const result = this.configurationTail.then(work, work)
+    this.configurationTail = result.then(() => {}, () => {})
+    return await result
   }
 }
 
@@ -162,6 +187,25 @@ export const registerSourceRoutes = (app: ApiFastifyInstance, service: SourcesSe
     const source = await service.activate(body.sourceId)
     events?.publishSnapshot('sources.updated', service.list())
     return { data: source }
+  })
+  app.put('/api/v1/sources/enabled', {
+    schema: {
+      operationId: 'configureEnabledSources',
+      tags: ['Sources'],
+      summary: 'Configure the ordered enabled source chain',
+      body: Type.Object({
+        sourceIds: Type.Array(Type.String({ minLength: 1 }), { uniqueItems: true }),
+      }, { additionalProperties: false }),
+      response: { 200: sourceListResponse, ...ErrorResponses },
+    },
+  }, async(request) => {
+    const body = request.body as { sourceIds?: unknown } | null
+    if (body == null || !Array.isArray(body.sourceIds) || !body.sourceIds.every(id => typeof id === 'string' && id.length > 0)) {
+      throw new ApiError(400, 'SOURCE_NOT_FOUND', 'Source ids are required')
+    }
+    const sources = await service.configureEnabled(body.sourceIds)
+    events?.publishSnapshot('sources.updated', sources)
+    return { data: sources }
   })
   app.delete('/api/v1/sources/:id', {
     schema: {

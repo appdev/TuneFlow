@@ -35,6 +35,9 @@ export const importUserApiFromUrl = async(url: string) => {
 export const setUserApi = async(source: TuneFlow.UserApi.UserApiSetApiParams): Promise<void> => {
   return rendererInvoke<TuneFlow.UserApi.UserApiSetApiParams>(WIN_MAIN_RENDERER_EVENT_NAME.set_user_api, source)
 }
+export const configureUserApiSources = async(sourceIds: string[]) => {
+  return rendererInvoke<string[], TuneFlow.UserApi.UserApiInfo[]>(WIN_MAIN_RENDERER_EVENT_NAME.configure_user_api_sources, sourceIds)
+}
 export const removeUserApi = async(ids: string[]) => {
   return rendererInvoke<string[], TuneFlow.UserApi.UserApiInfo[]>(WIN_MAIN_RENDERER_EVENT_NAME.remove_user_api, ids)
 }

@@ -71,6 +71,8 @@ export const SourceSummary = Type.Object({
   author: Type.String(),
   homepage: Type.String(),
   active: Type.Boolean(),
+  enabled: Type.Boolean(),
+  priority: Type.Union([Type.Integer({ minimum: 0 }), Type.Null()]),
   sources: Type.Optional(Type.Record(Type.String(), Type.Object({
     type: Type.Literal('music'),
     actions: Type.Array(Type.String()),

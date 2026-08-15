@@ -93,14 +93,110 @@ describe('typed Web runtime HTTP transport', () => {
   })
 
   it('activates a source through the typed active-source resource', async() => {
-    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(jsonResponse({ data: { id: 'user_api_fixture', active: true } }))
+    const active = { id: 'user_api_fixture', active: true, enabled: true, priority: 0 }
+    const snapshot = [active, { id: 'user_api_backup', active: false, enabled: true, priority: 1 }]
+    const fetch = vi.fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(jsonResponse({ data: active }))
+      .mockResolvedValueOnce(jsonResponse({ data: snapshot }))
     const runtime = createWebRuntime({ fetch, EventSource: FakeEventSource })
+    const status = vi.fn()
+    runtime.on(WIN_MAIN_RENDERER_EVENT_NAME.user_api_status, status)
 
     await runtime.invoke(WIN_MAIN_RENDERER_EVENT_NAME.set_user_api, 'user_api_fixture')
 
-    expect(fetch).toHaveBeenCalledWith('/api/v1/sources/active', {
+    expect(fetch).toHaveBeenNthCalledWith(1, '/api/v1/sources/active', {
       method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sourceId: 'user_api_fixture' }),
     })
+    expect(fetch).toHaveBeenNthCalledWith(2, '/api/v1/sources', { method: 'GET' })
+    expect(status).toHaveBeenCalledWith({ event: null, params: { status: true, apiInfo: active, apiList: snapshot } })
+  })
+
+  it('configures the ordered enabled source chain through the Service', async() => {
+    const snapshot = [
+      { id: 'user_api_b', active: true, enabled: true, priority: 0 },
+      { id: 'user_api_a', active: false, enabled: true, priority: 1 },
+    ]
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(jsonResponse({ data: snapshot }))
+    const runtime = createWebRuntime({ fetch, EventSource: FakeEventSource })
+
+    await expect(runtime.invoke(WIN_MAIN_RENDERER_EVENT_NAME.configure_user_api_sources, ['user_api_b', 'user_api_a'])).resolves.toEqual(snapshot)
+    expect(fetch).toHaveBeenCalledWith('/api/v1/sources/enabled', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sourceIds: ['user_api_b', 'user_api_a'] }),
+    })
+  })
+
+  it('allows an empty enabled custom-source chain', async() => {
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(jsonResponse({ data: [] }))
+    const runtime = createWebRuntime({ fetch, EventSource: FakeEventSource })
+
+    await expect(runtime.invoke(WIN_MAIN_RENDERER_EVENT_NAME.configure_user_api_sources, [])).resolves.toEqual([])
+    expect(fetch).toHaveBeenCalledWith('/api/v1/sources/enabled', {
+      method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sourceIds: [] }),
+    })
+  })
+
+  it.each([
+    null,
+    'user_api_a',
+    ['user_api_a', 'user_api_a'],
+    [''],
+    ['user_api_a', 1],
+  ])('rejects malformed enabled source chains %#', async params => {
+    const fetch = vi.fn<typeof globalThis.fetch>()
+    const runtime = createWebRuntime({ fetch, EventSource: FakeEventSource })
+
+    await expect(runtime.invoke(WIN_MAIN_RENDERER_EVENT_NAME.configure_user_api_sources, params)).rejects.toMatchObject({ code: 'UNSUPPORTED_IPC' })
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('loads provider leaderboards through the Service catalog', async() => {
+    const payload = { source: 'tx', list: [{ id: 'tx__26', providerId: '26', name: '热歌榜' }] }
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(jsonResponse({ data: payload }))
+    const runtime = createWebRuntime({ fetch, EventSource: FakeEventSource })
+
+    await expect(runtime.invoke(WIN_MAIN_RENDERER_EVENT_NAME.handle_request, {
+      kind: 'provider-leaderboards',
+      source: 'tx',
+    })).resolves.toEqual(payload)
+    expect(fetch).toHaveBeenCalledWith('/api/v1/catalog/leaderboards', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ source: 'tx' }),
+    })
+  })
+
+  it('loads a provider leaderboard page through the Service catalog', async() => {
+    const payload = { source: 'tx', page: 2, limit: 30, total: 60, list: [{ id: 'track-1' }] }
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(jsonResponse({ data: payload }))
+    const runtime = createWebRuntime({ fetch, EventSource: FakeEventSource })
+
+    await expect(runtime.invoke(WIN_MAIN_RENDERER_EVENT_NAME.handle_request, {
+      kind: 'provider-leaderboard-tracks',
+      source: 'tx',
+      boardId: '26',
+      page: 2,
+    })).resolves.toEqual(payload)
+    expect(fetch).toHaveBeenCalledWith('/api/v1/catalog/leaderboards/tracks', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ source: 'tx', boardId: '26', page: 2 }),
+    })
+  })
+
+  it.each([
+    { kind: 'provider-leaderboards' },
+    { kind: 'provider-leaderboards', source: '' },
+    { kind: 'provider-leaderboard-tracks', source: 'tx', boardId: '', page: 1 },
+    { kind: 'provider-leaderboard-tracks', source: 'tx', boardId: '26', page: 0 },
+    { kind: 'provider-leaderboard-tracks', source: 'tx', boardId: '26', page: 1.5 },
+  ])('rejects malformed provider catalog request $kind', async params => {
+    const fetch = vi.fn<typeof globalThis.fetch>()
+    const runtime = createWebRuntime({ fetch, EventSource: FakeEventSource })
+
+    await expect(runtime.invoke(WIN_MAIN_RENDERER_EVENT_NAME.handle_request, params)).rejects.toMatchObject({ code: 'UNSUPPORTED_IPC' })
+    expect(fetch).not.toHaveBeenCalled()
   })
 
   it('imports a source URL through the Service instead of fetching it in the browser', async() => {

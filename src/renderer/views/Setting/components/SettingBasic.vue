@@ -32,7 +32,7 @@ dd
     .gap-top(v-for="item in apiSources" :key="item.id")
       base-checkbox(
         :id="`setting_api_source_${item.id}`" name="setting_api_source"
-        need :model-value="appSetting['common.apiSource']" :disabled="item.disabled" :value="item.id" :aria-label="item.label" @update:model-value="updateSetting({'common.apiSource': $event})")
+        need :model-value="currentSourceId" :disabled="item.disabled" :value="item.id" :aria-label="item.label" @update:model-value="updateSetting({'common.apiSource': $event})")
         span(:class="$style.sourceLabel")
           | {{ item.name }}
           span(v-if="item.desc" :class="$style.desc") {{ item.desc }}
@@ -100,6 +100,7 @@ import PlayTimeoutModal from './PlayTimeoutModal.vue'
 import UserApiModal from './UserApiModal.vue'
 import { appSetting, updateSetting } from '@renderer/store/setting'
 import { getThemes, applyTheme, findTheme, buildBgUrl } from '@renderer/store/utils'
+import { splitSourceChain } from '@renderer/core/userApiSourceChain'
 
 export default {
   name: 'SettingBasic',
@@ -212,6 +213,10 @@ export default {
 
       return status
     }
+    const currentSourceId = computed(() => {
+      if (globalThis.tuneFlowWebRuntime == null) return appSetting['common.apiSource']
+      return splitSourceChain(userApi.list).enabled[0]?.id ?? appSetting['common.apiSource']
+    })
     const apiSources = computed(() => {
       return [
         ...apiSourceInfo.map(api => ({
@@ -223,9 +228,9 @@ export default {
         ...userApi.list.map(api => ({
           id: api.id,
           name: api.name,
-          label: `${api.name}${api.id == appSetting['common.apiSource'] ? `[${getApiStatus()}]` : ''}`,
+          label: `${api.name}${api.id == currentSourceId.value ? `[${getApiStatus()}]` : ''}`,
           desc: [/^\d/.test(api.version) ? `v${api.version}` : api.version].filter(Boolean).join(', '),
-          statusLabel: api.id == appSetting['common.apiSource'] ? `[${getApiStatus()}]` : '',
+          statusLabel: api.id == currentSourceId.value ? `[${getApiStatus()}]` : '',
           status: api.status,
           message: api.message,
           disabled: false,
@@ -268,6 +273,7 @@ export default {
 
     return {
       appSetting,
+      currentSourceId,
       updateSetting,
       userThemes,
       autoTheme,

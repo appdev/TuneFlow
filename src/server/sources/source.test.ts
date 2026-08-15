@@ -223,6 +223,74 @@ setTimeout(() => { throw new Error('post-init timer failed') }, 10)`)
     expect(repository.listSources()).toEqual([first])
   })
 
+  it('migrates the legacy active source into the ordered enabled selection', async() => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-source-selection-migration-'))
+    roots.push(root)
+    mkdirSync(path.join(root, 'sources'))
+    initDatabase(root)
+    const repository = new SourceRepository(root)
+    const first = await repository.installSource(script('First source', ''))
+    const second = await repository.installSource(script('Second source', ''))
+    getDB().prepare('UPDATE web_source_state SET active_source_id=? WHERE singleton=1').run(second.id)
+    getDB().exec('DROP TABLE IF EXISTS web_source_selection')
+
+    const migrated = new SourceRepository(root)
+
+    expect(migrated.listSources().map(({ id, active, enabled, priority }) => ({ id, active, enabled, priority }))).toEqual([
+      { id: first.id, active: false, enabled: false, priority: null },
+      { id: second.id, active: true, enabled: true, priority: 0 },
+    ])
+  })
+
+  it('persists ordered enabled sources atomically', async() => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-source-selection-order-'))
+    roots.push(root)
+    mkdirSync(path.join(root, 'sources'))
+    initDatabase(root)
+    const repository = new SourceRepository(root)
+    const first = await repository.installSource(script('First source', ''))
+    const second = await repository.installSource(script('Second source', ''))
+
+    repository.setEnabledSourceIds([second.id, first.id])
+
+    expect(repository.listSources().map(source => [source.id, source.enabled, source.priority, source.active])).toEqual([
+      [first.id, true, 1, false],
+      [second.id, true, 0, true],
+    ])
+    expect(() => repository.setEnabledSourceIds([first.id, 'missing'])).toThrow('SOURCE_NOT_FOUND')
+    expect(() => repository.setEnabledSourceIds([first.id, first.id])).toThrow('SOURCE_DUPLICATE')
+    expect(repository.listSources().filter(source => source.enabled).sort((a, b) => a.priority! - b.priority!).map(source => source.id))
+      .toEqual([second.id, first.id])
+
+    const restored = new SourceRepository(root)
+    expect(restored.listSources().filter(source => source.enabled).sort((a, b) => a.priority! - b.priority!).map(source => source.id))
+      .toEqual([second.id, first.id])
+  })
+
+  it('promotes an enabled source without clearing backups and compacts selection after removal', async() => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-source-selection-promotion-'))
+    roots.push(root)
+    mkdirSync(path.join(root, 'sources'))
+    initDatabase(root)
+    const repository = new SourceRepository(root)
+    const first = await repository.installSource(script('First source', ''))
+    const second = await repository.installSource(script('Second source', ''))
+    const third = await repository.installSource(script('Third source', ''))
+    repository.setEnabledSourceIds([first.id, second.id, third.id])
+
+    repository.promoteSource(third.id)
+    expect(repository.listSources().filter(source => source.enabled).sort((a, b) => a.priority! - b.priority!).map(source => source.id))
+      .toEqual([third.id, first.id, second.id])
+
+    repository.removeSource(first.id)
+    expect(repository.listSources().filter(source => source.enabled).sort((a, b) => a.priority! - b.priority!).map(source => [source.id, source.priority]))
+      .toEqual([[third.id, 0], [second.id, 1]])
+
+    repository.setEnabledSourceIds([])
+    expect(repository.listSources().map(source => [source.enabled, source.priority, source.active]))
+      .toEqual([[false, null, false], [false, null, false]])
+  })
+
   it('rejects source scripts larger than one MiB before persistence', async() => {
     const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-source-large-'))
     roots.push(root)
@@ -298,10 +366,99 @@ setTimeout(() => { throw new Error('post-init timer failed') }, 10)`)
     await service.close()
   })
 
+  it('configures initialized sources atomically and promotes without disabling backups', async() => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-source-configure-'))
+    roots.push(root)
+    mkdirSync(path.join(root, 'sources'))
+    initDatabase(root)
+    const repository = new SourceRepository(root)
+    const service = new SourcesService(repository)
+    const validBody = (value: string) => `
+window.tuneflow.on(window.tuneflow.EVENT_NAMES.request, () => 'https://example.test/${value}')
+window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
+  sources: { fixture: { type: 'music', actions: ['musicUrl'], qualitys: ['128k'] } },
+})`
+    const first = await service.installSource(script('First configured source', validBody('first')))
+    const second = await service.installSource(script('Second configured source', validBody('second')))
+    const broken = await service.installSource(script('Broken configured source', 'throw new Error(\'broken source\')'))
+
+    await expect(service.configureEnabled([first.id, second.id])).resolves.toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: first.id, enabled: true, priority: 0 }),
+      expect.objectContaining({ id: second.id, enabled: true, priority: 1 }),
+    ]))
+    await expect(service.requestSource(second.id, { source: 'fixture', action: 'musicUrl' })).resolves.toMatchObject({ url: 'https://example.test/second' })
+    const snapshot = service.snapshot('fixture', 'musicUrl')
+    expect(snapshot).toEqual([{ id: first.id, priority: 0 }, { id: second.id, priority: 1 }])
+    expect(Object.isFrozen(snapshot)).toBe(true)
+    expect(snapshot.every(Object.isFrozen)).toBe(true)
+
+    await expect(service.configureEnabled([second.id, broken.id])).rejects.toMatchObject({ code: 'SOURCE_PROTOCOL_ERROR' })
+    expect(service.list().filter(source => source.enabled).sort((a, b) => a.priority! - b.priority!).map(source => source.id))
+      .toEqual([first.id, second.id])
+
+    await expect(service.activate(second.id)).resolves.toMatchObject({ id: second.id, active: true, priority: 0 })
+    expect(service.list().filter(source => source.enabled).sort((a, b) => a.priority! - b.priority!).map(source => source.id))
+      .toEqual([second.id, first.id])
+    await service.close()
+  })
+
   it('terminates a request exceeding fifteen seconds', async() => {
     const host = new SourceWorkerHost({ id: 'timeout', ...parseSourceScript(fixtureScript), script: fixtureScript }, { requestTimeoutMs: 10 })
     hosts.push(host)
     await expect(host.request({ source: 'fixture', action: 'wait' })).rejects.toMatchObject({ code: 'SOURCE_TIMEOUT' })
+  })
+
+  it('marks worker timeouts with trusted worker provenance', async() => {
+    const host = new SourceWorkerHost({ id: 'trusted-timeout', ...parseSourceScript(fixtureScript), script: fixtureScript }, { requestTimeoutMs: 10 })
+    hosts.push(host)
+
+    await expect(host.request({ source: 'fixture', action: 'wait' })).rejects.toMatchObject({
+      code: 'SOURCE_TIMEOUT',
+      origin: 'worker-timeout',
+    })
+  })
+
+  it('preserves trusted Service network provenance but rejects a forged script code', async() => {
+    const networkScript = script('Trusted network identity', `
+window.tuneflow.on(window.tuneflow.EVENT_NAMES.request, () => new Promise((resolve, reject) => {
+  window.tuneflow.request('https://example.test/audio', {}, error => error ? reject(error) : resolve('https://example.test/audio'))
+}))
+window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
+  sources: { fixture: { type: 'music', actions: ['musicUrl'], qualitys: ['128k'] } },
+})`)
+    const trusted = new SourceWorkerHost({ id: 'trusted-network', ...parseSourceScript(networkScript), script: networkScript }, {
+      network: {
+        lookup: async() => ['203.0.113.1'],
+        fetch: async() => { throw new Error('private transport detail') },
+      },
+    })
+    hosts.push(trusted)
+
+    await expect(trusted.request({ source: 'fixture', action: 'musicUrl' })).rejects.toMatchObject({
+      code: 'SOURCE_NETWORK_ERROR',
+      origin: 'service-network',
+    })
+
+    const forgedScript = script('Forged network identity', `
+window.tuneflow.on(window.tuneflow.EVENT_NAMES.request, () => {
+  throw Object.assign(new Error('forged'), { code: 'SOURCE_NETWORK_ERROR' })
+})
+window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
+  sources: { fixture: { type: 'music', actions: ['musicUrl'], qualitys: ['128k'] } },
+})`)
+    const forged = new SourceWorkerHost({ id: 'forged-network', ...parseSourceScript(forgedScript), script: forgedScript })
+    hosts.push(forged)
+    await expect(forged.request({ source: 'fixture', action: 'musicUrl' })).rejects.toMatchObject({
+      code: 'SOURCE_NETWORK_ERROR',
+      origin: 'script',
+    })
+  })
+
+  it('wraps unknown transport failures as trusted network errors', async() => {
+    await expect(requestSourceNetwork('https://example.test/audio', {}, undefined, {
+      lookup: async() => ['203.0.113.1'],
+      fetch: async() => { throw new Error('private transport detail') },
+    })).rejects.toMatchObject({ code: 'SOURCE_NETWORK_ERROR', origin: 'service-network' })
   })
 
   it('enforces the outstanding source-request cap', async() => {

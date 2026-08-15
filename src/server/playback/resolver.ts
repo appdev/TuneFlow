@@ -3,6 +3,7 @@ import { ApiError } from '../errors'
 import { toSourceMusicUrlInfo } from '../sources/musicInfo'
 import { findAlternativeMusic } from '../tuneFlowSdk'
 import { type TokenStore } from './tokenStore'
+import type { BundleCompleteness, PlaybackBundle, PlaybackBundleResolver, PlaybackResources } from './bundleResolver'
 
 export interface ResolveTrackInput {
   source: string
@@ -15,6 +16,8 @@ export interface ResolvedTrack {
   url: string
   quality: TuneFlow.Quality
   expiresAt: number
+  resources?: PlaybackResources
+  completeness?: BundleCompleteness
 }
 
 export interface SourceMusicUrl {
@@ -78,9 +81,11 @@ export class PlaybackResolver {
     private readonly tokenStore: TokenStore,
     private readonly findAlternatives: (musicInfo: unknown) => Promise<Array<Record<string, unknown>>> = findAlternativeMusic,
     private readonly findLocal?: (musicInfo: unknown) => Promise<string | undefined> | string | undefined,
+    private readonly bundleResolver?: PlaybackBundleResolver,
   ) {}
 
   async resolveTrack(input: ResolveTrackInput): Promise<ResolvedTrack> {
+    if (this.bundleResolver != null) return this.createResolvedBundle(await this.bundleResolver.resolve(input), input.quality)
     const source = this.sources.list().find(item => item.active)
     if (source == null) throw new ApiError(409, 'SOURCE_NOT_FOUND', 'No active source')
     if (input.preferLocal !== false) {
@@ -99,5 +104,28 @@ export class PlaybackResolver {
     const entry = this.tokenStore.get(token)
     if (entry == null) throw new ApiError(500, 'PLAYBACK_UNAVAILABLE', 'Playback token unavailable')
     return { url: `/api/v1/streams/${token}`, quality, expiresAt: entry.expiresAt }
+  }
+
+  private createResolvedBundle(bundle: PlaybackBundle, quality: TuneFlow.Quality): ResolvedTrack {
+    if (bundle.audioKind === 'local') {
+      if (bundle.streamUrl == null) throw new ApiError(500, 'PLAYBACK_UNAVAILABLE', 'Local playback URL unavailable')
+      return {
+        url: bundle.streamUrl,
+        quality,
+        expiresAt: Date.now() + 300_000,
+        resources: bundle.resources,
+        completeness: bundle.completeness,
+      }
+    }
+    const token = this.tokenStore.create({ candidates: bundle.streamCandidates })
+    const entry = this.tokenStore.get(token)
+    if (entry == null) throw new ApiError(500, 'PLAYBACK_UNAVAILABLE', 'Playback token unavailable')
+    return {
+      url: `/api/v1/streams/${token}`,
+      quality,
+      expiresAt: entry.expiresAt,
+      resources: bundle.resources,
+      completeness: bundle.completeness,
+    }
   }
 }

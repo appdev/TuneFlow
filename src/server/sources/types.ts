@@ -1,5 +1,10 @@
 export type SourceAction = 'musicUrl' | 'lyric' | 'pic'
 
+export interface SourceCandidate { id: string, priority: number }
+export interface SourceAttempt { sourceId: string, action: string, code: string, elapsedMs: number }
+export interface SourceAttemptLog extends SourceAttempt { requestId: string, priority: number }
+export interface SourceFallbackResult<T> { sourceId: string, value: T, attempts: SourceAttempt[] }
+
 export interface SourceInfo {
   id: string
   name: string
@@ -11,6 +16,8 @@ export interface SourceInfo {
 
 export interface SourceSummary extends SourceInfo {
   active: boolean
+  enabled: boolean
+  priority: number | null
   sources?: Record<string, { type: 'music', actions: SourceAction[], qualitys: string[] }>
 }
 
@@ -63,8 +70,10 @@ export interface CollectionSearchResult {
   source: string
 }
 
+export type SourceFailureOrigin = 'service-network' | 'worker-timeout' | 'caller' | 'script' | 'protocol' | 'safety'
+
 export class SourceServiceError extends Error {
-  constructor(readonly code: string, message = code) {
+  constructor(readonly code: string, message = code, readonly origin: SourceFailureOrigin = 'protocol') {
     super(message)
   }
 }

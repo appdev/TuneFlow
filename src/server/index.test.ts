@@ -59,7 +59,7 @@ describe('Service process shutdown', () => {
     mkdirSync(webRoot)
     writeFileSync(path.join(webRoot, 'index.html'), '<!doctype html>')
     const port = await getFreePort()
-    const child = spawn('npm', ['run', 'start:server'], {
+    const child = spawn(process.execPath, ['dist/server/index.cjs'], {
       cwd: process.cwd(),
       env: {
         ...process.env,
@@ -70,12 +70,10 @@ describe('Service process shutdown', () => {
         TUNEFLOW_SKIP_ELECTRON_REBUILD: '1',
       },
       stdio: 'pipe',
-      detached: process.platform !== 'win32',
     })
     try {
       await waitForHealth(port)
-      if (process.platform === 'win32') child.kill('SIGTERM')
-      else process.kill(-child.pid!, 'SIGTERM')
+      child.kill('SIGTERM')
       const result = await Promise.race([
         new Promise<{ code: number | null, signal: NodeJS.Signals | null }>((resolve, reject) => {
           child.once('error', reject)
@@ -87,12 +85,11 @@ describe('Service process shutdown', () => {
           reject(new Error('prepared Service did not stop after SIGTERM'))
         }, 10_000)),
       ])
-      expect(result).toEqual({ code: null, signal: 'SIGTERM' })
+      expect(result).toEqual({ code: 0, signal: null })
       await waitForShutdown(port)
     } finally {
       if (child.exitCode == null && child.signalCode == null) {
-        if (process.platform === 'win32') child.kill('SIGKILL')
-        else process.kill(-child.pid!, 'SIGKILL')
+        child.kill('SIGKILL')
         await new Promise<void>(resolve => {
           child.once('exit', () => {
             resolve()

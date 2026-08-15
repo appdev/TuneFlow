@@ -5,6 +5,10 @@ import { CatalogCollection, CatalogLyrics, CatalogTrack } from '../api/schemas/d
 import { ApiError } from '../errors'
 import { browsePlaylists, catalogCapabilities, getLeaderboardTracks, getLeaderboards, getLyric, getPicture, getPlaylistDetail, getPlaylistTags, search, searchCollections } from '../tuneFlowSdk'
 import type { SourcesService } from './sources'
+import { runSourceFallback } from '../sources/fallback'
+import { SourceServiceError, type SourceAction, type SourceCandidate } from '../sources/types'
+import { MediaClient } from '../playback/mediaClient'
+import { PlaybackResourceStore } from '../playback/resourceStore'
 
 const TrackInput = Type.Object({
   source: Type.String({ minLength: 1 }),
@@ -120,9 +124,12 @@ const sourceFailure = (error: unknown, message: string): never => {
   throw new ApiError(502, code, message)
 }
 
-const activeSourceFor = (sources: SourcesService | undefined, provider: string, action: 'lyric' | 'pic') => sources
-  ?.list()
-  .find(source => source.active && source.sources?.[provider]?.actions.includes(action))
+const sourceSnapshot = (sources: SourcesService | undefined, provider: string, action: SourceAction): ReadonlyArray<Readonly<SourceCandidate>> => {
+  if (sources == null) return []
+  if (typeof sources.snapshot === 'function') return sources.snapshot(provider, action)
+  const active = sources.list().find(source => source.active && source.sources?.[provider]?.actions.includes(action))
+  return active == null ? [] : [{ id: active.id, priority: 0 }]
+}
 
 const rejectReplacementCharacters = <T>(lyrics: T): T => {
   if (typeof lyrics !== 'object' || lyrics == null) return lyrics
@@ -135,7 +142,14 @@ const rejectReplacementCharacters = <T>(lyrics: T): T => {
   return lyrics
 }
 
-export const registerCatalogRoutes = (app: ApiFastifyInstance, sources?: SourcesService): void => {
+export interface CatalogResourceOptions {
+  mediaClient?: MediaClient
+  resourceStore?: PlaybackResourceStore
+}
+
+export const registerCatalogRoutes = (app: ApiFastifyInstance, sources?: SourcesService, resourceOptions: CatalogResourceOptions = {}): void => {
+  const mediaClient = resourceOptions.mediaClient ?? new MediaClient()
+  const resourceStore = resourceOptions.resourceStore ?? new PlaybackResourceStore()
   app.get('/api/v1/catalog/capabilities', {
     schema: {
       operationId: 'getCatalogCapabilities',
@@ -245,11 +259,20 @@ export const registerCatalogRoutes = (app: ApiFastifyInstance, sources?: Sources
     },
   }, async(request) => {
     try {
-      const active = activeSourceFor(sources, request.body.source, 'lyric')
+      const candidates = sourceSnapshot(sources, request.body.source, 'lyric')
+      const lyrics = candidates.length === 0
+        ? await getLyric(request.body.source, request.body.musicInfo)
+        : (await runSourceFallback({
+            candidates,
+            action: 'lyric',
+            attempt: async candidate => await sources!.requestSource(candidate.id, {
+              source: request.body.source,
+              action: 'lyric',
+              info: request.body.musicInfo,
+            }),
+          })).value
       return {
-        data: rejectReplacementCharacters(active == null
-          ? await getLyric(request.body.source, request.body.musicInfo)
-          : await sources!.requestSource(active.id, { source: request.body.source, action: 'lyric', info: request.body.musicInfo })),
+        data: rejectReplacementCharacters(lyrics),
       }
     } catch (error) { return sourceFailure(error, 'Lyric lookup failed') }
   })
@@ -264,10 +287,30 @@ export const registerCatalogRoutes = (app: ApiFastifyInstance, sources?: Sources
     },
   }, async(request) => {
     try {
-      const active = activeSourceFor(sources, request.body.source, 'pic')
-      const url = active == null
-        ? await getPicture(request.body.source, request.body.musicInfo)
-        : await sources!.requestSource<string>(active.id, { source: request.body.source, action: 'pic', info: request.body.musicInfo })
+      const storePicture = async(url: string): Promise<string> => {
+        try {
+          const picture = await mediaClient.fetchArtwork({ url })
+          const stored = resourceStore.putPicture(picture)
+          return `/api/v1/playback/resources/${stored.token}/picture`
+        } catch (error) {
+          if (error instanceof SourceServiceError && ['SOURCE_MEDIA_INVALID', 'SOURCE_MEDIA_UNAVAILABLE'].includes(error.code)) {
+            throw new SourceServiceError(error.code, error.message, 'service-network')
+          }
+          throw error
+        }
+      }
+      const candidates = sourceSnapshot(sources, request.body.source, 'pic')
+      const url = candidates.length === 0
+        ? await storePicture(await getPicture(request.body.source, request.body.musicInfo))
+        : (await runSourceFallback({
+            candidates,
+            action: 'pic',
+            attempt: async candidate => await storePicture(await sources!.requestSource<string>(candidate.id, {
+              source: request.body.source,
+              action: 'pic',
+              info: request.body.musicInfo,
+            })),
+          })).value
       return { data: { url } }
     } catch (error) { return sourceFailure(error, 'Picture lookup failed') }
   })

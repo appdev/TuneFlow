@@ -45,6 +45,7 @@ const bootstrap = `
   const legacyVerbatimKey = ['l', 'x', 'lyric'].join('');
   const outbound = [];
   const callbacks = Object.create(null);
+  const serviceNetworkErrors = new WeakSet();
   const timers = Object.create(null);
   let requestHandler;
   let initialized = false;
@@ -199,6 +200,7 @@ const bootstrap = `
     if (callback == null) return;
     delete callbacks[value.id];
     const error = value.error == null ? null : Object.assign(new Error(value.error.message || value.error.code), { code: value.error.code });
+    if (error != null && value.error.origin === 'service-network') serviceNetworkErrors.add(error);
     apply(callback, tuneflow, [error, value.response, value.body]);
   };
   const fireTimer = raw => {
@@ -244,7 +246,8 @@ const bootstrap = `
     };
     const reject = error => {
       const code = typeof error?.code === 'string' ? error.code : 'SOURCE_PROTOCOL_ERROR';
-      emit({ type: 'response-error', id: packet.id, code, message: error?.message || String(error) });
+      const origin = serviceNetworkErrors.has(error) ? 'service-network' : 'script';
+      emit({ type: 'response-error', id: packet.id, code, origin, message: error?.message || String(error) });
     };
     let result;
     try {
@@ -326,7 +329,7 @@ process.once('exit', () => {
   timerHandles.clear()
 })
 
-port.on('message', (message: { type: string, id: number, request?: unknown, entropy?: number[], error?: { code: string, message: string }, response?: unknown, body?: unknown }) => {
+port.on('message', (message: { type: string, id: number, request?: unknown, entropy?: number[], error?: { code: string, message: string, origin?: string }, response?: unknown, body?: unknown }) => {
   try {
     if (message.type === 'network-response') {
       bridge.deliver(serialize({ id: message.id, error: message.error, response: message.response, body: message.body }))

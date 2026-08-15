@@ -23,6 +23,9 @@ declare namespace TuneFlow {
       homepage?: string
       version?: string
       sources?: UserApiSources
+      active?: boolean
+      enabled?: boolean
+      priority?: number | null
     }
 
     type UserApiInfo = Omit<UserApiInfoFull, 'script'>
@@ -31,6 +34,7 @@ declare namespace TuneFlow {
       status: boolean
       message?: string
       apiInfo?: UserApiInfo
+      apiList?: UserApiInfo[]
     }
 
     interface UserApiUpdateInfo {

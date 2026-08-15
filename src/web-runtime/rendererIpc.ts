@@ -73,6 +73,7 @@ classify({ kind: 'route' }, [
   WIN_MAIN_RENDERER_EVENT_NAME.import_user_api_from_url,
   WIN_MAIN_RENDERER_EVENT_NAME.remove_user_api,
   WIN_MAIN_RENDERER_EVENT_NAME.set_user_api,
+  WIN_MAIN_RENDERER_EVENT_NAME.configure_user_api_sources,
   WIN_MAIN_RENDERER_EVENT_NAME.get_user_api_list,
   WIN_MAIN_RENDERER_EVENT_NAME.request_user_api,
   WIN_MAIN_RENDERER_EVENT_NAME.request_user_api_cancel,
@@ -221,7 +222,16 @@ export const createWebRuntime = (dependencies: WebRuntimeDependencies = {}): Web
     [WIN_MAIN_RENDERER_EVENT_NAME.set_user_api, async params => {
       if (!String(params).startsWith('user_api_')) return
       const apiInfo = await request<any>('PUT', '/api/v1/sources/active', { sourceId: String(params) })
-      emitLocal(WIN_MAIN_RENDERER_EVENT_NAME.user_api_status, { status: true, apiInfo })
+      const apiList = await request('GET', '/api/v1/sources')
+      emitLocal(WIN_MAIN_RENDERER_EVENT_NAME.user_api_status, { status: true, apiInfo, apiList })
+    }],
+    [WIN_MAIN_RENDERER_EVENT_NAME.configure_user_api_sources, async params => {
+      if (!Array.isArray(params) ||
+        !params.every(id => typeof id === 'string' && id.length > 0) ||
+        new Set(params).size !== params.length) {
+        throw unsupported(WIN_MAIN_RENDERER_EVENT_NAME.configure_user_api_sources, 'UNSUPPORTED_IPC')
+      }
+      return request('PUT', '/api/v1/sources/enabled', { sourceIds: params })
     }],
     [WIN_MAIN_RENDERER_EVENT_NAME.get_user_api_list, async() => request('GET', '/api/v1/sources')],
     [WIN_MAIN_RENDERER_EVENT_NAME.user_api_set_allow_update_alert, async() => undefined],
@@ -249,9 +259,20 @@ export const createWebRuntime = (dependencies: WebRuntimeDependencies = {}): Web
       return { data: result }
     }],
     [WIN_MAIN_RENDERER_EVENT_NAME.handle_request, async params => {
-      const search = params as { kind?: unknown, source?: unknown, text?: unknown, page?: unknown, limit?: unknown }
-      if (search == null || search.kind !== 'provider-search' || typeof search.source !== 'string' || typeof search.text !== 'string' || !Number.isInteger(search.page) || !Number.isInteger(search.limit)) throw unsupported(WIN_MAIN_RENDERER_EVENT_NAME.handle_request, 'UNSUPPORTED_IPC')
-      return request('POST', '/api/v1/catalog/tracks/search', { source: search.source, text: search.text, page: search.page, pageSize: search.limit })
+      const value = params as { kind?: unknown, source?: unknown, text?: unknown, page?: unknown, limit?: unknown, boardId?: unknown } | null
+      if (value == null || typeof value.source !== 'string' || value.source.length === 0) throw unsupported(WIN_MAIN_RENDERER_EVENT_NAME.handle_request, 'UNSUPPORTED_IPC')
+      switch (value.kind) {
+        case 'provider-search':
+          if (typeof value.text !== 'string' || !Number.isInteger(value.page) || (value.page as number) < 1 || !Number.isInteger(value.limit) || (value.limit as number) < 1) throw unsupported(WIN_MAIN_RENDERER_EVENT_NAME.handle_request, 'UNSUPPORTED_IPC')
+          return request('POST', '/api/v1/catalog/tracks/search', { source: value.source, text: value.text, page: value.page, pageSize: value.limit })
+        case 'provider-leaderboards':
+          return request('POST', '/api/v1/catalog/leaderboards', { source: value.source })
+        case 'provider-leaderboard-tracks':
+          if (typeof value.boardId !== 'string' || value.boardId.length === 0 || !Number.isInteger(value.page) || (value.page as number) < 1) throw unsupported(WIN_MAIN_RENDERER_EVENT_NAME.handle_request, 'UNSUPPORTED_IPC')
+          return request('POST', '/api/v1/catalog/leaderboards/tracks', { source: value.source, boardId: value.boardId, page: value.page })
+        default:
+          throw unsupported(WIN_MAIN_RENDERER_EVENT_NAME.handle_request, 'UNSUPPORTED_IPC')
+      }
     }],
     [WIN_MAIN_RENDERER_EVENT_NAME.get_sound_effect_eq_preset, async() => (await readAppData<TuneFlow.SoundEffect.EQPreset[]>('web.soundEffect.eqPresets')) ?? []],
     [WIN_MAIN_RENDERER_EVENT_NAME.save_sound_effect_eq_preset, async params => writeAppData('web.soundEffect.eqPresets', params)],

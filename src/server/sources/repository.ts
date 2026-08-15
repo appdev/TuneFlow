@@ -8,6 +8,7 @@ import { SourceServiceError, type InstalledSource, type SourceSummary } from './
 
 interface SourceRow extends Omit<InstalledSource, 'sources'> {
   sources: string | null
+  priority: number | null
 }
 
 export class SourceRepository {
@@ -32,12 +33,18 @@ export class SourceRepository {
         active_source_id TEXT REFERENCES web_sources(id) ON DELETE SET NULL
       );
       INSERT OR IGNORE INTO web_source_state (singleton, active_source_id) VALUES (1, NULL);
+      CREATE TABLE IF NOT EXISTS web_source_selection (
+        source_id TEXT PRIMARY KEY REFERENCES web_sources(id) ON DELETE CASCADE,
+        position INTEGER NOT NULL UNIQUE CHECK (position >= 0)
+      );
+      INSERT INTO web_source_selection (source_id, position)
+      SELECT active_source_id, 0
+      FROM web_source_state
+      WHERE singleton = 1
+        AND active_source_id IS NOT NULL
+        AND EXISTS (SELECT 1 FROM web_sources WHERE id = active_source_id)
+        AND NOT EXISTS (SELECT 1 FROM web_source_selection);
     `)
-  }
-
-  private activeId(): string | null {
-    const state = getDB().prepare('SELECT active_source_id AS activeSourceId FROM web_source_state WHERE singleton=1').get() as { activeSourceId: string | null }
-    return state.activeSourceId
   }
 
   private toSummary(row: SourceRow): SourceSummary {
@@ -48,13 +55,22 @@ export class SourceRepository {
       version: row.version,
       author: row.author,
       homepage: row.homepage,
-      active: row.id === this.activeId(),
+      active: row.priority === 0,
+      enabled: row.priority != null,
+      priority: row.priority,
       ...(row.sources == null ? {} : { sources: JSON.parse(row.sources) }),
     }
   }
 
   listSources(): SourceSummary[] {
-    return (getDB().prepare('SELECT id, name, description, version, author, homepage, script_path AS scriptPath, installed_at AS installedAt, sources_json AS sources FROM web_sources ORDER BY installed_at').all() as SourceRow[]).map(row => this.toSummary(row))
+    return (getDB().prepare(`
+      SELECT s.id, s.name, s.description, s.version, s.author, s.homepage,
+        s.script_path AS scriptPath, s.installed_at AS installedAt,
+        s.sources_json AS sources, selection.position AS priority
+      FROM web_sources s
+      LEFT JOIN web_source_selection selection ON selection.source_id = s.id
+      ORDER BY s.installed_at
+    `).all() as SourceRow[]).map(row => this.toSummary(row))
   }
 
   getSource(id: string): InstalledSource {
@@ -82,7 +98,7 @@ export class SourceRepository {
       const storedScriptPath = path.basename(scriptPath)
       getDB().prepare(`INSERT INTO web_sources (id, name, description, version, author, homepage, script_path, installed_at)
         VALUES (@id, @name, @description, @version, @author, @homepage, @scriptPath, @installedAt)`).run({ id, ...info, scriptPath: storedScriptPath, installedAt })
-      return { id, ...info, active: false }
+      return { id, ...info, active: false, enabled: false, priority: null }
     } catch (error) {
       if (existsSync(temporaryPath)) unlinkSync(temporaryPath)
       if (renamed && existsSync(scriptPath)) unlinkSync(scriptPath)
@@ -91,17 +107,39 @@ export class SourceRepository {
     }
   }
 
-  activateSource(id: string): SourceSummary {
+  private replaceSelectionRows(ids: readonly string[]): void {
+    const database = getDB()
+    database.prepare('DELETE FROM web_source_selection').run()
+    const insert = database.prepare('INSERT INTO web_source_selection (source_id, position) VALUES (?, ?)')
+    ids.forEach((id, position) => insert.run(id, position))
+    database.prepare('UPDATE web_source_state SET active_source_id=? WHERE singleton=1').run(ids[0] ?? null)
+  }
+
+  setEnabledSourceIds(ids: readonly string[]): SourceSummary[] {
+    if (new Set(ids).size !== ids.length) throw new SourceServiceError('SOURCE_DUPLICATE')
+    for (const id of ids) this.getSource(id)
+    getDB().transaction(() => { this.replaceSelectionRows(ids) })()
+    return this.listSources()
+  }
+
+  promoteSource(id: string): SourceSummary {
     this.getSource(id)
-    getDB().prepare('UPDATE web_source_state SET active_source_id=? WHERE singleton=1').run(id)
+    const current = (getDB().prepare('SELECT source_id AS sourceId FROM web_source_selection ORDER BY position').all() as Array<{ sourceId: string }>).map(row => row.sourceId)
+    const promoted = [id, ...current.filter(sourceId => sourceId !== id)]
+    getDB().transaction(() => { this.replaceSelectionRows(promoted) })()
     return this.listSources().find(source => source.id === id)!
+  }
+
+  activateSource(id: string): SourceSummary {
+    return this.promoteSource(id)
   }
 
   removeSource(id: string): void {
     const source = this.getSource(id)
     getDB().transaction(() => {
       getDB().prepare('DELETE FROM web_sources WHERE id=?').run(id)
-      getDB().prepare('UPDATE web_source_state SET active_source_id=NULL WHERE singleton=1 AND active_source_id=?').run(id)
+      const remaining = (getDB().prepare('SELECT source_id AS sourceId FROM web_source_selection ORDER BY position').all() as Array<{ sourceId: string }>).map(row => row.sourceId)
+      this.replaceSelectionRows(remaining)
     })()
     if (existsSync(source.scriptPath)) unlinkSync(source.scriptPath)
   }

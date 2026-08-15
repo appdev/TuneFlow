@@ -177,8 +177,10 @@ export const requestSourceNetwork = async(url: string, init: RequestInit & { for
     const requestSignal = signal == null ? deadline.signal : AbortSignal.any([signal, deadline.signal])
     return await requestSourceNetworkWithSignal(url, init, requestSignal, options)
   } catch (error) {
-    if (deadline.signal.aborted && !signal?.aborted) throw new SourceError('SOURCE_TIMEOUT')
-    throw error
+    if (deadline.signal.aborted && !signal?.aborted) throw new SourceError('SOURCE_TIMEOUT', 'Source network request timed out', 'service-network')
+    if (signal?.aborted === true) throw new SourceError('SOURCE_CANCELLED', 'Source network request cancelled', 'caller')
+    if (error instanceof SourceServiceError) throw error
+    throw new SourceError('SOURCE_NETWORK_ERROR', 'Source network request failed', 'service-network')
   } finally {
     clearTimeout(timeout)
   }

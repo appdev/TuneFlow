@@ -6,6 +6,8 @@ import { qualityList, userApi } from '@renderer/store'
 import { appSetting } from '@renderer/store/setting'
 import { dialog } from '@renderer/plugins/Dialog'
 import { setUserApi } from '@renderer/core/apiSource'
+import apiSourceInfo from '@renderer/utils/musicSdk/api-source-info'
+import { nextLegacySource, splitSourceChain } from '@renderer/core/userApiSourceChain'
 
 const sendUserApiRequest: typeof sendUserApiRequestRemote = async(data) => {
   let rejectSourceChange: (reason: Error) => void = () => {}
@@ -23,10 +25,11 @@ const sendUserApiRequest: typeof sendUserApiRequestRemote = async(data) => {
 export default () => {
   const t = useI18n()
 
-  const rUserApiStatus = onUserApiStatus(({ params: { status, message, apiInfo } }) => {
+  const rUserApiStatus = onUserApiStatus(({ params: { status, message, apiInfo, apiList } }) => {
     // console.log({ status, message, apiInfo })
     userApi.status = status
     userApi.message = message
+    if (apiList) userApi.list = apiList
 
     if (!apiInfo || apiInfo.id !== appSetting['common.apiSource']) return
     if (status) {
@@ -172,6 +175,15 @@ export default () => {
   })
 
   return async() => {
+    if (globalThis.tuneFlowWebRuntime != null) {
+      const list = await getUserApiList()
+      userApi.list = list
+      const enabledIds = splitSourceChain(list).enabled.map(source => source.id)
+      const builtInIds = apiSourceInfo.filter(source => !source.disabled).map(source => source.id)
+      const sourceId = nextLegacySource(enabledIds, builtInIds)
+      if (sourceId) await setUserApi(sourceId)
+      return
+    }
     await setUserApi(appSetting['common.apiSource'])
     void getUserApiList().then(list => {
       // console.log(list)

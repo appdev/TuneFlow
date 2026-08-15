@@ -13,6 +13,8 @@ import type { SourcesService } from '../routes/sources'
 import { isBlockedAddress } from '../sources/network'
 import { LibraryScanner } from '../library/scanner'
 import { registerLibraryRoutes } from '../routes/library'
+import { PlaybackResourceStore } from './resourceStore'
+import { createServer as createTuneFlowServer } from '../app'
 
 const bytes = Buffer.from(Array.from({ length: 128 }, (_, index) => index))
 const apps: Array<ReturnType<typeof Fastify>> = []
@@ -59,11 +61,12 @@ const startUpstream = async(contentType = 'audio/mpeg'): Promise<{ url: string, 
   return { url: `http://127.0.0.1:${(server.address() as AddressInfo).port}/deterministic-audio`, requests }
 }
 
-const playbackApp = (store = new TokenStore()): ReturnType<typeof Fastify> => {
+const playbackApp = (store = new TokenStore(), resourceStore?: PlaybackResourceStore): ReturnType<typeof Fastify> => {
   const app = Fastify({ logger: false })
   apps.push(app)
   registerPlaybackRoutes(app, {
     tokenStore: store,
+    resourceStore,
     resolveTrack: async() => ({ url: 'http://example.invalid/never-expose', quality: '128k' as TuneFlow.Quality, expiresAt: Date.now() + 300_000 }),
     allowPrivateNetwork: true,
   })
@@ -77,6 +80,82 @@ afterEach(async() => {
 })
 
 describe('same-origin playback proxy', () => {
+  it('uses the configured source chain to return a complete backup bundle', async() => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-multi-source-integration-'))
+    tempRoots.push(root)
+    const webRoot = path.join(root, 'web')
+    mkdirSync(webRoot)
+    writeFileSync(path.join(webRoot, 'index.html'), '<!doctype html><title>fixture</title>')
+    const audio = readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3'))
+    const picture = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
+    const upstream = createHttpServer((request, response) => {
+      if (request.url === '/a') {
+        response.writeHead(503).end('offline')
+        return
+      }
+      if (request.url === '/picture') {
+        response.writeHead(200, { 'content-type': 'image/png', 'content-length': picture.length }).end(picture)
+        return
+      }
+      const range = request.headers.range
+      if (range != null) {
+        response.writeHead(206, {
+          'content-type': 'audio/mpeg',
+          'content-length': audio.length,
+          'content-range': `bytes 0-${audio.length - 1}/${audio.length}`,
+        }).end(audio)
+        return
+      }
+      response.writeHead(200, { 'content-type': 'audio/mpeg', 'content-length': audio.length }).end(audio)
+    })
+    servers.push(upstream)
+    upstream.listen(0, '127.0.0.1')
+    await once(upstream, 'listening')
+    const origin = `http://127.0.0.1:${(upstream.address() as AddressInfo).port}`
+    const sourceScript = (name: string, audioUrl: string, lyric: string, pictureUrl?: string) => `/*
+ * @name ${name}
+ * @description Multi-source integration fixture
+ * @version 1.0.0
+ */
+window.tuneflow.on(window.tuneflow.EVENT_NAMES.request, ({ action }) => {
+  if (action === 'musicUrl') return '${audioUrl}'
+  if (action === 'lyric') return { lyric: '${lyric}' }
+  if (action === 'pic') return '${pictureUrl ?? `${origin}/picture`}'
+})
+window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
+  sources: { kw: { type: 'music', actions: ['musicUrl', 'lyric', 'pic'], qualitys: ['128k'] } },
+})`
+    const previousPlaybackFlag = process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS
+    process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS = '1'
+    const app = await createTuneFlowServer({ storageRoot: root, webRoot, host: '127.0.0.1', port: 0 })
+    apps.push(app)
+    try {
+      const first = (await app.inject({ method: 'POST', url: '/api/v1/sources', payload: { script: sourceScript('Source A', `${origin}/a`, '[00:00]a') } })).json().data
+      const second = (await app.inject({ method: 'POST', url: '/api/v1/sources', payload: { script: sourceScript('Source B', `${origin}/b`, '[00:00]b') } })).json().data
+      await app.inject({ method: 'PUT', url: '/api/v1/sources/enabled', payload: { sourceIds: [first.id, second.id] } })
+
+      const resolved = await app.inject({
+        method: 'POST',
+        url: '/api/v1/playback/tracks/resolve',
+        payload: { source: 'kw', quality: '128k', info: { id: 'track', name: 'Song', singer: 'Singer', source: 'kw' } },
+      })
+
+      expect(resolved.statusCode).toBe(200)
+      expect(resolved.json().data).toMatchObject({
+        url: expect.stringMatching(/^\/api\/v1\/streams\/[a-f0-9]{64}$/),
+        resources: {
+          lyrics: { lyric: '[00:00]b' },
+          pictureUrl: expect.stringMatching(/^\/api\/v1\/playback\/resources\/[a-f0-9]{64}\/picture$/),
+        },
+        completeness: 'complete',
+      })
+      expect(resolved.body).not.toContain(origin)
+    } finally {
+      if (previousPlaybackFlag == null) delete process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS
+      else process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS = previousPlaybackFlag
+    }
+  })
+
   it('converts canonical Web music info to the desktop custom-source contract', async() => {
     const requestSource = vi.fn().mockResolvedValue({ url: 'https://example.test/audio' })
     const sources = {
@@ -244,6 +323,119 @@ describe('same-origin playback proxy', () => {
     expect(response.rawPayload).toEqual(bytes)
     expect(upstream.requests).toEqual([{ method: 'GET', sourceHeader: 'required' }])
     expect(response.body).not.toContain(upstream.url)
+  })
+
+  it('tries the next validated stream candidate before committing response bytes', async() => {
+    let unavailableRequests = 0
+    const unavailable = createHttpServer((_request, response) => {
+      unavailableRequests++
+      response.writeHead(503, { 'content-type': 'text/plain' }).end('offline')
+    })
+    servers.push(unavailable)
+    unavailable.listen(0, '127.0.0.1')
+    await once(unavailable, 'listening')
+    const fallback = await startUpstream()
+    const store = new TokenStore()
+    const token = store.create({
+      candidates: [
+        { sourceId: 'a', url: `http://127.0.0.1:${(unavailable.address() as AddressInfo).port}/audio` },
+        { sourceId: 'b', url: fallback.url },
+      ],
+    })
+    const app = playbackApp(store)
+
+    const response = await app.inject({ method: 'GET', url: `/api/v1/streams/${token}` })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.rawPayload).toEqual(bytes)
+    expect(unavailableRequests).toBe(1)
+    expect(fallback.requests).toHaveLength(1)
+  })
+
+  it('falls back when a candidate disconnects before its first byte', async() => {
+    const failing = createHttpServer((_request, response) => {
+      response.writeHead(200, { 'content-type': 'audio/mpeg' })
+      response.destroy()
+    })
+    servers.push(failing)
+    failing.listen(0, '127.0.0.1')
+    await once(failing, 'listening')
+    const fallback = await startUpstream()
+    const store = new TokenStore()
+    const token = store.create({
+      candidates: [
+        { sourceId: 'a', url: `http://127.0.0.1:${(failing.address() as AddressInfo).port}/audio` },
+        { sourceId: 'b', url: fallback.url },
+      ],
+    })
+    const app = playbackApp(store)
+
+    const response = await app.inject({ method: 'GET', url: `/api/v1/streams/${token}` })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.rawPayload).toEqual(bytes)
+    expect(fallback.requests).toHaveLength(1)
+  })
+
+  it('streams valid chunked audio without a content-length header', async() => {
+    const chunked = createHttpServer((_request, response) => {
+      response.writeHead(200, { 'content-type': 'audio/mpeg' })
+      response.write(bytes.subarray(0, 16))
+      response.end(bytes.subarray(16))
+    })
+    servers.push(chunked)
+    chunked.listen(0, '127.0.0.1')
+    await once(chunked, 'listening')
+    const store = new TokenStore()
+    const token = store.create({ url: `http://127.0.0.1:${(chunked.address() as AddressInfo).port}/audio` })
+    const app = playbackApp(store)
+
+    const response = await app.inject({ method: 'GET', url: `/api/v1/streams/${token}` })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.rawPayload).toEqual(bytes)
+  })
+
+  it('never appends a second source after the first source commits bytes', async() => {
+    const failing = createHttpServer((_request, response) => {
+      response.writeHead(200, { 'content-type': 'audio/mpeg', 'content-length': 128 })
+      response.write(Buffer.from('ID3partial'))
+      setTimeout(() => { response.destroy(new Error('mid-stream failure')) }, 5)
+    })
+    servers.push(failing)
+    failing.listen(0, '127.0.0.1')
+    await once(failing, 'listening')
+    const fallback = await startUpstream()
+    const store = new TokenStore()
+    const token = store.create({
+      candidates: [
+        { sourceId: 'a', url: `http://127.0.0.1:${(failing.address() as AddressInfo).port}/audio` },
+        { sourceId: 'b', url: fallback.url },
+      ],
+    })
+    const app = playbackApp(store)
+
+    await app.inject({ method: 'GET', url: `/api/v1/streams/${token}` }).catch(() => undefined)
+
+    expect(fallback.requests).toEqual([])
+  })
+
+  it('serves cached artwork through an opaque same-origin resource path', async() => {
+    const resources = new PlaybackResourceStore()
+    const picture = resources.putPicture({ bytes: Uint8Array.from([1, 2, 3]), mimeType: 'image/png' })
+    const app = playbackApp(new TokenStore(), resources)
+
+    const get = await app.inject({ method: 'GET', url: `/api/v1/playback/resources/${picture.token}/picture` })
+    const head = await app.inject({ method: 'HEAD', url: `/api/v1/playback/resources/${picture.token}/picture` })
+    const expired = await app.inject({ method: 'GET', url: '/api/v1/playback/resources/missing/picture' })
+
+    expect(get.statusCode).toBe(200)
+    expect(get.headers['content-type']).toBe('image/png')
+    expect(get.rawPayload).toEqual(Buffer.from([1, 2, 3]))
+    expect(head.statusCode).toBe(200)
+    expect(head.rawPayload).toEqual(Buffer.alloc(0))
+    expect(expired.statusCode).toBe(410)
+    expect(expired.body).not.toContain('http')
   })
 
   it('canonicalizes legacy FLAC content type for native media frameworks', async() => {
@@ -446,14 +638,28 @@ describe('same-origin playback proxy', () => {
       return reply.send(error)
     })
     registerPlaybackRoutes(app, {
-      resolveTrack: async() => ({ url: '/api/v1/streams/opaque-token', quality: '128k' as TuneFlow.Quality, expiresAt: 123 }),
+      resolveTrack: async() => ({
+        url: '/api/v1/streams/opaque-token',
+        quality: '128k' as TuneFlow.Quality,
+        expiresAt: 123,
+        resources: { lyrics: { lyric: '[00:00]bundle' }, pictureUrl: '/api/v1/playback/resources/picture-token/picture' },
+        completeness: 'complete',
+      }),
     })
 
     const invalid = await app.inject({ method: 'POST', url: '/api/v1/playback/tracks/resolve', payload: { source: '', quality: '128k', info: {} } })
     const resolved = await app.inject({ method: 'POST', url: '/api/v1/playback/tracks/resolve', payload: { source: 'kw', quality: '128k', info: {} } })
 
     expect(invalid.statusCode).toBe(400)
-    expect(resolved.json()).toEqual({ data: { url: '/api/v1/streams/opaque-token', quality: '128k', expiresAt: 123 } })
+    expect(resolved.json()).toEqual({
+      data: {
+        url: '/api/v1/streams/opaque-token',
+        quality: '128k',
+        expiresAt: 123,
+        resources: { lyrics: { lyric: '[00:00]bundle' }, pictureUrl: '/api/v1/playback/resources/picture-token/picture' },
+        completeness: 'complete',
+      },
+    })
     expect(resolved.body).not.toContain('http://')
     expect(resolved.body).not.toContain('https://')
   })

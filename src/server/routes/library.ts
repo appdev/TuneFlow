@@ -8,6 +8,11 @@ import type { ApiFastifyInstance } from '../api/types'
 import { ApiSuccess, ErrorResponses } from '../api/schemas/common'
 import { IdParams, LibraryTrack } from '../api/schemas/domain'
 
+interface LibraryRouteDependencies {
+  onDeleted?: (filePath: string) => void | Promise<void>
+  publish?: (tracks: ReturnType<LibraryScanner['list']>) => void
+}
+
 export const parseLocalRange = (value: string | undefined, size: number): { start: number, end: number } | undefined => {
   if (value == null) return undefined
   const match = /^bytes=(?:(\d+)-(\d*)|-(\d+))$/.exec(value)
@@ -27,7 +32,11 @@ const mediaType = (filePath: string): string => ({
   '.ape': 'audio/ape', '.flac': 'audio/flac', '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
 }[path.extname(filePath).toLowerCase()] ?? 'application/octet-stream')
 
-export const registerLibraryRoutes = (app: ApiFastifyInstance, scanner: LibraryScanner): void => {
+export const registerLibraryRoutes = (
+  app: ApiFastifyInstance,
+  scanner: LibraryScanner,
+  dependencies: LibraryRouteDependencies = {},
+): void => {
   const listResponse = { 200: ApiSuccess(Type.Array(LibraryTrack)), ...ErrorResponses }
   app.get('/api/v1/library/tracks', {
     schema: {
@@ -39,6 +48,21 @@ export const registerLibraryRoutes = (app: ApiFastifyInstance, scanner: LibraryS
       operationId: 'scanLibrary', tags: ['Library'], summary: 'Rescan the local library', response: listResponse,
     },
   }, async() => ({ data: await scanner.refresh() }))
+  app.delete('/api/v1/library/tracks/:id', {
+    schema: {
+      operationId: 'deleteLibraryTrack',
+      tags: ['Library'],
+      summary: 'Delete a local library track and its derived resources',
+      params: IdParams,
+      response: { 204: Type.Null(), ...ErrorResponses },
+    },
+  }, async(request, reply) => {
+    const removed = await scanner.remove((request.params as { id: string }).id)
+    if (removed == null) throw new ApiError(404, 'LIBRARY_TRACK_NOT_FOUND', 'Library track not found')
+    await dependencies.onDeleted?.(removed.filePath)
+    dependencies.publish?.(scanner.list())
+    return reply.code(204).send()
+  })
   const stream = async(request: FastifyRequest, reply: FastifyReply) => {
     const entry = scanner.get((request.params as { id: string }).id)
     if (entry == null) throw new ApiError(404, 'LIBRARY_TRACK_NOT_FOUND', 'Library track not found')

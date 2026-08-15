@@ -110,6 +110,7 @@ const modules = {
     import_user_api_from_url: 'import_user_api_from_url',
     remove_user_api: 'remove_user_api',
     set_user_api: 'set_user_api',
+    configure_user_api_sources: 'configure_user_api_sources',
     get_user_api_list: 'get_user_api_list',
     request_user_api: 'request_user_api',
     request_user_api_cancel: 'request_user_api_cancel',

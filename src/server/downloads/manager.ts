@@ -11,6 +11,9 @@ import type { DownloadCreateInput, DownloadDto, DownloadFileIntegrity, DownloadJ
 import { isSameMusic } from './matching'
 import { migrateLegacyDatabaseFiles } from '../db/databasePath'
 import defaultSetting from '../../common/defaultSetting'
+import { parseFile } from 'music-metadata'
+import { SourceServiceError } from '../sources/types'
+import { MediaClient } from '../playback/mediaClient'
 
 interface DownloadManagerOptions {
   storageRoot: string
@@ -18,7 +21,7 @@ interface DownloadManagerOptions {
   resolve: (job: DownloadJobRecord, signal: AbortSignal) => Promise<ResolvedDownload>
   findExistingFile?: (musicInfo: TuneFlow.Music.MusicInfoOnline) => Promise<string | undefined>
   publish?: (jobs: DownloadDto[]) => void
-  metadata?: (filePath: string, job: DownloadJobRecord, settings: TuneFlow.AppSetting) => Promise<void>
+  metadata?: (filePath: string, job: DownloadJobRecord, settings: TuneFlow.AppSetting, resources?: ResolvedDownload['resources']) => Promise<void>
   materializeResources?: (filePath: string) => Promise<void>
   resolveListName?: (listId: string) => string | undefined
   finalizationCheckpoint?: (
@@ -29,6 +32,7 @@ interface DownloadManagerOptions {
   onCompleted?: () => Promise<unknown> | unknown
   autoStart?: boolean
   now?: () => number
+  mediaClient?: MediaClient
 }
 
 const TABLE = `CREATE TABLE IF NOT EXISTS web_downloads (
@@ -51,12 +55,15 @@ export class DownloadManager {
   private readonly records = new Map<string, DownloadJobRecord>()
   private readonly active = new Map<string, { controller: AbortController, promise: Promise<void> }>()
   private readonly playbackCreations = new Map<string, Promise<DownloadDto>>()
+  private readonly resolvedResources = new Map<string, ResolvedDownload['resources']>()
   private readonly db: Database.Database
   private readonly ownsDb: boolean
   private readonly audioRoot: string
+  private readonly mediaClient: MediaClient
   private closed = false
 
   constructor(private readonly options: DownloadManagerOptions) {
+    this.mediaClient = options.mediaClient ?? new MediaClient({ allowPrivateNetwork: process.env.NODE_ENV === 'test' })
     this.audioRoot = getAudioRoot(options.storageRoot)
     mkdirSync(this.audioRoot, { recursive: true })
     if (!isPathInside(options.storageRoot, this.audioRoot)) throw new Error('Service audio root escaped storage root')
@@ -251,6 +258,23 @@ export class DownloadManager {
     this.pump()
   }
 
+  removeCompletedForFile(filePath: string): number {
+    const resolved = path.resolve(filePath)
+    if (!isPathInside(this.audioRoot, resolved)) throw new Error('Completed download path escaped the Service audio root')
+    const ids = [...this.records.values()]
+      .filter(record => record.status === 'completed' && this.resolveFinal(record.finalRelativePath) === resolved)
+      .map(record => record.id)
+    if (ids.length === 0) return 0
+    const remove = this.db.prepare('DELETE FROM web_downloads WHERE id = ?')
+    const transaction = this.db.transaction((values: string[]) => {
+      for (const id of values) remove.run(id)
+    })
+    transaction(ids)
+    for (const id of ids) this.records.delete(id)
+    this.publish()
+    return ids.length
+  }
+
   async waitForIdle(): Promise<void> {
     while (this.active.size > 0 || [...this.records.values()].some(record => record.status === 'waiting' && this.options.autoStart !== false)) {
       const current = [...this.active.values()].map(async item => item.promise)
@@ -300,9 +324,28 @@ export class DownloadManager {
         this.prepareQuality(record, quality)
         try {
           const resolved = await this.options.resolve(record, controller.signal)
-          await this.transfer(record, resolved, controller.signal, allowResume)
-          transferred = true
-          break
+          const sourceCandidates = resolved.candidates ?? (resolved.url == null ? [] : [{ sourceId: 'legacy', url: resolved.url, headers: resolved.headers }])
+          let candidateError: unknown
+          for (const [candidateIndex, candidate] of sourceCandidates.entries()) {
+            if (controller.signal.aborted || record.status === 'paused') return
+            try {
+              await this.transfer(record, candidate, controller.signal, resolved.candidates == null && allowResume && candidateIndex === 0)
+              if (resolved.candidates != null) await this.requireParseableAudio(record)
+              this.resolvedResources.set(record.id, resolved.resources)
+              transferred = true
+              break
+            } catch (error) {
+              if (controller.signal.aborted || record.status === 'paused') return
+              if (error instanceof SourceServiceError && error.origin !== 'service-network') throw error
+              candidateError = error
+              rmSync(this.resolveRelative(record.partRelativePath), { force: true })
+              this.update(record, { downloaded: 0, total: 0, etag: undefined, lastModified: undefined })
+            }
+          }
+          if (transferred) break
+          if (candidateError instanceof Error) throw candidateError
+          if (candidateError != null) throw new Error(String(candidateError))
+          throw new Error('No download source candidate is available')
         } catch (error) {
           if (controller.signal.aborted || record.status === 'paused') return
           lastError = error
@@ -318,6 +361,7 @@ export class DownloadManager {
     } catch (error) {
       if (controller.signal.aborted || record.status === 'paused') return
       this.update(record, { status: 'error', error: error instanceof Error ? error.message : String(error) })
+      this.resolvedResources.delete(record.id)
     }
   }
 
@@ -325,33 +369,45 @@ export class DownloadManager {
     const part = this.resolveRelative(record.partRelativePath)
     const existing = existsSync(part) ? statSync(part).size : 0
     const resume = allowResume && existing > 0 && (record.etag != null || record.lastModified != null)
-    const headers = new Headers(resolved.headers)
-    if (resume) {
-      headers.set('range', `bytes=${existing}-`)
-      headers.set('if-range', record.etag ?? record.lastModified!)
+    const response = await this.mediaClient.open({ url: resolved.url, headers: resolved.headers }, {
+      method: 'GET',
+      range: resume ? `bytes=${existing}-` : undefined,
+      ifRange: resume ? record.etag ?? record.lastModified : undefined,
+      signal,
+    })
+    if (response.statusCode !== 200 && response.statusCode !== 206) {
+      const retryable = [401, 403, 404, 408, 410, 429].includes(response.statusCode) || response.statusCode >= 500
+      response.close()
+      throw new SourceServiceError('SOURCE_MEDIA_UNAVAILABLE', `Download source returned HTTP ${response.statusCode}`, retryable ? 'service-network' : 'protocol')
     }
-    const response = await fetch(resolved.url, { headers, signal, redirect: 'follow' })
-    if (!response.ok && response.status !== 206) throw new Error(`Download source returned HTTP ${response.status}`)
-    const contentRange = response.headers.get('content-range')
-    const validResume = resume && response.status === 206 && contentRange?.startsWith(`bytes ${existing}-`) === true
+    const contentRange = response.headers['content-range']
+    const parsedRange = contentRange == null ? null : /^bytes (\d+)-(\d+)\/(\d+)$/.exec(contentRange)
+    const rangeStart = parsedRange == null ? -1 : Number(parsedRange[1])
+    const rangeEnd = parsedRange == null ? -1 : Number(parsedRange[2])
+    const rangeTotal = parsedRange == null ? -1 : Number(parsedRange[3])
+    const responseLength = response.headers['content-length'] == null ? 0 : Number(response.headers['content-length'])
+    const rangeConsistent = parsedRange != null && rangeStart <= rangeEnd && rangeEnd < rangeTotal && (!Number.isFinite(responseLength) || responseLength === 0 || responseLength === rangeEnd - rangeStart + 1)
+    const validResume = resume && response.statusCode === 206 && rangeConsistent && rangeStart === existing
     if (resume && !validResume) {
-      await response.body?.cancel()
+      response.close()
       rmSync(part, { force: true })
       this.update(record, { downloaded: 0, total: 0, etag: undefined, lastModified: undefined })
       return this.transfer(record, resolved, signal, false)
     }
-    const responseLength = Number(response.headers.get('content-length') ?? 0)
-    const total = validResume ? existing + responseLength : responseLength
+    if (!resume && response.statusCode === 206 && (!rangeConsistent || rangeStart !== 0)) {
+      response.close()
+      throw new SourceServiceError('SOURCE_MEDIA_INVALID', 'Download range response is invalid', 'service-network')
+    }
+    const total = response.statusCode === 206 && rangeConsistent ? rangeTotal : responseLength
     this.update(record, {
       downloaded: validResume ? existing : 0,
       total: Number.isFinite(total) ? total : 0,
-      etag: response.headers.get('etag') ?? record.etag,
-      lastModified: response.headers.get('last-modified') ?? record.lastModified,
+      etag: response.headers.etag ?? record.etag,
+      lastModified: response.headers['last-modified'] ?? record.lastModified,
     })
     const writer = createWriteStream(part, { flags: validResume ? 'a' : 'w' })
     try {
-      if (response.body == null) throw new Error('Download source returned no body')
-      for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
+      for await (const chunk of response.body as AsyncIterable<Uint8Array>) {
         if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
         if (!writer.write(Buffer.from(chunk))) await onceDrain(writer)
         record.downloaded += chunk.byteLength
@@ -360,10 +416,23 @@ export class DownloadManager {
         this.publish()
       }
       await new Promise<void>((resolve, reject) => writer.end(error => { error == null ? resolve() : reject(error) }))
-      if (record.total > 0 && record.downloaded !== record.total) throw new Error(`Incomplete download: ${record.downloaded}/${record.total}`)
+      if (record.total > 0 && record.downloaded !== record.total) throw new SourceServiceError('SOURCE_MEDIA_UNAVAILABLE', `Incomplete download: ${record.downloaded}/${record.total}`, 'service-network')
     } catch (error) {
       writer.destroy()
       throw error
+    } finally {
+      response.close()
+    }
+  }
+
+  private async requireParseableAudio(record: DownloadJobRecord): Promise<void> {
+    try {
+      const metadata = await parseFile(this.resolveRelative(record.partRelativePath), { duration: false, skipCovers: true })
+      if (metadata.format.container == null || metadata.format.container === '' || metadata.format.codec == null || metadata.format.codec === '') {
+        throw new Error('Audio container or codec is missing')
+      }
+    } catch {
+      throw new SourceServiceError('SOURCE_MEDIA_INVALID', 'Downloaded audio is not parseable', 'service-network')
     }
   }
 
@@ -574,7 +643,12 @@ export class DownloadManager {
     if (await this.options.finalizationCheckpoint?.('after-publication', record) === 'simulate-crash') return
     let warning: string | undefined
     try {
-      await (this.options.metadata ?? applyDownloadMetadata)(final, record, this.effectiveSettings(record.useDefaultDownloadSettings === true))
+      const resources = this.resolvedResources.get(record.id)
+      if (this.options.metadata != null) {
+        await this.options.metadata(final, record, this.effectiveSettings(record.useDefaultDownloadSettings === true), resources)
+      } else {
+        await applyDownloadMetadata(final, record, this.effectiveSettings(record.useDefaultDownloadSettings === true), resources)
+      }
     } catch (error) {
       warning = `Metadata: ${error instanceof Error ? error.message : String(error)}`
     }
@@ -595,6 +669,7 @@ export class DownloadManager {
       warning,
     })
     await this.options.onCompleted?.()
+    this.resolvedResources.delete(record.id)
   }
 
   private ensureAvailableDestination(record: DownloadJobRecord): void {

@@ -54,8 +54,8 @@ export class SourceWorkerHost {
       const isCurrent = () => this.worker === worker && this.generation === generation
       const initTimeout = setTimeout(() => {
         if (!isCurrent()) return
-        this.reset(new SourceServiceError('SOURCE_TIMEOUT'))
-        reject(new SourceServiceError('SOURCE_TIMEOUT'))
+        this.reset(new SourceServiceError('SOURCE_TIMEOUT', 'Source worker initialization timed out', 'worker-timeout'))
+        reject(new SourceServiceError('SOURCE_TIMEOUT', 'Source worker initialization timed out', 'worker-timeout'))
       }, this.requestTimeoutMs)
       worker.on('message', message => {
         if (!isCurrent()) return
@@ -130,7 +130,7 @@ export class SourceWorkerHost {
         if (this.worker === worker && this.generation === generation) worker.postMessage({ type: 'network-response', id: message.id, response: { statusCode: response.statusCode, statusMessage: response.statusMessage, headers: response.headers, raw: Array.from(response.raw), body: response.body }, body: response.body })
       } catch (error) {
         const sourceError = error instanceof SourceServiceError ? error : new SourceServiceError('SOURCE_PROTOCOL_ERROR')
-        if (this.worker === worker && this.generation === generation) worker.postMessage({ type: 'network-response', id: message.id, error: { code: sourceError.code, message: sourceError.message } })
+        if (this.worker === worker && this.generation === generation) worker.postMessage({ type: 'network-response', id: message.id, error: { code: sourceError.code, message: sourceError.message, origin: sourceError.origin } })
       } finally {
         if (this.generation === generation) this.network.delete(networkKey)
       }
@@ -159,7 +159,9 @@ export class SourceWorkerHost {
           pending.reject(protocolError)
         }
       } else {
-        const error = new SourceServiceError(typeof message.code === 'string' ? message.code : 'SOURCE_PROTOCOL_ERROR', message.message)
+        const code = typeof message.code === 'string' ? message.code : 'SOURCE_PROTOCOL_ERROR'
+        const origin = message.origin === 'service-network' ? 'service-network' : code === 'SOURCE_PROTOCOL_ERROR' ? 'protocol' : 'script'
+        const error = new SourceServiceError(code, message.message, origin)
         if (error.code === 'SOURCE_PROTOCOL_ERROR') this.reset(error)
         else this.completeRequest(message.id)
         pending.reject(error)
@@ -209,20 +211,20 @@ export class SourceWorkerHost {
   async request<T>(request: SourceRequest, signal?: AbortSignal): Promise<T> {
     await this.start()
     if (this.pending.size >= this.maxOutstanding) throw new SourceServiceError('SOURCE_PROTOCOL_ERROR', 'Too many outstanding source requests')
-    if (signal?.aborted) throw new SourceServiceError('SOURCE_CANCELLED')
+    if (signal?.aborted) throw new SourceServiceError('SOURCE_CANCELLED', 'Source request cancelled', 'caller')
     const sources = this.capabilitiesValue ?? {}
     const supported = sources[request.source]
     if (supported == null || !supported.actions.includes(request.action as 'musicUrl' | 'lyric' | 'pic')) throw new SourceServiceError('SOURCE_PROTOCOL_ERROR', 'Unsupported source action')
     const id = ++this.sequence
     return new Promise<T>((resolve, reject) => {
-      const timeout = setTimeout(() => { this.reset(new SourceServiceError('SOURCE_TIMEOUT')) }, this.requestTimeoutMs)
+      const timeout = setTimeout(() => { this.reset(new SourceServiceError('SOURCE_TIMEOUT', 'Source worker request timed out', 'worker-timeout')) }, this.requestTimeoutMs)
       const abort = () => {
         const pending = this.pending.get(id)
         if (pending == null) return
         this.pending.delete(id)
         clearTimeout(pending.timeout)
-        this.reset(new SourceServiceError('SOURCE_CANCELLED'))
-        reject(new SourceServiceError('SOURCE_CANCELLED'))
+        this.reset(new SourceServiceError('SOURCE_CANCELLED', 'Source request cancelled', 'caller'))
+        reject(new SourceServiceError('SOURCE_CANCELLED', 'Source request cancelled', 'caller'))
       }
       this.pending.set(id, { resolve: value => { resolve(value as T) }, reject, timeout, abort, signal, request })
       signal?.addEventListener('abort', abort, { once: true })

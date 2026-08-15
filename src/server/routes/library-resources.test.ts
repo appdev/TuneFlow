@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -98,6 +98,69 @@ describe('local library resources', () => {
     await app.inject({ method: 'POST', url: '/api/v1/library/scan' })
     const second = await app.inject({ method: 'GET', url: `/api/v1/library/tracks/${id}/lyrics` })
     expect(second.json()).toEqual({ data: { lyric: '[00:02.00]Changed lyric' } })
+  })
+
+  it('deletes the audio, sidecar, derived resources, index, and publishes the new library snapshot', async() => {
+    const fixture = await createTestServer()
+    const audioPath = path.join(fixture.audioRoot, 'fixture.mp3')
+    const sidecarPath = path.join(fixture.audioRoot, 'fixture.lrc')
+    await writeAudioMetadata(audioPath, {
+      title: 'fixture',
+      picture: png,
+      pictureMimeType: 'image/png',
+    })
+    writeFileSync(sidecarPath, '[00:01.00]Sidecar lyric')
+    const app = await fixture.start()
+    const id = await firstTrackId(app)
+    const picturePath = path.join(fixture.storageRoot, 'cover', 'fixture.mp3.png')
+    const lyricsPath = path.join(fixture.storageRoot, 'lyrics', 'fixture.mp3.lrc')
+    const indexRoot = path.join(fixture.storageRoot, 'library-resource-index')
+    expect(existsSync(picturePath)).toBe(true)
+    expect(existsSync(lyricsPath)).toBe(true)
+    expect(readdirSync(indexRoot).filter(name => name.endsWith('.json'))).toHaveLength(1)
+
+    const deleted = await app.inject({ method: 'DELETE', url: `/api/v1/library/tracks/${id}` })
+
+    expect(deleted.statusCode).toBe(204)
+    expect(existsSync(audioPath)).toBe(false)
+    expect(existsSync(sidecarPath)).toBe(false)
+    expect(existsSync(picturePath)).toBe(false)
+    expect(existsSync(lyricsPath)).toBe(false)
+    expect(readdirSync(indexRoot).filter(name => name.endsWith('.json'))).toHaveLength(0)
+    expect((await app.inject({ method: 'GET', url: '/api/v1/library/tracks' })).json()).toEqual({ data: [] })
+    const snapshot = (await app.inject({ method: 'GET', url: '/api/v1/events/snapshot' })).json().data as {
+      events: Array<{ type: string, data: unknown }>
+    }
+    expect(snapshot.events).toContainEqual(expect.objectContaining({ type: 'library.updated', data: [] }))
+
+    const repeated = await app.inject({ method: 'DELETE', url: `/api/v1/library/tracks/${id}` })
+    expect(repeated.statusCode).toBe(404)
+    expect(repeated.json()).toEqual({ error: { code: 'LIBRARY_TRACK_NOT_FOUND', message: 'Library track not found' } })
+  })
+
+  it('keeps a sidecar while another audio variant with the same basename still uses it', async() => {
+    const fixture = await createTestServer([
+      { name: 'shared.mp3', bytes: readFileSync(fixtureAudio) },
+      { name: 'shared.wav', bytes: readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/filters/filter-telephone.wav')) },
+    ])
+    const sidecarPath = path.join(fixture.audioRoot, 'shared.lrc')
+    writeFileSync(sidecarPath, '[00:01.00]Shared lyric')
+    const app = await fixture.start()
+    const tracks = (await app.inject({ method: 'GET', url: '/api/v1/library/tracks' })).json().data as Array<{
+      id: string
+      extension: string
+      lyricsUrl: string
+    }>
+    expect(tracks).toHaveLength(2)
+    const mp3 = tracks.find(track => track.extension === 'mp3')!
+    const wav = tracks.find(track => track.extension === 'wav')!
+
+    expect((await app.inject({ method: 'DELETE', url: `/api/v1/library/tracks/${mp3.id}` })).statusCode).toBe(204)
+    expect(existsSync(sidecarPath)).toBe(true)
+    expect((await app.inject({ method: 'GET', url: wav.lyricsUrl })).json()).toEqual({ data: { lyric: '[00:01.00]Shared lyric' } })
+
+    expect((await app.inject({ method: 'DELETE', url: `/api/v1/library/tracks/${wav.id}` })).statusCode).toBe(204)
+    expect(existsSync(sidecarPath)).toBe(false)
   })
 
   it('returns resource-specific 404 errors without leaking paths and rejects unknown ids', async() => {

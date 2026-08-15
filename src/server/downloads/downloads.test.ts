@@ -51,7 +51,7 @@ const metadataSettings = (patch: Partial<TuneFlow.AppSetting> = {}): TuneFlow.Ap
   ...patch,
 } as TuneFlow.AppSetting)
 
-const startUpstream = async(options: { range?: boolean, disconnectOnce?: boolean, payload?: Buffer, status?: number } = {}) => {
+const startUpstream = async(options: { range?: boolean, disconnectOnce?: boolean, payload?: Buffer, status?: number, unsolicitedRangeStart?: number } = {}) => {
   const requests: Array<{ range?: string }> = []
   let disconnect = options.disconnectOnce === true
   const payload = options.payload ?? bytes
@@ -63,8 +63,8 @@ const startUpstream = async(options: { range?: boolean, disconnectOnce?: boolean
       response.end()
       return
     }
-    const start = range == null ? 0 : Number(/^bytes=(\d+)-$/.exec(range)?.[1] ?? 0)
-    const canRange = options.range !== false && range != null
+    const start = options.unsolicitedRangeStart ?? (range == null ? 0 : Number(/^bytes=(\d+)-$/.exec(range)?.[1] ?? 0))
+    const canRange = options.unsolicitedRangeStart != null || (options.range !== false && range != null)
     response.writeHead(canRange ? 206 : 200, {
       'content-type': 'audio/mpeg',
       'content-length': payload.length - (canRange ? start : 0),
@@ -336,6 +336,90 @@ describe('durable download manager', () => {
     expect(attempted).toEqual(['flac', '128k'])
     expect(manager.get(job.id)).toMatchObject({ status: 'completed', quality: '128k', extension: 'mp3' })
     expect(readFileSync(path.join(root, 'audio', 'ABSong.mp3'))).toEqual(bytes)
+    manager.close()
+  })
+
+  it('restarts from zero with the next source and never mixes partial audio', async() => {
+    const root = createRoot()
+    const first = await startUpstream({ disconnectOnce: true, payload: validMp3 })
+    const second = await startUpstream({ payload: validMp3 })
+    const manager = new DownloadManager({
+      storageRoot: root,
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async() => ({
+        candidates: [
+          { sourceId: 'a', url: first.url },
+          { sourceId: 'b', url: second.url },
+        ],
+      }),
+      metadata: async() => {},
+    })
+
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: '128k' })
+    await manager.waitForIdle()
+
+    const finalPath = path.join(root, 'audio', manager.get(job.id)!.fileName)
+    expect(manager.get(job.id)).toMatchObject({ status: 'completed' })
+    expect(first.requests).toEqual([{ range: undefined }])
+    expect(second.requests).toEqual([{ range: undefined }])
+    expect(readFileSync(finalPath)).toEqual(validMp3)
+    expect(existsSync(path.join(root, 'tmp', `${job.id}.part`))).toBe(false)
+    expect(manager.expectedIntegrity(finalPath)).toEqual({
+      size: validMp3.length,
+      sha256: createHash('sha256').update(validMp3).digest('hex'),
+    })
+    manager.close()
+  })
+
+  it('rejects an unsolicited nonzero partial response before trying the next source', async() => {
+    const root = createRoot()
+    const invalid = await startUpstream({ payload: validMp3, unsolicitedRangeStart: 10 })
+    const valid = await startUpstream({ payload: validMp3 })
+    const manager = new DownloadManager({
+      storageRoot: root,
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async() => ({
+        candidates: [
+          { sourceId: 'a', url: invalid.url },
+          { sourceId: 'b', url: valid.url },
+        ],
+      }),
+      metadata: async() => {},
+    })
+
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: '128k' })
+    await manager.waitForIdle()
+
+    expect(manager.get(job.id)).toMatchObject({ status: 'completed' })
+    expect(invalid.requests).toEqual([{ range: undefined }])
+    expect(valid.requests).toEqual([{ range: undefined }])
+    expect(readFileSync(path.join(root, 'audio', manager.get(job.id)!.fileName))).toEqual(validMp3)
+    manager.close()
+  })
+
+  it('rejects an unparseable candidate before trying the next source', async() => {
+    const root = createRoot()
+    const invalid = await startUpstream({ payload: bytes })
+    const valid = await startUpstream({ payload: validMp3 })
+    const manager = new DownloadManager({
+      storageRoot: root,
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async() => ({
+        candidates: [
+          { sourceId: 'a', url: invalid.url },
+          { sourceId: 'b', url: valid.url },
+        ],
+      }),
+      metadata: async() => {},
+    })
+
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: '128k' })
+    await manager.waitForIdle()
+
+    expect(manager.get(job.id)).toMatchObject({ status: 'completed' })
+    expect(readFileSync(path.join(root, 'audio', manager.get(job.id)!.fileName))).toEqual(validMp3)
+    expect(invalid.requests).toHaveLength(1)
+    expect(valid.requests).toHaveLength(1)
     manager.close()
   })
 
@@ -674,6 +758,56 @@ describe('durable download manager', () => {
     expect(restarted.get(first.id)?.fileName).toBe('ABSong (1).mp3')
     expect((await restarted.create({ musicInfo: fixtureTrack, quality: '128k' })).fileName).toBe('ABSong (2).mp3')
     restarted.close()
+  })
+
+  it('forgets every completed download record for a deleted library file', async() => {
+    const root = createRoot()
+    const upstream = await startUpstream()
+    const manager = new DownloadManager({
+      storageRoot: root,
+      autoStart: false,
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async() => ({ url: upstream.url, headers: {} }),
+      metadata: async() => {},
+    })
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: '128k' })
+    await manager.start(job.id)
+    await manager.waitForIdle()
+    const audioPath = path.join(root, 'audio', job.fileName)
+    expect(existsSync(audioPath)).toBe(true)
+    expect(getDB().prepare('SELECT id FROM web_downloads WHERE id = ?').get(job.id)).toEqual({ id: job.id })
+
+    expect(manager.removeCompletedForFile(audioPath)).toBe(1)
+
+    expect(manager.get(job.id)).toBeUndefined()
+    expect(getDB().prepare('SELECT id FROM web_downloads WHERE id = ?').get(job.id)).toBeUndefined()
+    expect(existsSync(audioPath)).toBe(true)
+    expect(manager.removeCompletedForFile(audioPath)).toBe(0)
+    manager.close()
+  })
+
+  it('reports the persisted completion time for a canonical downloaded file', async() => {
+    const root = createRoot()
+    const upstream = await startUpstream({ payload: validMp3 })
+    let now = 1_000
+    const manager = new DownloadManager({
+      storageRoot: root,
+      autoStart: false,
+      now: () => now,
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async() => ({ url: upstream.url, headers: {} }),
+      metadata: async() => {},
+    })
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: '128k' })
+    now = 5_000
+    await manager.start(job.id)
+    await manager.waitForIdle()
+    const completed = manager.get(job.id)!
+    const audioPath = path.join(root, 'audio', completed.fileName)
+
+    expect(manager.completedAt(audioPath)).toBe(completed.updatedAt)
+    expect(manager.completedAt(path.join(root, 'outside.mp3'))).toBeUndefined()
+    manager.close()
   })
 
   it('keeps a raw FLAC completed with a warning when its awaited metadata writer rejects asynchronously', async() => {

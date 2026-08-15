@@ -65,6 +65,12 @@ export interface DownloadDto {
 }
 
 export interface ResolvedDownload {
-  url: string
+  url?: string
   headers?: Record<string, string>
+  candidates?: Array<{ sourceId: string, url: string, headers?: Record<string, string> }>
+  resources?: {
+    pictureBytes?: Uint8Array
+    pictureMimeType?: string
+    lyrics?: TuneFlow.Music.LyricInfo
+  }
 }

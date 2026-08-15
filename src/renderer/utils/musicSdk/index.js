@@ -8,6 +8,7 @@ import xm from './xm'
 import { supportQuality } from './api-source'
 import { rendererInvoke } from '@common/rendererIpc'
 import { WIN_MAIN_RENDERER_EVENT_NAME } from '@common/ipcNames'
+import { createWebLeaderboard } from './webLeaderboard'
 
 
 const sources = {
@@ -53,10 +54,13 @@ const sources = {
 if (globalThis.tuneFlowWebRuntime != null) {
   for (const source of sources.sources) {
     const search = sources[source.id]?.musicSearch
-    if (!search) continue
-    search.search = (text, page = 1, limit = search.limit || 30) => rendererInvoke(WIN_MAIN_RENDERER_EVENT_NAME.handle_request, {
-      kind: 'provider-search', source: source.id, text, page, limit,
-    }).then(result => ({ ...result, allPage: Math.ceil(result.total / result.limit) }))
+    if (search) {
+      search.search = (text, page = 1, limit = search.limit || 30) => rendererInvoke(WIN_MAIN_RENDERER_EVENT_NAME.handle_request, {
+        kind: 'provider-search', source: source.id, text, page, limit,
+      }).then(result => ({ ...result, allPage: Math.ceil(result.total / result.limit) }))
+    }
+    const leaderboard = sources[source.id]?.leaderboard
+    if (leaderboard) Object.assign(leaderboard, createWebLeaderboard(source.id, rendererInvoke))
   }
 }
 export default {
