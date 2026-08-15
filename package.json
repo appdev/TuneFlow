@@ -1,6 +1,6 @@
 {
   "name": "tuneflow-server-web",
-  "version": "2.12.3",
+  "version": "2.12.4",
   "description": "TuneFlow (音流) Web UI and Node.js Service",
   "scripts": {
     "build:theme": "node src/common/theme/createThemes.js",

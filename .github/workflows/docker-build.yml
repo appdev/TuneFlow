@@ -67,10 +67,13 @@ jobs:
           DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
         run: |
           image="$DOCKERHUB_USERNAME/tuneflow-server"
+          version="$(node -p "require('./package.json').version")"
           sha_tag="sha-${GITHUB_SHA::12}"
           docker tag "$CI_IMAGE" "$image:latest"
+          docker tag "$CI_IMAGE" "$image:$version"
           docker tag "$CI_IMAGE" "$image:$sha_tag"
           docker push "$image:latest"
+          docker push "$image:$version"
           docker push "$image:$sha_tag"
 
       - name: Print container logs on failure
