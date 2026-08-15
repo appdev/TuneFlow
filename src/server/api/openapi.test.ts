@@ -65,6 +65,8 @@ describe('Service OpenAPI contract', () => {
     expect(downloadItem.required).toEqual(expect.arrayContaining(['queuePosition', 'createdAt', 'updatedAt']))
     const libraryItem = successDataSchema('/api/v1/library/tracks', 'get').items
     const libraryResourceProperties = libraryItem.allOf.find((schema: { properties?: Record<string, unknown> }) => schema.properties?.streamUrl != null).properties
+    expect(libraryItem.allOf.find((schema: { required?: string[] }) => schema.required?.includes('downloadedAt'))?.properties.downloadedAt)
+      .toMatchObject({ type: 'number', minimum: 0 })
     expect(Object.keys(libraryResourceProperties)).toEqual(expect.arrayContaining(['pictureUrl', 'lyricsUrl']))
     const picturePath = document.paths['/api/v1/library/tracks/{id}/picture']
     expect(picturePath.get.responses['200'].content['application/json'].schema).toMatchObject({

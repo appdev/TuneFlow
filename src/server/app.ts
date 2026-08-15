@@ -54,12 +54,14 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
     allowPrivateNetwork: process.env.NODE_ENV === 'test' && process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_SOURCE_TARGETS === '1',
   })
   let integrityLookup: (filePath: string) => DownloadFileIntegrity | undefined = () => undefined
+  let downloadedAtLookup: (filePath: string) => number | undefined = () => undefined
   const libraryResources = new LibraryResourceStore(serverOptions.storageRoot)
   const library = new LibraryScanner(
     serverOptions.storageRoot,
     () => [getAudioRoot(serverOptions.storageRoot)],
     filePath => integrityLookup(filePath),
     libraryResources,
+    filePath => downloadedAtLookup(filePath),
   )
   await library.refresh()
   const downloads = new DownloadManager({
@@ -95,6 +97,8 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
     onCompleted: async() => library.refresh(),
   })
   integrityLookup = filePath => downloads.expectedIntegrity(filePath)
+  downloadedAtLookup = filePath => downloads.completedAt(filePath)
+  await library.refresh()
 
   app.setErrorHandler((error, _request, reply) => {
     const validation = typeof error === 'object' && error != null && 'validation' in error && Array.isArray(error.validation)

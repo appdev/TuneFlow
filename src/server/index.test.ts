@@ -44,7 +44,7 @@ const waitForShutdown = async(port: number): Promise<void> => {
     }
     await new Promise(resolve => setTimeout(resolve, 50))
   }
-  throw new Error('dev:server continued serving after shutdown')
+  throw new Error('prepared Service continued serving after shutdown')
 }
 
 afterEach(() => {
@@ -52,14 +52,14 @@ afterEach(() => {
 })
 
 describe('Service process shutdown', () => {
-  it('starts and gracefully stops the actual dev:server command', async() => {
+  it('starts and gracefully stops the prepared Service command', async() => {
     const storageRoot = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-service-signal-'))
     const webRoot = path.join(storageRoot, 'web')
     roots.push(storageRoot)
     mkdirSync(webRoot)
     writeFileSync(path.join(webRoot, 'index.html'), '<!doctype html>')
     const port = await getFreePort()
-    const child = spawn('npm', ['run', 'dev:server'], {
+    const child = spawn('npm', ['run', 'start:server'], {
       cwd: process.cwd(),
       env: {
         ...process.env,
@@ -84,7 +84,7 @@ describe('Service process shutdown', () => {
           })
         }),
         new Promise<never>((_resolve, reject) => setTimeout(() => {
-          reject(new Error('dev:server did not stop after SIGTERM'))
+          reject(new Error('prepared Service did not stop after SIGTERM'))
         }, 10_000)),
       ])
       expect(result).toEqual({ code: null, signal: 'SIGTERM' })

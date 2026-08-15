@@ -1,9 +1,9 @@
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import NodeID3 from 'node-id3'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createServer } from '../app'
+import { writeAudioMetadata } from '../downloads/taglibMetadata'
 
 const roots: string[] = []
 const apps: Array<Awaited<ReturnType<typeof createServer>>> = []
@@ -44,10 +44,12 @@ describe('local library resources', () => {
   it('returns embedded picture bytes and prefers embedded lyrics over a sidecar', async() => {
     const fixture = await createTestServer()
     const audioPath = path.join(fixture.audioRoot, 'fixture.mp3')
-    expect(NodeID3.write({
-      image: { mime: 'image/png', type: { id: 3 }, description: 'cover', imageBuffer: png },
-      unsynchronisedLyrics: { language: 'zho', text: '[00:01.00]Embedded lyric' },
-    }, audioPath)).toBe(true)
+    await writeAudioMetadata(audioPath, {
+      title: 'fixture',
+      picture: png,
+      pictureMimeType: 'image/png',
+      lyrics: '[00:01.00]Embedded lyric',
+    })
     writeFileSync(path.join(fixture.audioRoot, 'fixture.lrc'), '[00:01.00]Sidecar lyric')
     const app = await fixture.start()
     const listing = await app.inject({ method: 'GET', url: '/api/v1/library/tracks' })

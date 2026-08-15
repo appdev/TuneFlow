@@ -1,5 +1,5 @@
 import { cpSync, mkdtempSync, rmSync } from 'node:fs'
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
@@ -34,6 +34,12 @@ let portServer
 try {
   cpSync(path.join(root, 'dist/server'), path.join(isolatedRoot, 'server'), { recursive: true })
   cpSync(path.join(root, 'dist/web'), path.join(isolatedRoot, 'web'), { recursive: true })
+  const taglib = spawnSync(process.execPath, [
+    '--input-type=module',
+    '--eval',
+    "import { TagLib } from 'taglib-wasm'; const value = await TagLib.initialize(); if (!value.version()) process.exit(1)",
+  ], { cwd: path.join(isolatedRoot, 'server'), stdio: 'inherit' })
+  if (taglib.status !== 0) throw new Error('isolated TagLib-Wasm runtime failed')
   portServer = net.createServer()
   const port = await listen(portServer)
   await close(portServer)

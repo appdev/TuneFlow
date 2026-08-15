@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim AS build
+FROM node:24-bookworm-slim AS build
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ RUN npm run build:service \
  && node -e "const Database = require('./dist/server/node_modules/better-sqlite3'); const db = new Database(':memory:'); db.prepare('SELECT 1').get(); db.close()" \
  && npm run verify:service-isolated
 
-FROM node:22-bookworm-slim AS runtime
+FROM node:24-bookworm-slim AS runtime
 
 WORKDIR /app
 

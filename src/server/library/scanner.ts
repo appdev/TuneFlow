@@ -18,7 +18,7 @@ export interface LibraryTrackDto {
   singer: string
   source: 'local'
   interval: string
-  meta: { songId: string, albumName: string, ext: string, streamUrl: string, lyricsUrl?: string }
+  meta: { songId: string, albumName: string, ext: string, streamUrl: string, downloadedAt: number, lyricsUrl?: string }
   musicInfo: {
     id: string
     name: string
@@ -26,7 +26,7 @@ export interface LibraryTrackDto {
     source: 'local'
     interval: string
     pic?: string
-    meta: { songId: string, albumName: string, ext: string, streamUrl: string, lyricsUrl?: string }
+    meta: { songId: string, albumName: string, ext: string, streamUrl: string, downloadedAt: number, lyricsUrl?: string }
   }
   size: number
   extension: string
@@ -34,6 +34,7 @@ export interface LibraryTrackDto {
   streamUrl: string
   pictureUrl?: string
   lyricsUrl?: string
+  downloadedAt: number
 }
 
 interface PrivateEntry { dto: LibraryTrackDto, filePath: string, resources: LibraryDerivedResources }
@@ -83,9 +84,17 @@ export class LibraryScanner {
     private readonly getRoots: () => string[],
     private readonly getExpectedIntegrity: (filePath: string) => DownloadFileIntegrity | undefined = () => undefined,
     private readonly resourceStore?: LibraryResourceStore,
+    private readonly getDownloadedAt: (filePath: string) => number | undefined = () => undefined,
   ) {}
 
-  list(): LibraryTrackDto[] { return [...this.entries.values()].map(entry => entry.dto) }
+  list(): LibraryTrackDto[] {
+    return [...this.entries.values()].map(entry => entry.dto).sort((left, right) =>
+      right.downloadedAt - left.downloadedAt ||
+      left.name.localeCompare(right.name, 'zh-CN') ||
+      left.id.localeCompare(right.id),
+    )
+  }
+
   get(id: string): PrivateEntry | undefined { return this.entries.get(id) }
   findByFilePath(filePath: string): LibraryTrackDto | undefined {
     let target: string
@@ -189,7 +198,9 @@ export class LibraryScanner {
       const streamUrl = `/api/v1/library/tracks/${encodeURIComponent(id)}/stream`
       const pictureUrl = resources.picture == null ? undefined : `/api/v1/library/tracks/${encodeURIComponent(id)}/picture`
       const lyricsUrl = resources.lyrics == null ? undefined : `/api/v1/library/tracks/${encodeURIComponent(id)}/lyrics`
-      const meta = { songId: id, albumName, ext: extension, streamUrl, lyricsUrl }
+      const downloadedAt = this.getDownloadedAt(filePath) ??
+        (Number.isFinite(stat.birthtimeMs) && stat.birthtimeMs > 0 ? stat.birthtimeMs : stat.mtimeMs)
+      const meta = { songId: id, albumName, ext: extension, streamUrl, downloadedAt, lyricsUrl }
       const musicInfo = { id, name, singer, source: 'local' as const, interval, pic: pictureUrl, meta }
       const dto: LibraryTrackDto = {
         ...musicInfo,
@@ -200,6 +211,7 @@ export class LibraryScanner {
         streamUrl,
         pictureUrl,
         lyricsUrl,
+        downloadedAt,
       }
       entries.set(id, { dto, filePath, resources })
     }

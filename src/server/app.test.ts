@@ -288,6 +288,11 @@ describe('TuneFlow service', () => {
     })).statusCode).toBe(201)
 
     const createDownload = async(trackId: string, listId: string) => {
+      const interval = {
+        'grouped-original': '00:02',
+        'grouped-renamed': '00:10',
+        'grouped-missing': '00:20',
+      }[trackId] ?? '00:02'
       const response = await app.inject({
         method: 'POST',
         url: '/api/v1/downloads',
@@ -297,7 +302,7 @@ describe('TuneFlow service', () => {
             name: 'Grouped song',
             singer: 'Artist',
             source: 'kw',
-            interval: '00:02',
+            interval,
             meta: { songId: trackId, albumName: '', _qualitys: { '128k': {} } },
           },
           quality: '128k',

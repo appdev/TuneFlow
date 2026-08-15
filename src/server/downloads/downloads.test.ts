@@ -7,7 +7,7 @@ import type { AddressInfo } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import Fastify from 'fastify'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getExt, getMusicTypes, makeFileName, reserveFileName } from './filenames'
 import { DownloadManager } from './manager'
 import { LibraryScanner } from '../library/scanner'
@@ -16,6 +16,7 @@ import { registerLibraryRoutes } from '../routes/library'
 import { close as closeDatabase, getDB, init as initDatabase } from '../db/core/db'
 import { applyDownloadMetadata } from './metadata'
 import { parseFile } from 'music-metadata'
+import { apeFixture } from './apeFixture.testData'
 
 process.env.TUNEFLOW_SERVICE_NODE_MODULES = path.join(process.cwd(), 'dist/server/node_modules')
 
@@ -34,11 +35,7 @@ const fixtureTrack = {
   meta: { songId: 'fixture-track', albumName: 'Fixture', _qualitys: { '128k': {}, flac: {} } },
 } as unknown as TuneFlow.Music.MusicInfoOnline
 
-const minimalFlac = (): Buffer => {
-  const value = Buffer.from('ZkxhQwAAACIQABAAABxDABxDCsRC8AAACJ0e/DOryiNvu1DoqTJS38oYAwAAEg==', 'base64').subarray(0, 42)
-  value[4] |= 0x80
-  return value
-}
+const minimalFlac = (): Buffer => Buffer.from('ZkxhQwAAACISABIAAAAOAAAQCsRC8AAArETSsSAZkBm2OdWn4rNGPpyXhAAALg0AAABMYXZmNjIuMTIuMTAyAQAAABUAAABlbmNvZGVyPUxhdmY2Mi4xMi4xMDL/+FkYAGsAAAAAAAAQiv/4WRgBbAAAAAAAAIf///hZGAJlAAAAAAAAvmX/+FkYA2IAAAAAAAApEP/4WRgEdwAAAAAAAM1R//hZGAVwAAAAAAAAWiT/+FkYBnkAAAAAAABjvv/4WRgHfgAAAAAAAPTL//hZGAhTAAAAAAAAKzn/+HkYCQpDcAAAAAAAAJiF', 'base64')
 
 const metadataSettings = (patch: Partial<TuneFlow.AppSetting> = {}): TuneFlow.AppSetting => ({
   'download.isEmbedPic': false,
@@ -133,13 +130,13 @@ describe('TuneFlow download policy', () => {
     expect(readFileSync(path.join(root, 'audio', 'Song.mp3'), 'utf8')).toBe('original')
   })
 
-  it('preserves raw bytes when embedding is disabled, writes MP3 tags when enabled, and skips APE audio metadata', async() => {
+  it('preserves raw bytes when embedding is disabled and writes MP3 and APE metadata when enabled', async() => {
     const root = createRoot()
     const mp3 = path.join(root, 'audio', 'metadata.mp3')
     const ape = path.join(root, 'audio', 'metadata.ape')
     const original = readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3'))
     writeFileSync(mp3, original)
-    writeFileSync(ape, original)
+    writeFileSync(ape, apeFixture)
     const baseSettings = metadataSettings()
     const record = {
       musicInfo: fixtureTrack,
@@ -154,7 +151,34 @@ describe('TuneFlow download policy', () => {
     await applyDownloadMetadata(ape, { ...record, extension: 'ape' }, { ...baseSettings, 'download.isEmbedLyric': true }, {
       getLyrics: async() => ({ lyric: '[00:00.00]Fixture lyric' }),
     })
-    expect(readFileSync(ape)).toEqual(original)
+    expect((await parseFile(ape)).common).toMatchObject({
+      title: fixtureTrack.name,
+      lyrics: expect.anything(),
+    })
+  })
+
+  it('embeds validated bundle metadata without refetching artwork or lyrics', async() => {
+    const root = createRoot()
+    const file = path.join(root, 'audio', 'bundle.mp3')
+    writeFileSync(file, validMp3)
+    const getPicture = vi.fn(async() => { throw new Error('must not fetch picture') })
+    const getLyrics = vi.fn(async() => { throw new Error('must not fetch lyrics') })
+    const pictureBytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
+
+    await applyDownloadMetadata(file, { musicInfo: fixtureTrack, extension: 'mp3' } as never, metadataSettings({
+      'download.isEmbedPic': true,
+      'download.isEmbedLyric': true,
+    }), {
+      getPicture,
+      getLyrics,
+      pictureBytes,
+      pictureMimeType: 'image/png',
+      lyrics: { lyric: '[00:00.00]bundle lyric' },
+    })
+
+    expect(getPicture).not.toHaveBeenCalled()
+    expect(getLyrics).not.toHaveBeenCalled()
+    expect((await parseFile(file)).common).toMatchObject({ lyrics: expect.anything(), picture: expect.anything() })
   })
 
   it('awaits valid FLAC embedding without polling and propagates asynchronous writer errors', async() => {
@@ -179,7 +203,7 @@ describe('TuneFlow download policy', () => {
     writeFileSync(flac, minimalFlac())
     await expect(applyDownloadMetadata(flac, record, metadataSettings({ 'download.isEmbedLyric': true }), {
       getLyrics: async() => ({ lyric: '[00:00.00]Fixture FLAC lyric' }),
-      writeFlacMetadata: async() => {
+      writeAudioMetadata: async() => {
         await Promise.resolve()
         throw new Error('async FLAC writer failed')
       },
@@ -667,7 +691,7 @@ describe('durable download manager', () => {
       resolve: async() => ({ url: upstream.url, headers: {} }),
       metadata: async(filePath, job, settings) => applyDownloadMetadata(filePath, job, settings, {
         getLyrics: async() => ({ lyric: '[00:00.00]Fixture FLAC lyric' }),
-        writeFlacMetadata: async() => {
+        writeAudioMetadata: async() => {
           await Promise.resolve()
           throw new Error('async FLAC writer failed')
         },
@@ -1069,6 +1093,29 @@ describe('durable download manager', () => {
 })
 
 describe('local library ownership', () => {
+  it('orders tracks by download time descending with a stable name tie-breaker', async() => {
+    const root = createRoot()
+    for (const name of ['Old.mp3', 'Zulu.mp3', 'Alpha.mp3']) {
+      writeFileSync(path.join(root, 'audio', name), validMp3)
+    }
+    const timestamps: Record<string, number> = { 'Old.mp3': 1_000, 'Zulu.mp3': 3_000, 'Alpha.mp3': 3_000 }
+    const scanner = new LibraryScanner(
+      root,
+      () => [path.join(root, 'audio')],
+      () => undefined,
+      undefined,
+      filePath => timestamps[path.basename(filePath)],
+    )
+
+    const tracks = await scanner.refresh()
+
+    expect(tracks.map(track => [track.name, track.downloadedAt])).toEqual([
+      ['Alpha', 3_000],
+      ['Zulu', 3_000],
+      ['Old', 1_000],
+    ])
+  })
+
   it('backfills library resource URLs once and reuses the persisted result on refresh', async() => {
     const root = createRoot()
     const filePath = path.join(root, 'audio', 'fixture.mp3')

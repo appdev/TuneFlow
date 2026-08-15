@@ -122,6 +122,17 @@ export class DownloadManager {
     )?.finalIntegrity
   }
 
+  completedAt(filePath: string): number | undefined {
+    let resolved: string
+    try { resolved = realpathSync(filePath) } catch { return undefined }
+    if (!isPathInside(this.audioRoot, resolved)) return undefined
+    const timestamps = [...this.records.values()]
+      .filter(record => record.status === 'completed' && existsSync(this.resolveFinal(record.finalRelativePath)) &&
+        realpathSync(this.resolveFinal(record.finalRelativePath)) === resolved)
+      .map(record => record.updatedAt)
+    return timestamps.length === 0 ? undefined : Math.max(...timestamps)
+  }
+
   async createForPlayback(musicInfo: TuneFlow.Music.MusicInfoOnline): Promise<DownloadDto> {
     const key = `${musicInfo.source}\0${musicInfo.id}`
     const pending = this.playbackCreations.get(key)

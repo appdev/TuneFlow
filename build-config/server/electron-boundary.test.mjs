@@ -129,6 +129,21 @@ test('maintained CI runs the Web and Service test suite', () => {
   assert.match(readFileSync(join(root, '.github/workflows/build-test.yml'), 'utf8'), /run:\s+npm test/)
 })
 
+test('Service build and runtime target Node 24 with TagLib-Wasm packaged', () => {
+  const buildConfig = readFileSync(join(root, 'build-config/server/build.mjs'), 'utf8')
+  const prepareConfig = readFileSync(join(root, 'build-config/server/prepare.mjs'), 'utf8')
+  const workflow = readFileSync(join(root, '.github/workflows/build-test.yml'), 'utf8')
+  const dockerfile = readFileSync(join(root, 'Dockerfile'), 'utf8')
+
+  assert.equal(pkg.engines.node, '>= 24')
+  assert.equal(pkg.dependencies['taglib-wasm'], '^2.0.0')
+  assert.equal([...buildConfig.matchAll(/target:\s*'node24'/g)].length, 3)
+  assert.match(buildConfig, /'taglib-wasm':\s*'\^2\.0\.0'/)
+  assert.match(prepareConfig, /rmSync\(path\.join\(serverRoot, 'node_modules'\), \{ recursive: true, force: true \}\)/)
+  assert.match(workflow, /node-version:\s*24/)
+  assert.equal([...dockerfile.matchAll(/^FROM node:24-bookworm-slim/gm)].length, 2)
+})
+
 test('supported Web and Service files do not import or invoke Electron', () => {
   const forbidden = /@main|@lyric|src\/main|renderer-lyric|renderer-scripts|electron-builder|electron-rebuild|build-config\/pack|from\s+['"]electron(?:[-/][^'"]*)?['"]|require\(['"]electron(?:[-/][^'"]*)?['"]\)/i
   const matches = productionRoots

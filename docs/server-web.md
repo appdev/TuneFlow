@@ -57,7 +57,7 @@ restore it at the same path while the Service is stopped. Restoring only
 
 ## Docker
 
-The image uses Node 22 slim, compiles the Linux `better-sqlite3` binding in the
+The image uses Node 24 slim, compiles the Linux `better-sqlite3` binding in the
 builder, copies the prepared production artifact, runs as the image's non-root
 `node` user, and stores all durable data in `/data`. It does not install FFmpeg.
 
@@ -104,7 +104,17 @@ selected TuneFlow format. There is no FFmpeg invocation or forced transcoding.
 The local library scans Service-owned download roots and exposes only opaque
 same-origin stream IDs. Playback and seeking use the Service's HTTP Range
 routes; browser-visible DTOs do not contain server paths or resolved source
-URLs.
+URLs. Library responses are ordered by completed download time descending, so
+the newest download appears first. Files without a retained download record use
+their filesystem creation time, or modification time when creation time is not
+available.
+
+MP3, FLAC, APE, and WAV downloads use TagLib-Wasm to persist title, artist,
+album, cover artwork, and lyrics. The Service reads requested fields back after
+writing and records a metadata warning on the completed download when
+verification fails. The legacy `node-id3` writer is no longer packaged.
+Existing audio is not rewritten automatically during an upgrade or ordinary
+scan.
 
 ## Source trust boundary
 
