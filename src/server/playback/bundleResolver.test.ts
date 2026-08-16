@@ -32,6 +32,76 @@ const mediaClient = {
 }
 
 describe('playback resource bundle resolver', () => {
+  it('starts one source audio, lyric, and picture work concurrently', async() => {
+    const sources = sourceService({
+      a: {
+        'wy:musicUrl': { url: 'https://a.test/audio' },
+        'wy:lyric': { lyric: '[00:00]a lyric' },
+        'wy:pic': 'https://a.test/picture',
+      },
+    })
+    const started = new Set<string>()
+    let release!: () => void
+    const gate = new Promise<void>(resolve => { release = resolve })
+    const actionValues: Record<string, unknown> = {
+      musicUrl: { url: 'https://a.test/audio' },
+      lyric: { lyric: '[00:00]a lyric' },
+      pic: 'https://a.test/picture',
+    }
+    vi.spyOn(sources, 'requestSource').mockImplementation(async(_id, request) => {
+      started.add(request.action)
+      if (started.size === 3) release()
+      await gate
+      return actionValues[request.action]
+    })
+    const onResourcesAvailable = vi.fn()
+    const resolver = new PlaybackBundleResolver({
+      sources,
+      mediaClient: mediaClient as never,
+      resourceStore: new PlaybackResourceStore(),
+      hedgeDelayMs: 0,
+      onResourcesAvailable,
+    })
+
+    const bundle = await resolver.resolve(input)
+
+    expect([...started].sort()).toEqual(['lyric', 'musicUrl', 'pic'])
+    expect(onResourcesAvailable).toHaveBeenCalledWith('wy', expect.objectContaining(input.info), bundle.resources)
+  })
+
+  it('binds validated resources to each download audio candidate', async() => {
+    const sources = sourceService({
+      a: {
+        'wy:musicUrl': { url: 'https://a.test/audio' },
+        'wy:lyric': { lyric: '[00:00]a lyric' },
+        'wy:pic': 'https://a.test/picture',
+      },
+      b: {
+        'wy:musicUrl': { url: 'https://b.test/audio' },
+        'wy:lyric': { lyric: '[00:00]b lyric' },
+        'wy:pic': 'https://b.test/picture',
+      },
+    })
+    const resolver = new PlaybackBundleResolver({
+      sources,
+      mediaClient: mediaClient as never,
+      resourceStore: new PlaybackResourceStore(),
+      hedgeDelayMs: 0,
+    })
+
+    const bundle = await resolver.resolve(input)
+
+    expect(bundle.downloadCandidates?.map(candidate => ({
+      sourceId: candidate.sourceId,
+      lyric: candidate.resources?.lyrics?.lyric,
+      sourceIds: candidate.sourceIds,
+      completeness: candidate.completeness,
+    }))).toEqual([
+      { sourceId: 'a', lyric: '[00:00]a lyric', sourceIds: { audio: 'a', lyrics: 'a', picture: 'a' }, completeness: 'complete' },
+      { sourceId: 'b', lyric: '[00:00]b lyric', sourceIds: { audio: 'b', lyrics: 'b', picture: 'b' }, completeness: 'complete' },
+    ])
+  })
+
   it('keeps completed audio when optional enrichment exceeds its budget', async() => {
     const sources = sourceService({
       a: {
@@ -146,6 +216,49 @@ describe('playback resource bundle resolver', () => {
     await expect(resolver.resolve(input)).rejects.toMatchObject({ code: 'SOURCE_PROTOCOL_ERROR', origin: 'script' })
   })
 
+  it('does not let successful higher-priority audio hide a lower-priority safety failure', async() => {
+    const resolver = new PlaybackBundleResolver({
+      sources: sourceService({
+        audio: { 'wy:musicUrl': { url: 'https://audio.test/stream' } },
+        enrichment: { 'wy:lyric': new SourceServiceError('SOURCE_TARGET_BLOCKED', 'blocked target', 'safety') },
+      }),
+      mediaClient: mediaClient as never,
+      resourceStore: new PlaybackResourceStore(),
+      hedgeDelayMs: 0,
+    })
+
+    await expect(resolver.resolve(input)).rejects.toMatchObject({
+      code: 'SOURCE_TARGET_BLOCKED',
+      origin: 'safety',
+    })
+  })
+
+  it('does not let the resource-only deadline hide a recorded safety failure', async() => {
+    const sources = sourceService({
+      blocked: { 'wy:lyric': new SourceServiceError('SOURCE_TARGET_BLOCKED', 'blocked target', 'safety') },
+      hanging: { 'wy:pic': 'https://hanging.test/picture' },
+    })
+    vi.spyOn(sources, 'requestSource').mockImplementation(async(id, request, signal) => {
+      if (id === 'blocked') throw new SourceServiceError('SOURCE_TARGET_BLOCKED', 'blocked target', 'safety')
+      return await new Promise((_resolve, reject) => {
+        signal?.addEventListener('abort', () => { reject(new SourceServiceError('SOURCE_CANCELLED', 'budget', 'caller')) }, { once: true })
+      })
+    })
+    const resolver = new PlaybackBundleResolver({
+      sources,
+      mediaClient: mediaClient as never,
+      resourceStore: new PlaybackResourceStore(),
+      findLocal: () => ({ streamUrl: '/api/v1/library/tracks/local/stream' }),
+      hedgeDelayMs: 0,
+      budgetMs: 5,
+    })
+
+    await expect(resolver.resolve(input)).rejects.toMatchObject({
+      code: 'SOURCE_TARGET_BLOCKED',
+      origin: 'safety',
+    })
+  })
+
   it('preserves an audio-stage terminal failure that arrives after the enrichment deadline', async() => {
     const sources = sourceService({
       a: { 'wy:musicUrl': { url: 'https://a.test/audio' } },
@@ -207,6 +320,61 @@ describe('playback resource bundle resolver', () => {
     })
   })
 
+  it('backfills local audio resources from an alternative provider without requesting alternative audio', async() => {
+    const sources = sourceService({
+      alternative: {
+        'tx:lyric': { lyric: '[00:01.00]alternative lyric' },
+        'tx:pic': 'https://alternative.test/picture',
+      },
+    })
+    const requests: Array<{ provider: string, action: string }> = []
+    const originalRequest = sources.requestSource.bind(sources)
+    vi.spyOn(sources, 'requestSource').mockImplementation(async(id, request, signal) => {
+      requests.push({ provider: request.source, action: request.action })
+      return await originalRequest(id, request, signal)
+    })
+    const resolver = new PlaybackBundleResolver({
+      sources,
+      mediaClient: mediaClient as never,
+      resourceStore: new PlaybackResourceStore(),
+      findLocal: () => ({ streamUrl: '/api/v1/library/tracks/local/stream' }),
+      findAlternatives: async() => [{ id: 'alternative-track', source: 'tx' }],
+      hedgeDelayMs: 0,
+    })
+
+    const bundle = await resolver.resolve(input)
+
+    expect(bundle).toMatchObject({
+      audioKind: 'local',
+      streamUrl: '/api/v1/library/tracks/local/stream',
+      sourceIds: { audio: 'local', lyrics: 'alternative', picture: 'alternative' },
+    })
+    expect(requests.filter(value => value.provider === 'tx')).toEqual([
+      { provider: 'tx', action: 'lyric' },
+      { provider: 'tx', action: 'pic' },
+    ])
+    expect(requests.some(value => value.action === 'musicUrl')).toBe(false)
+  })
+
+  it('keeps safety failures terminal while enriching local audio', async() => {
+    const resolver = new PlaybackBundleResolver({
+      sources: sourceService({
+        original: {
+          'wy:lyric': new SourceServiceError('SOURCE_TARGET_BLOCKED', 'blocked target', 'safety'),
+        },
+      }),
+      mediaClient: mediaClient as never,
+      resourceStore: new PlaybackResourceStore(),
+      findLocal: () => ({ streamUrl: '/api/v1/library/tracks/local/stream' }),
+      hedgeDelayMs: 0,
+    })
+
+    await expect(resolver.resolve(input)).rejects.toMatchObject({
+      code: 'SOURCE_TARGET_BLOCKED',
+      origin: 'safety',
+    })
+  })
+
   it('keeps usable online audio when optional resources are malformed', async() => {
     const sources = sourceService({
       a: {
@@ -225,6 +393,144 @@ describe('playback resource bundle resolver', () => {
       audioKind: 'online',
       completeness: 'audio-only',
       sourceIds: { audio: 'a' },
+    })
+  })
+
+  it('backfills missing resources from an alternative provider without replacing original audio', async() => {
+    const sources = sourceService({
+      original: { 'wy:musicUrl': { url: 'https://original.test/audio' } },
+      alternative: {
+        'tx:lyric': { lyric: '[00:01.00]alternative lyric' },
+        'tx:pic': 'https://alternative.test/picture',
+      },
+    })
+    const requests: Array<{ provider: string, action: string }> = []
+    const originalRequest = sources.requestSource.bind(sources)
+    vi.spyOn(sources, 'requestSource').mockImplementation(async(id, request, signal) => {
+      requests.push({ provider: request.source, action: request.action })
+      return await originalRequest(id, request, signal)
+    })
+    const resolver = new PlaybackBundleResolver({
+      sources,
+      mediaClient: mediaClient as never,
+      resourceStore: new PlaybackResourceStore(),
+      findAlternatives: async() => [{ id: 'alternative-track', name: 'Song', singer: 'Singer', source: 'tx' }],
+      hedgeDelayMs: 0,
+    })
+
+    const bundle = await resolver.resolve(input)
+
+    expect(bundle.sourceIds).toEqual({ audio: 'original', lyrics: 'alternative', picture: 'alternative' })
+    expect(bundle.streamCandidates.map(value => value.sourceId)).toEqual(['original'])
+    expect(requests.filter(value => value.provider === 'tx')).toEqual([
+      { provider: 'tx', action: 'lyric' },
+      { provider: 'tx', action: 'pic' },
+    ])
+  })
+
+  it('deduplicates and bounds alternative providers used for playback resource backfill', async() => {
+    const builtins: string[] = []
+    const resolver = new PlaybackBundleResolver({
+      sources: sourceService({
+        original: {
+          'wy:musicUrl': { url: 'https://original.test/audio' },
+          'wy:pic': 'https://original.test/picture',
+        },
+      }),
+      mediaClient: mediaClient as never,
+      resourceStore: new PlaybackResourceStore(),
+      getBuiltinLyrics: async(provider) => {
+        builtins.push(provider)
+        throw new Error('missing lyric')
+      },
+      findAlternatives: async() => [
+        { id: 'same-provider', source: 'wy' },
+        { id: 'tx-1', source: 'tx' },
+        { id: 'tx-1', source: 'tx' },
+        { id: 'kg-1', source: 'kg' },
+        { id: 'mg-1', source: 'mg' },
+        { id: 'kw-1', source: 'kw' },
+        { id: 'q-1', source: 'q' },
+        { id: 'xm-1', source: 'xm' },
+        { id: 'extra-1', source: 'extra' },
+      ],
+      hedgeDelayMs: 0,
+    })
+
+    await expect(resolver.resolve(input)).resolves.toMatchObject({ sourceIds: { audio: 'original', picture: 'original' } })
+    expect(builtins).toEqual(['wy', 'tx', 'kg', 'mg', 'kw', 'q', 'xm'])
+  })
+
+  it('keeps alternative-provider safety failures terminal during resource backfill', async() => {
+    const resolver = new PlaybackBundleResolver({
+      sources: sourceService({
+        original: {
+          'wy:musicUrl': { url: 'https://original.test/audio' },
+          'wy:pic': 'https://original.test/picture',
+        },
+        alternative: {
+          'tx:lyric': new SourceServiceError('SOURCE_TARGET_BLOCKED', 'blocked target', 'safety'),
+        },
+      }),
+      mediaClient: mediaClient as never,
+      resourceStore: new PlaybackResourceStore(),
+      findAlternatives: async() => [{ id: 'alternative-track', source: 'tx' }],
+      hedgeDelayMs: 0,
+    })
+
+    await expect(resolver.resolve(input)).rejects.toMatchObject({
+      code: 'SOURCE_TARGET_BLOCKED',
+      origin: 'safety',
+    })
+  })
+
+  it('keeps alternative built-in safety failures terminal during resource backfill', async() => {
+    const resolver = new PlaybackBundleResolver({
+      sources: sourceService({
+        original: {
+          'wy:musicUrl': { url: 'https://original.test/audio' },
+          'wy:pic': 'https://original.test/picture',
+        },
+      }),
+      mediaClient: mediaClient as never,
+      resourceStore: new PlaybackResourceStore(),
+      getBuiltinLyrics: async(provider) => {
+        if (provider === 'tx') throw new SourceServiceError('SOURCE_TARGET_BLOCKED', 'blocked target', 'safety')
+        return undefined
+      },
+      findAlternatives: async() => [{ id: 'alternative-track', source: 'tx' }],
+      hedgeDelayMs: 0,
+    })
+
+    await expect(resolver.resolve(input)).rejects.toMatchObject({
+      code: 'SOURCE_TARGET_BLOCKED',
+      origin: 'safety',
+    })
+  })
+
+  it('does not let alternative-provider search exceed the enrichment deadline', async() => {
+    const resolver = new PlaybackBundleResolver({
+      sources: sourceService({
+        original: {
+          'wy:musicUrl': { url: 'https://original.test/audio' },
+          'wy:pic': 'https://original.test/picture',
+        },
+      }),
+      mediaClient: mediaClient as never,
+      resourceStore: new PlaybackResourceStore(),
+      findAlternatives: async() => await new Promise<never>(() => {}),
+      hedgeDelayMs: 0,
+      budgetMs: 5,
+    })
+
+    const result = await Promise.race([
+      resolver.resolve(input),
+      new Promise<never>((_resolve, reject) => { setTimeout(() => { reject(new Error('alternative search blocked playback')) }, 50) }),
+    ])
+
+    expect(result).toMatchObject({
+      sourceIds: { audio: 'original', picture: 'original' },
+      completeness: 'mixed',
     })
   })
 
@@ -322,6 +628,49 @@ describe('playback resource bundle resolver', () => {
 
     expect(bundle.sourceIds).toEqual({ audio: 'a', lyrics: 'b', picture: 'c' })
     expect(bundle.completeness).toBe('mixed')
+  })
+
+  it('falls back from failed provider artwork to the validated canonical snapshot', async() => {
+    const sources = sourceService({
+      a: {
+        'wy:musicUrl': { url: 'https://a.test/audio' },
+        'wy:lyric': { lyric: '[00:00]a' },
+      },
+    })
+    const fetchArtwork = vi.fn(async(target: { url: string }) => {
+      if (target.url === 'https://provider.test/missing.jpg') {
+        throw new SourceServiceError('SOURCE_MEDIA_UNAVAILABLE', 'Artwork request returned HTTP 404', 'service-network')
+      }
+      if (target.url === 'https://snapshot.test/cover.jpg') {
+        return { bytes: Uint8Array.of(9, 8, 7), mimeType: 'image/png' }
+      }
+      throw new Error(`unexpected artwork target: ${target.url}`)
+    })
+    const resolver = new PlaybackBundleResolver({
+      sources,
+      mediaClient: Object.assign({}, mediaClient, { fetchArtwork }) as never,
+      resourceStore: new PlaybackResourceStore(),
+      getBuiltinPicture: async() => 'https://provider.test/missing.jpg',
+      hedgeDelayMs: 0,
+    })
+
+    const bundle = await resolver.resolve({
+      ...input,
+      info: {
+        id: 'track-1',
+        name: 'Song',
+        singer: 'Singer',
+        source: 'wy',
+        meta: { songId: 'track-1', picUrl: 'https://snapshot.test/cover.jpg' },
+      },
+    })
+
+    expect(fetchArtwork.mock.calls.map(([target]) => target.url)).toEqual([
+      'https://provider.test/missing.jpg',
+      'https://snapshot.test/cover.jpg',
+    ])
+    expect(bundle.sourceIds).toEqual({ audio: 'a', lyrics: 'a', picture: 'snapshot' })
+    expect(bundle.resources.pictureUrl).toMatch(/^\/api\/v1\/playback\/resources\/[a-f0-9]{64}\/picture$/)
   })
 
   it('fully exhausts the original track before evaluating alternatives', async() => {

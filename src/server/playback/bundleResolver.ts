@@ -2,9 +2,10 @@ import type { SourcesService } from '../routes/sources'
 import { randomUUID } from 'node:crypto'
 import { ApiError } from '../errors'
 import { SourceServiceError, type SourceAction, type SourceAttempt, type SourceAttemptLog, type SourceCandidate } from '../sources/types'
-import { toSourceMusicUrlInfo } from '../sources/musicInfo'
+import { canonicalPictureUrl, normalizeMusicInfo, toSourceMusicInfo, toSourceMusicUrlInfo } from '../sources/musicInfo'
 import type { MediaClient, MediaTarget } from './mediaClient'
 import type { PlaybackResourceStore } from './resourceStore'
+import { boundedResourceAlternatives } from '../resources/alternativeCandidates'
 
 export const BUNDLE_ENRICHMENT_BUDGET_MS = 4_000
 export const BUNDLE_HEDGE_DELAY_MS = 500
@@ -13,6 +14,11 @@ export type BundleCompleteness = 'complete' | 'mixed' | 'audio-only'
 export interface StreamCandidate { sourceId: string, url: string, headers?: Record<string, string> }
 export interface PlaybackLyrics { lyric: string, tlyric?: string | null, rlyric?: string | null, verbatimLyric?: string | null }
 export interface PlaybackResources { lyrics?: PlaybackLyrics, lyricsUrl?: string, pictureUrl?: string }
+export interface DownloadBundleCandidate extends StreamCandidate {
+  resources?: PlaybackResources
+  completeness: BundleCompleteness
+  sourceIds: { audio: string, lyrics?: string, picture?: string }
+}
 export interface PlaybackBundle {
   audioKind: 'local' | 'online'
   streamUrl?: string
@@ -20,6 +26,7 @@ export interface PlaybackBundle {
   resources: PlaybackResources
   completeness: BundleCompleteness
   sourceIds: { audio: string, lyrics?: string, picture?: string }
+  downloadCandidates?: DownloadBundleCandidate[]
 }
 export interface LocalPlaybackMatch { streamUrl: string, pictureUrl?: string, lyricsUrl?: string }
 
@@ -41,6 +48,7 @@ export interface PlaybackBundleResolverOptions {
   budgetMs?: number
   hedgeDelayMs?: number
   onAttempt?: (attempt: SourceAttemptLog) => void
+  onResourcesAvailable?: (provider: string, musicInfo: unknown, resources: PlaybackResources) => void
 }
 
 const originalMusicInfo = (info: unknown): unknown => typeof info === 'object' && info != null && 'musicInfo' in info
@@ -49,6 +57,10 @@ const originalMusicInfo = (info: unknown): unknown => typeof info === 'object' &
 
 const isRetryableResourceFailure = (error: unknown): boolean => {
   return error instanceof SourceServiceError && (error.origin === 'service-network' || error.origin === 'worker-timeout')
+}
+
+const isTerminalResourceFailure = (error: unknown): boolean => {
+  return error instanceof SourceServiceError && (error.origin === 'caller' || error.origin === 'safety')
 }
 
 const beforeDeadline = async<T>(factory: (signal: AbortSignal) => Promise<T>, deadline: number, callerSignal?: AbortSignal): Promise<T | undefined> => {
@@ -86,18 +98,33 @@ export class PlaybackBundleResolver {
     const requestId = randomUUID()
     const attempts: SourceAttempt[] = []
     const enrichmentDeadline = Date.now() + (this.options.budgetMs ?? BUNDLE_ENRICHMENT_BUDGET_MS)
-    const musicInfo = originalMusicInfo(input.info)
+    const musicInfo = normalizeMusicInfo(originalMusicInfo(input.info))
     const local = input.preferLocal === false ? undefined : await this.options.findLocal?.(musicInfo)
-    if (local != null) return await this.resolveLocal(local, input, requestId, attempts, enrichmentDeadline, signal)
-    const original = await this.evaluateTrack(input.source, input.info, input.quality, requestId, attempts, enrichmentDeadline, signal)
-    if (original.some(value => value.audio != null)) return await this.assembleOnline(original, input.source, musicInfo, enrichmentDeadline, signal)
+    const normalizedInput = { ...input, info: musicInfo }
+    if (local != null) return this.announce(input.source, musicInfo, await this.resolveLocal(local, normalizedInput, requestId, attempts, enrichmentDeadline, signal))
+    const original = await this.evaluateTrack(input.source, musicInfo, input.quality, requestId, attempts, enrichmentDeadline, signal)
+    if (original.some(value => value.audio != null)) {
+      return this.announce(input.source, musicInfo, await this.assembleOnline(
+        original,
+        input.source,
+        musicInfo,
+        enrichmentDeadline,
+        signal,
+        { quality: input.quality, requestId, attempts },
+      ))
+    }
     const alternatives = await this.options.findAlternatives?.(musicInfo) ?? []
     for (const alternative of alternatives) {
       if (typeof alternative.source !== 'string' || alternative.source === input.source) continue
       const evaluated = await this.evaluateTrack(alternative.source, alternative, input.quality, requestId, attempts, enrichmentDeadline, signal)
-      if (evaluated.some(value => value.audio != null)) return await this.assembleOnline(evaluated, alternative.source, alternative, enrichmentDeadline, signal)
+      if (evaluated.some(value => value.audio != null)) return this.announce(input.source, musicInfo, await this.assembleOnline(evaluated, alternative.source, alternative, enrichmentDeadline, signal))
     }
     throw new ApiError(502, 'SOURCE_ALL_UNAVAILABLE', 'All enabled sources are unavailable', { attempts })
+  }
+
+  private announce(provider: string, musicInfo: unknown, bundle: PlaybackBundle): PlaybackBundle {
+    try { this.options.onResourcesAvailable?.(provider, musicInfo, bundle.resources) } catch {}
+    return bundle
   }
 
   private async resolveLocal(local: LocalPlaybackMatch, input: { source: string, info: unknown, quality: TuneFlow.Quality }, requestId: string, attempts: SourceAttempt[], enrichmentDeadline: number, signal?: AbortSignal): Promise<PlaybackBundle> {
@@ -120,8 +147,30 @@ export class PlaybackBundleResolver {
         const evaluated = await this.evaluateTrack(input.source, input.info, input.quality, requestId, attempts, enrichmentDeadline, signal, false, wanted)
         enrichment = await this.bestResources(evaluated, input.source, originalMusicInfo(input.info), enrichmentDeadline, signal, wanted)
       } catch (error) {
-        if (signal?.aborted === true) throw error
+        if (signal?.aborted === true || isTerminalResourceFailure(error)) throw error
         // Optional enrichment must never make local audio unavailable.
+      }
+      const missing = new Set<SourceAction>([
+        ...(local.lyricsUrl == null && enrichment.lyrics == null ? ['lyric' as const] : []),
+        ...(local.pictureUrl == null && enrichment.picture == null ? ['pic' as const] : []),
+      ])
+      if (missing.size > 0) {
+        try {
+          const alternative = await this.bestAlternativeResources(
+            input.source,
+            originalMusicInfo(input.info),
+            input.quality,
+            requestId,
+            attempts,
+            enrichmentDeadline,
+            signal,
+            missing,
+          )
+          enrichment.lyrics ??= alternative.lyrics
+          enrichment.picture ??= alternative.picture
+        } catch (error) {
+          if (signal?.aborted === true || isTerminalResourceFailure(error)) throw error
+        }
       }
       if (local.lyricsUrl == null && enrichment.lyrics != null) {
         resources.lyrics = enrichment.lyrics.value
@@ -174,6 +223,7 @@ export class PlaybackBundleResolver {
       if (selected < 0) return undefined
       return terminalErrors.slice(0, selected + 1).find(error => error != null)
     }
+    const safetyTerminal = (): Error | undefined => terminalErrors.find(error => isTerminalResourceFailure(error))
     let decisive: (() => void) | undefined
     const decisiveResult = new Promise<'decisive'>(resolve => { decisive = () => { resolve('decisive') } })
     const maybeDecisive = (): void => {
@@ -208,12 +258,16 @@ export class PlaybackBundleResolver {
       const all = Promise.allSettled(tasks)
       const outcome = await Promise.race([all.then(() => 'all' as const), budget, decisiveResult])
       if (outcome === 'decisive' || (outcome === 'budget' && (includeAudio ? values.some(value => value?.audio != null) : true))) {
+        const safety = safetyTerminal()
+        if (safety != null) throw safety
         const terminal = precedingTerminal()
         if (terminal != null) throw terminal
         audioController.abort()
         return values.flatMap(value => value == null ? [] : [value])
       }
       const settled = await all
+      const safety = safetyTerminal()
+      if (safety != null) throw safety
       if (values.some(value => value?.audio != null)) {
         const terminal = precedingTerminal()
         if (terminal != null) throw terminal
@@ -234,7 +288,7 @@ export class PlaybackBundleResolver {
     const result: EvaluatedSource = { candidate }
     const can = (action: SourceAction): boolean => supportedActions.has(action)
     try {
-      if (includeAudio && can('musicUrl')) {
+      const audioWork = includeAudio && can('musicUrl') ? (async() => {
         const value = await this.options.sources.requestSource<{ url: string, headers?: Record<string, string> }>(candidate.id, {
           source: provider,
           action: 'musicUrl',
@@ -242,18 +296,26 @@ export class PlaybackBundleResolver {
         }, audioSignal)
         const target: MediaTarget = { url: value.url, headers: value.headers }
         await this.options.mediaClient.probeAudio(target, audioSignal)
-        result.audio = { sourceId: candidate.id, url: value.url, headers: value.headers }
+        return { sourceId: candidate.id, url: value.url, headers: value.headers }
+      })().then(audio => {
+        result.audio = audio
         publish(result)
-      }
-      const resources = await Promise.allSettled([
+        return audio
+      }) : undefined
+      const work = await Promise.allSettled([
+        audioWork,
         wantedResources.has('lyric') && can('lyric') ? this.readLyrics(candidate.id, provider, info, enrichmentSignal) : undefined,
         wantedResources.has('pic') && can('pic') ? this.readPicture(candidate.id, provider, info, enrichmentSignal) : undefined,
       ])
-      for (const rejected of resources.filter((value): value is PromiseRejectedResult => value.status === 'rejected')) {
-        if (callerSignal?.aborted === true) throw rejected.reason
+      if (work[0].status === 'rejected') {
+        if (callerSignal?.aborted === true) throw work[0].reason
+        throw work[0].reason
       }
-      if (resources[0].status === 'fulfilled') result.lyrics = resources[0].value
-      if (resources[1].status === 'fulfilled') result.pictureUrl = resources[1].value
+      for (const rejected of work.slice(1).filter((value): value is PromiseRejectedResult => value.status === 'rejected')) {
+        if (callerSignal?.aborted === true || isTerminalResourceFailure(rejected.reason)) throw rejected.reason
+      }
+      if (work[1].status === 'fulfilled') result.lyrics = work[1].value
+      if (work[2].status === 'fulfilled') result.pictureUrl = work[2].value
       publish(result)
       this.options.onAttempt?.({ requestId, sourceId: candidate.id, priority: candidate.priority, action: 'bundle', code: 'OK', elapsedMs: Date.now() - startedAt })
       return result
@@ -268,24 +330,49 @@ export class PlaybackBundleResolver {
   }
 
   private async readLyrics(sourceId: string, provider: string, info: unknown, signal: AbortSignal): Promise<PlaybackLyrics | undefined> {
-    const value = await this.options.sources.requestSource<PlaybackLyrics>(sourceId, { source: provider, action: 'lyric', info }, signal)
+    const value = await this.options.sources.requestSource<PlaybackLyrics>(sourceId, { source: provider, action: 'lyric', info: toSourceMusicInfo(info) }, signal)
     if (typeof value.lyric !== 'string' || value.lyric.trim() === '' || value.lyric.includes('\uFFFD')) throw new SourceServiceError('SOURCE_MEDIA_INVALID', 'Lyrics are invalid', 'protocol')
     return value
   }
 
   private async readPicture(sourceId: string, provider: string, info: unknown, signal: AbortSignal): Promise<string> {
-    const url = await this.options.sources.requestSource<string>(sourceId, { source: provider, action: 'pic', info }, signal)
+    const url = await this.options.sources.requestSource<string>(sourceId, { source: provider, action: 'pic', info: toSourceMusicInfo(info) }, signal)
     const picture = await this.options.mediaClient.fetchArtwork({ url }, signal)
     const stored = this.options.resourceStore.putPicture(picture)
     return `/api/v1/playback/resources/${stored.token}/picture`
   }
 
-  private async assembleOnline(evaluated: EvaluatedSource[], provider: string, info: unknown, enrichmentDeadline: number, signal?: AbortSignal): Promise<PlaybackBundle> {
+  private async assembleOnline(
+    evaluated: EvaluatedSource[],
+    provider: string,
+    info: unknown,
+    enrichmentDeadline: number,
+    signal?: AbortSignal,
+    alternativeContext?: { quality: TuneFlow.Quality, requestId: string, attempts: SourceAttempt[] },
+  ): Promise<PlaybackBundle> {
     const ordered = [...evaluated].sort((a, b) => a.candidate.priority - b.candidate.priority)
     const complete = ordered.find(value => value.audio != null && value.lyrics != null && value.pictureUrl != null)
     const audio = complete?.audio ?? ordered.find(value => value.audio != null)?.audio
     if (audio == null) throw new SourceServiceError('SOURCE_ALL_UNAVAILABLE', 'No enabled source returned usable audio', 'service-network')
     const enrichment = await this.bestResources(ordered, provider, info, enrichmentDeadline, signal)
+    if (alternativeContext != null && (enrichment.lyrics == null || enrichment.picture == null)) {
+      const wanted = new Set<SourceAction>([
+        ...(enrichment.lyrics == null ? ['lyric' as const] : []),
+        ...(enrichment.picture == null ? ['pic' as const] : []),
+      ])
+      const alternative = await this.bestAlternativeResources(
+        provider,
+        info,
+        alternativeContext.quality,
+        alternativeContext.requestId,
+        alternativeContext.attempts,
+        enrichmentDeadline,
+        signal,
+        wanted,
+      )
+      enrichment.lyrics ??= alternative.lyrics
+      enrichment.picture ??= alternative.picture
+    }
     const lyrics = complete?.lyrics == null ? enrichment.lyrics : { sourceId: complete.candidate.id, value: complete.lyrics }
     const picture = complete?.pictureUrl == null ? enrichment.picture : { sourceId: complete.candidate.id, value: complete.pictureUrl }
     const selectedId = complete?.candidate.id ?? audio.sourceId
@@ -293,6 +380,32 @@ export class PlaybackBundleResolver {
       audio,
       ...ordered.flatMap(value => value.audio == null || value.audio.sourceId === audio.sourceId ? [] : [value.audio]),
     ]
+    const downloadCandidates = streamCandidates.map(candidate => {
+      const evaluatedCandidate = ordered.find(value => value.candidate.id === candidate.sourceId)
+      const candidateLyrics = evaluatedCandidate?.lyrics == null
+        ? enrichment.lyrics
+        : { sourceId: candidate.sourceId, value: evaluatedCandidate.lyrics }
+      const candidatePicture = evaluatedCandidate?.pictureUrl == null
+        ? enrichment.picture
+        : { sourceId: candidate.sourceId, value: evaluatedCandidate.pictureUrl }
+      const sourceIds = {
+        audio: candidate.sourceId,
+        ...(candidateLyrics == null ? {} : { lyrics: candidateLyrics.sourceId }),
+        ...(candidatePicture == null ? {} : { picture: candidatePicture.sourceId }),
+      }
+      const sameSourceComplete = sourceIds.lyrics === candidate.sourceId && sourceIds.picture === candidate.sourceId
+      return {
+        ...candidate,
+        resources: {
+          ...(candidateLyrics == null ? {} : { lyrics: candidateLyrics.value }),
+          ...(candidatePicture == null ? {} : { pictureUrl: candidatePicture.value }),
+        },
+        completeness: candidateLyrics != null && candidatePicture != null
+          ? sameSourceComplete ? 'complete' as const : 'mixed' as const
+          : candidateLyrics != null || candidatePicture != null ? 'mixed' as const : 'audio-only' as const,
+        sourceIds,
+      }
+    })
     return {
       audioKind: 'online',
       streamCandidates,
@@ -306,7 +419,47 @@ export class PlaybackBundleResolver {
         ...(lyrics == null ? {} : { lyrics: lyrics.sourceId }),
         ...(picture == null ? {} : { picture: picture.sourceId }),
       },
+      downloadCandidates,
     }
+  }
+
+  private async bestAlternativeResources(
+    originalProvider: string,
+    info: unknown,
+    quality: TuneFlow.Quality,
+    requestId: string,
+    attempts: SourceAttempt[],
+    enrichmentDeadline: number,
+    signal: AbortSignal | undefined,
+    wanted: Set<SourceAction>,
+  ): Promise<{ lyrics?: { sourceId: string, value: PlaybackLyrics }, picture?: { sourceId: string, value: string } }> {
+    let alternatives: Array<Record<string, unknown>>
+    try {
+      alternatives = this.options.findAlternatives == null
+        ? []
+        : await beforeDeadline(async() => await this.options.findAlternatives!(info), enrichmentDeadline, signal) ?? []
+    } catch (error) {
+      if (isTerminalResourceFailure(error)) throw error
+      return {}
+    }
+    let lyrics: { sourceId: string, value: PlaybackLyrics } | undefined
+    let picture: { sourceId: string, value: string } | undefined
+    for (const alternative of boundedResourceAlternatives(originalProvider, alternatives)) {
+      const missing = new Set<SourceAction>([
+        ...(lyrics == null && wanted.has('lyric') ? ['lyric' as const] : []),
+        ...(picture == null && wanted.has('pic') ? ['pic' as const] : []),
+      ])
+      if (missing.size === 0) break
+      try {
+        const evaluated = await this.evaluateTrack(alternative.source, alternative, quality, requestId, attempts, enrichmentDeadline, signal, false, missing)
+        const resources = await this.bestResources(evaluated, alternative.source, alternative, enrichmentDeadline, signal, missing)
+        lyrics ??= resources.lyrics
+        picture ??= resources.picture
+      } catch (error) {
+        if (signal?.aborted === true || isTerminalResourceFailure(error)) throw error
+      }
+    }
+    return { ...(lyrics == null ? {} : { lyrics }), ...(picture == null ? {} : { picture }) }
   }
 
   private async bestResources(evaluated: EvaluatedSource[], provider: string, info: unknown, enrichmentDeadline: number, signal?: AbortSignal, wanted = new Set<SourceAction>(['lyric', 'pic'])): Promise<{
@@ -316,12 +469,16 @@ export class PlaybackBundleResolver {
     const ordered = [...evaluated].sort((a, b) => a.candidate.priority - b.candidate.priority)
     let lyrics = ordered.find(value => value.lyrics != null)
     let picture = ordered.find(value => value.pictureUrl != null)
-    try {
-      if (lyrics == null && wanted.has('lyric')) {
+    if (lyrics == null && wanted.has('lyric')) {
+      try {
         const value = this.options.getBuiltinLyrics == null ? undefined : await beforeDeadline(async() => await this.options.getBuiltinLyrics!(provider, info), enrichmentDeadline, signal)
         if (value != null && value.lyric.trim() !== '') lyrics = { candidate: { id: `builtin:${provider}`, priority: Number.MAX_SAFE_INTEGER }, lyrics: value }
+      } catch (error) {
+        if (signal?.aborted === true || isTerminalResourceFailure(error)) throw error
       }
-      if (picture == null && wanted.has('pic')) {
+    }
+    if (picture == null && wanted.has('pic')) {
+      try {
         const url = this.options.getBuiltinPicture == null ? undefined : await beforeDeadline(async() => await this.options.getBuiltinPicture!(provider, info), enrichmentDeadline, signal)
         if (url != null) {
           const value = await beforeDeadline(async deadlineSignal => await this.options.mediaClient.fetchArtwork({ url }, deadlineSignal), enrichmentDeadline, signal)
@@ -330,9 +487,23 @@ export class PlaybackBundleResolver {
             picture = { candidate: { id: `builtin:${provider}`, priority: Number.MAX_SAFE_INTEGER }, pictureUrl: `/api/v1/playback/resources/${stored.token}/picture` }
           }
         }
+      } catch (error) {
+        if (signal?.aborted === true || isTerminalResourceFailure(error)) throw error
       }
-    } catch (error) {
-      if (signal?.aborted === true) throw error
+    }
+    if (picture == null && wanted.has('pic')) {
+      try {
+        const url = canonicalPictureUrl(info)
+        if (url != null) {
+          const value = await beforeDeadline(async deadlineSignal => await this.options.mediaClient.fetchArtwork({ url }, deadlineSignal), enrichmentDeadline, signal)
+          if (value != null) {
+            const stored = this.options.resourceStore.putPicture(value)
+            picture = { candidate: { id: 'snapshot', priority: Number.MAX_SAFE_INTEGER }, pictureUrl: `/api/v1/playback/resources/${stored.token}/picture` }
+          }
+        }
+      } catch (error) {
+        if (signal?.aborted === true || isTerminalResourceFailure(error)) throw error
+      }
     }
     return {
       ...(lyrics?.lyrics == null ? {} : { lyrics: { sourceId: lyrics.candidate.id, value: lyrics.lyrics } }),

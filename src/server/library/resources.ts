@@ -168,6 +168,19 @@ export class LibraryResourceStore {
     rmSync(markerPath, { force: true })
   }
 
+  invalidate(audioFilePath: string): void {
+    const canonical = realpathSync(audioFilePath)
+    if (!isPathInside(this.audioRoot, canonical) || !statSync(canonical).isFile()) {
+      throw new Error('Library resource audio path escaped the audio root')
+    }
+    const audioRelativePath = normalizedRelative(path.relative(this.audioRoot, canonical))
+    const markerPath = this.markerPath(audioRelativePath)
+    const marker = this.readMarker(markerPath)
+    if (marker != null) this.removeMarkerResources(marker)
+    rmSync(markerPath, { force: true })
+    this.pending.delete(canonical)
+  }
+
   private async ensureActual(audioFilePath: string): Promise<LibraryDerivedResources> {
     const audioRelativePath = normalizedRelative(path.relative(this.audioRoot, audioFilePath))
     const markerPath = this.markerPath(audioRelativePath)

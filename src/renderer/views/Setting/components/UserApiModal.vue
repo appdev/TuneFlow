@@ -16,9 +16,9 @@ material-modal(:show="modelValue" bg-close teleport="#view" @close="handleClose"
                 span(v-if="api.author") {{ api.author }}
               p {{ api.description }}
               div
-                base-checkbox(:id="`user_api_alert_${api.id}`" v-model="api.allowShowUpdateAlert" :class="$style.checkbox" :label="$t('user_api__allow_show_update_alert')" @change="handleChangeAllowUpdateAlert(api, $event)")
-            base-checkbox(:id="`user_api_enabled_${api.id}`" :model-value="true" :disabled="saving" :label="$t('user_api__enable_source')" @update:model-value="handleToggle(api, $event)")
-            base-btn(:class="$style.listBtn" outline :disabled="saving" :aria-label="$t('user_api__btn_remove')" @click.stop="handleRemove(api)")
+                base-checkbox(:id="`user_api_alert_${api.id}`" v-model="api.allowShowUpdateAlert" :class="$style.checkbox" :disabled="sourceManagementBusy" :label="$t('user_api__allow_show_update_alert')" @change="handleChangeAllowUpdateAlert(api, $event)")
+            base-checkbox(:id="`user_api_enabled_${api.id}`" :model-value="true" :disabled="sourceManagementBusy" :label="$t('user_api__enable_source')" @update:model-value="handleToggle(api, $event)")
+            base-btn(:class="$style.listBtn" outline :disabled="sourceManagementBusy" :aria-label="$t('user_api__btn_remove')" @click.stop="handleRemove(api)")
               svg(v-once version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" viewBox="0 0 212.982 212.982" space="preserve")
                 use(xlink:href="#icon-delete")
         div(v-if="!enabledSources.length" :class="$style.groupEmpty") {{ $t('user_api__no_enabled_sources') }}
@@ -33,9 +33,9 @@ material-modal(:show="modelValue" bg-close teleport="#view" @close="handleClose"
                 span(v-if="api.author") {{ api.author }}
               p {{ api.description }}
               div
-                base-checkbox(:id="`user_api_alert_${api.id}`" v-model="api.allowShowUpdateAlert" :class="$style.checkbox" :label="$t('user_api__allow_show_update_alert')" @change="handleChangeAllowUpdateAlert(api, $event)")
-            base-checkbox(:id="`user_api_enabled_${api.id}`" :model-value="false" :disabled="saving" :label="$t('user_api__enable_source')" @update:model-value="handleToggle(api, $event)")
-            base-btn(:class="$style.listBtn" outline :disabled="saving" :aria-label="$t('user_api__btn_remove')" @click.stop="handleRemove(api)")
+                base-checkbox(:id="`user_api_alert_${api.id}`" v-model="api.allowShowUpdateAlert" :class="$style.checkbox" :disabled="sourceManagementBusy" :label="$t('user_api__allow_show_update_alert')" @change="handleChangeAllowUpdateAlert(api, $event)")
+            base-checkbox(:id="`user_api_enabled_${api.id}`" :model-value="false" :disabled="sourceManagementBusy" :label="$t('user_api__enable_source')" @update:model-value="handleToggle(api, $event)")
+            base-btn(:class="$style.listBtn" outline :disabled="sourceManagementBusy" :aria-label="$t('user_api__btn_remove')" @click.stop="handleRemove(api)")
               svg(v-once version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" viewBox="0 0 212.982 212.982" space="preserve")
                 use(xlink:href="#icon-delete")
         div(v-if="!disabledSources.length" :class="$style.groupEmpty") {{ $t('user_api__no_disabled_sources') }}
@@ -59,17 +59,19 @@ material-modal(:show="modelValue" bg-close teleport="#view" @close="handleClose"
         | {{ $t('user_api__readme') }}
         span.hover.underline(aria-label="https://github.com/appdev/TuneFlow/blob/main/FAQ.md" @click="handleOpenUrl('https://github.com/appdev/TuneFlow/blob/main/FAQ.md')") FAQ
       p {{ $t('user_api__note') }}
+      p(v-if="isWebRuntime") {{ $t('user_api__export_sensitive_tip') }}
     div(:class="$style.footer")
       input(ref="sourceFileInput" :class="$style.fileInput" type="file" accept=".js,text/javascript,application/javascript" @change="handleLocalFileChange")
-      base-btn(data-testid="user-api-import-network" :class="$style.footerBtn" :disabled="saving" @click="handleNetworkImport") {{ $t('user_api__btn_import_online') }}
-      base-btn(data-testid="user-api-import-local" :class="$style.footerBtn" :disabled="saving" @click="handleLocalImport") {{ $t('user_api__btn_import') }}
-      //- base-btn(:class="$style.footerBtn" @click="handleExport") {{ $t('user_api__btn_export') }}
+      base-btn(data-testid="user-api-import-network" :class="$style.footerBtn" :disabled="sourceManagementBusy" @click="handleNetworkImport") {{ $t('user_api__btn_import_online') }}
+      base-btn(data-testid="user-api-import-local" :class="$style.footerBtn" :disabled="sourceManagementBusy" @click="handleLocalImport") {{ $t('user_api__btn_import') }}
+      base-btn(v-if="isWebRuntime" data-testid="user-api-export" :class="$style.footerBtn" :disabled="sourceManagementBusy || !apiList.length" @click="handleExport") {{ $t('user_api__btn_export') }}
     UserApiOnlineImportModal(v-model:show="isShowOnlineImportModal" @imported="handleImportResult")
 </template>
 
 <script setup>
 import { importUserApi, removeUserApi, setAllowShowUserApiUpdateAlert, configureUserApiSources } from '@renderer/utils/ipc'
 import { openUrl } from '@web-runtime/browser'
+import { downloadBinaryAttachment } from '@web-runtime/download'
 import apiSourceInfo from '@renderer/utils/musicSdk/api-source-info'
 import { userApi } from '@renderer/store'
 import { appSetting, updateSetting } from '@renderer/store/setting'
@@ -96,6 +98,8 @@ const isShowOnlineImportModal = ref(false)
 const sourceFileInput = ref(null)
 const enabledListElement = ref(null)
 const saving = ref(false)
+const exporting = ref(false)
+const sourceManagementBusy = computed(() => saving.value || exporting.value)
 const apiList = computed(() => userApi.list)
 const groups = computed(() => splitSourceChain(userApi.list))
 const enabledSources = computed(() => groups.value.enabled)
@@ -110,7 +114,7 @@ const syncLegacySource = (list) => {
 }
 
 const submitSourceIds = async(sourceIds) => {
-  if (!isWebRuntime || saving.value) return
+  if (!isWebRuntime || sourceManagementBusy.value) return
   const confirmed = [...userApi.list]
   saving.value = true
   try {
@@ -149,9 +153,9 @@ if (isWebRuntime) {
 }
 
 const updateDragState = () => {
-  setDragDisabled(saving.value || enabledSources.value.length < 2)
+  setDragDisabled(sourceManagementBusy.value || enabledSources.value.length < 2)
 }
-watch(() => [saving.value, enabledSources.value.length], updateDragState)
+watch(() => [sourceManagementBusy.value, enabledSources.value.length], updateDragState)
 watch(() => props.modelValue, async(show) => {
   if (!show) return
   await nextTick()
@@ -171,8 +175,8 @@ const handleImport = async(script) => {
   }
 }
 const canImport = () => {
-  if (!saving.value && userApi.list.length < 20) return true
-  if (saving.value) return false
+  if (!sourceManagementBusy.value && userApi.list.length < 20) return true
+  if (sourceManagementBusy.value) return false
   void dialog({ message: t('user_api__max_tip'), confirmButtonText: t('ok') })
   return false
 }
@@ -194,7 +198,7 @@ const handleLocalFileChange = async(event) => {
   await handleImport(await file.text())
 }
 const handleRemove = async(api) => {
-  if (saving.value) return
+  if (sourceManagementBusy.value) return
   const confirmed = [...userApi.list]
   saving.value = true
   try {
@@ -209,6 +213,20 @@ const handleRemove = async(api) => {
     void dialog({ message: error instanceof Error ? error.message : String(error), confirmButtonText: t('ok') })
   } finally {
     saving.value = false
+  }
+}
+const handleExport = async() => {
+  if (!isWebRuntime || sourceManagementBusy.value || !apiList.value.length) return
+  exporting.value = true
+  try {
+    await downloadBinaryAttachment('/api/v1/sources/export')
+  } catch (error) {
+    void dialog({
+      message: t('user_api__export_failed', { message: error instanceof Error ? error.message : String(error) }),
+      confirmButtonText: t('ok'),
+    })
+  } finally {
+    exporting.value = false
   }
 }
 const handleClose = () => {

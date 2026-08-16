@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { parseFile } from 'music-metadata'
-import { writeAudioMetadata } from './taglibMetadata'
+import { addMissingAudioMetadata, writeAudioMetadata } from './taglibMetadata'
 import { apeFixture } from './apeFixture.testData'
 
 const roots: string[] = []
@@ -72,5 +72,38 @@ describe('TagLib-Wasm audio metadata writer', () => {
     const filePath = createFile('invalid.flac', Buffer.from('not flac'))
 
     await expect(writeAudioMetadata(filePath, { title: 'Invalid' })).rejects.toThrow()
+  })
+
+  it('fills only missing lyrics and preserves an existing picture', async() => {
+    const filePath = createFile('fixture.mp3', readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3')))
+    await writeAudioMetadata(filePath, { title: 'Fixture', picture: png, pictureMimeType: 'image/png' })
+
+    const changed = await addMissingAudioMetadata(filePath, { lyrics: '[00:01.00]new lyric' })
+    const parsed = await parseFile(filePath)
+
+    expect(changed).toEqual(['lyrics'])
+    expect(parsed.common.picture?.[0].data).toEqual(Uint8Array.from(png))
+    expect(parsed.common.lyrics?.some(value => value.text === '[00:01.00]new lyric')).toBe(true)
+  })
+
+  it('does not replace existing lyrics or artwork', async() => {
+    const filePath = createFile('fixture.mp3', readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3')))
+    await writeAudioMetadata(filePath, {
+      title: 'Fixture',
+      picture: png,
+      pictureMimeType: 'image/png',
+      lyrics: '[00:01.00]existing lyric',
+    })
+
+    const changed = await addMissingAudioMetadata(filePath, {
+      picture: Uint8Array.of(9, 8, 7),
+      pictureMimeType: 'image/png',
+      lyrics: '[00:01.00]replacement lyric',
+    })
+    const parsed = await parseFile(filePath)
+
+    expect(changed).toEqual([])
+    expect(parsed.common.picture?.[0].data).toEqual(Uint8Array.from(png))
+    expect(parsed.common.lyrics?.some(value => value.text === '[00:01.00]existing lyric')).toBe(true)
   })
 })

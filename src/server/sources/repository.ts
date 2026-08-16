@@ -4,7 +4,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { MAX_SOURCE_SCRIPT_BYTES } from '../../common/constants'
 import { getDB } from '../db/core/db'
 import { parseSourceScript } from './parser'
-import { SourceServiceError, type InstalledSource, type SourceSummary } from './types'
+import { SourceServiceError, type InstalledSource, type SourceExportSource, type SourceSummary } from './types'
 
 interface SourceRow extends Omit<InstalledSource, 'sources'> {
   sources: string | null
@@ -47,6 +47,8 @@ export class SourceRepository {
     `)
   }
 
+  getSourceRoot(): string { return this.sourceDir }
+
   private toSummary(row: SourceRow): SourceSummary {
     return {
       id: row.id,
@@ -79,6 +81,13 @@ export class SourceRepository {
     const hash = /^user_api_([a-f0-9]{64})$/.exec(row.id)?.[1]
     if (hash == null) throw new SourceServiceError('SOURCE_INVALID_METADATA', 'Invalid installed source id')
     return { ...row, scriptPath: path.join(this.sourceDir, `${hash}.js`), sources: row.sources == null ? undefined : JSON.parse(row.sources) }
+  }
+
+  listSourceExportFiles(): SourceExportSource[] {
+    return this.listSources().map(({ id, name, version }) => {
+      const installed = this.getSource(id)
+      return { id, name, version, scriptPath: installed.scriptPath }
+    })
   }
 
   async installSource(script: string): Promise<SourceSummary> {

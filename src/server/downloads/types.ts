@@ -1,6 +1,7 @@
 export type DownloadStatus = 'waiting' | 'running' | 'paused' | 'error' | 'completed'
 export type DownloadExtension = 'ape' | 'flac' | 'wav' | 'mp3'
 export type DownloadFileNamePattern = '歌名 - 歌手' | '歌手 - 歌名' | '歌名'
+export type ExistingFilePolicy = 'reuse' | 'error' | 'replace' | 'duplicate'
 
 export interface DownloadFileIntegrity {
   size: number
@@ -14,6 +15,23 @@ export interface DownloadCreateInput {
   listId?: string
   skipExisting?: boolean
   qualityPolicy?: 'selected' | 'highest'
+  existingFilePolicy?: ExistingFilePolicy
+}
+
+export interface DownloadReplacementState {
+  originalRelativePath: string
+  originalIntegrity: DownloadFileIntegrity
+  previousDownloadIds: string[]
+  phase: 'downloading' | 'prepared' | 'published' | 'retired'
+  replacementIntegrity?: DownloadFileIntegrity
+  stagedLyricRelativePath?: string
+  finalLyricRelativePath?: string
+}
+
+export interface DownloadMetadataPatchState {
+  stagedRelativePath: string
+  originalIntegrity: DownloadFileIntegrity
+  replacementIntegrity: DownloadFileIntegrity
 }
 
 export interface DownloadJobRecord {
@@ -34,8 +52,12 @@ export interface DownloadJobRecord {
     phase: 'prepared' | 'published'
     sha256: string
     size: number
+    stagedLyricRelativePath?: string
+    finalLyricRelativePath?: string
   }
   finalIntegrity?: DownloadFileIntegrity
+  metadataPatch?: DownloadMetadataPatchState
+  replacement?: DownloadReplacementState
   useDefaultDownloadSettings?: boolean
   partCleanupPending?: boolean
   finalMissing?: boolean
@@ -67,10 +89,19 @@ export interface DownloadDto {
 export interface ResolvedDownload {
   url?: string
   headers?: Record<string, string>
-  candidates?: Array<{ sourceId: string, url: string, headers?: Record<string, string> }>
+  candidates?: ResolvedDownloadCandidate[]
   resources?: {
     pictureBytes?: Uint8Array
     pictureMimeType?: string
     lyrics?: TuneFlow.Music.LyricInfo
   }
+}
+
+export interface ResolvedDownloadCandidate {
+  sourceId: string
+  url: string
+  headers?: Record<string, string>
+  resources?: ResolvedDownload['resources']
+  completeness?: 'complete' | 'mixed' | 'audio-only'
+  sourceIds?: { audio: string, lyrics?: string, picture?: string }
 }

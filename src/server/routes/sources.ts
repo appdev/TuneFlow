@@ -1,4 +1,5 @@
 import { Type } from '@fastify/type-provider-typebox'
+import { ZipArchive } from 'archiver'
 import { readFileSync } from 'node:fs'
 import { type SourceRepository } from '../sources/repository'
 import { SourceWorkerHost } from '../sources/worker-host'
@@ -10,12 +11,17 @@ import type { ApiFastifyInstance } from '../api/types'
 import { ApiSuccess, ErrorResponses } from '../api/schemas/common'
 import { IdParams, SourceSummary as SourceSummarySchema } from '../api/schemas/domain'
 import type { ServiceEvents } from './events'
+import { prepareSourceExport, sourceExportArchiveName, type SourceExportEntry } from '../sources/export'
 
 const asApiError = (error: unknown): never => {
   if (error instanceof SourceServiceError) {
     const status = error.code === 'SOURCE_NOT_FOUND'
       ? 404
-      : ['SOURCE_DUPLICATE', 'SOURCE_INVALID_METADATA', 'SOURCE_INVALID_URL', 'SOURCE_SCRIPT_TOO_LARGE', 'SOURCE_TARGET_BLOCKED'].includes(error.code) ? 400 : 502
+      : error.code === 'SOURCE_EXPORT_EMPTY'
+        ? 409
+        : error.code === 'SOURCE_EXPORT_FAILED'
+          ? 500
+          : ['SOURCE_DUPLICATE', 'SOURCE_INVALID_METADATA', 'SOURCE_INVALID_URL', 'SOURCE_SCRIPT_TOO_LARGE', 'SOURCE_TARGET_BLOCKED'].includes(error.code) ? 400 : 502
     throw new ApiError(status, error.code, error.message)
   }
   throw error
@@ -32,6 +38,14 @@ export class SourcesService {
   ) {}
 
   list(): SourceSummary[] { return this.repository.listSources() }
+
+  prepareExport(): SourceExportEntry[] {
+    try {
+      return prepareSourceExport(this.repository.listSourceExportFiles(), this.repository.getSourceRoot())
+    } catch (error) {
+      return asApiError(error)
+    }
+  }
 
   snapshot(provider: string, action: SourceAction): ReadonlyArray<Readonly<SourceCandidate>> {
     const candidates = this.repository.listSources()
@@ -172,6 +186,35 @@ export const registerSourceRoutes = (app: ApiFastifyInstance, service: SourcesSe
     const source = await service.installSourceFromUrl(body.url)
     events?.publishSnapshot('sources.updated', service.list())
     return { data: source }
+  })
+  app.get('/api/v1/sources/export', {
+    schema: {
+      operationId: 'exportSourceScripts',
+      tags: ['Sources'],
+      summary: 'Export installed source scripts as a ZIP archive',
+      response: {
+        200: Type.String({ format: 'binary', contentMediaType: 'application/zip' }),
+        ...ErrorResponses,
+      },
+    },
+  }, async(_request, reply) => {
+    const entries = service.prepareExport()
+    const archive = new ZipArchive({ zlib: { level: 9 } })
+    const failArchive = (error: Error): void => {
+      if (archive.destroyed) return
+      app.log.error({ err: error }, 'Source export stream failed')
+      archive.destroy(error)
+    }
+    archive.on('warning', failArchive)
+    archive.on('error', error => { app.log.error({ err: error }, 'Source export stream failed') })
+    for (const entry of entries) archive.file(entry.scriptPath, { name: entry.archiveName })
+    void reply.headers({
+      'content-type': 'application/zip',
+      'content-disposition': `attachment; filename="${sourceExportArchiveName()}"`,
+      'cache-control': 'no-store',
+    })
+    void archive.finalize().catch(failArchive)
+    return reply.send(archive)
   })
   app.put('/api/v1/sources/active', {
     schema: {

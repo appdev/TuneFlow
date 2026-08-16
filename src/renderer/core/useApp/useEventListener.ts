@@ -16,6 +16,7 @@ const handleKeyDown = ({ event, type, key }: TuneFlow.KeyDownEevent) => {
 const handleBodyClick = (event: MouseEvent) => {
   if ((event.target as HTMLElement)?.tagName !== 'A') return
   const target = event.target as HTMLAnchorElement
+  if (target.download && target.href.startsWith('blob:')) return
   if (target.host === window.location.host) return
   event.preventDefault()
   if (/^https?:\/\//.test(target.href)) void openUrl(target.href)

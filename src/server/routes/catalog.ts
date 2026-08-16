@@ -1,18 +1,33 @@
 import { Type } from '@fastify/type-provider-typebox'
+import type { IncomingMessage } from 'node:http'
 import type { ApiFastifyInstance } from '../api/types'
 import { ApiSuccess, ErrorResponses } from '../api/schemas/common'
 import { CatalogCollection, CatalogLyrics, CatalogTrack } from '../api/schemas/domain'
 import { ApiError } from '../errors'
 import { browsePlaylists, catalogCapabilities, getLeaderboardTracks, getLeaderboards, getLyric, getPicture, getPlaylistDetail, getPlaylistTags, search, searchCollections } from '../tuneFlowSdk'
 import type { SourcesService } from './sources'
-import { runSourceFallback } from '../sources/fallback'
-import { SourceServiceError, type SourceAction, type SourceCandidate } from '../sources/types'
+import { SourceServiceError } from '../sources/types'
 import { MediaClient } from '../playback/mediaClient'
 import { PlaybackResourceStore } from '../playback/resourceStore'
+import { TrackResourceService } from '../resources/trackResources'
+
+const TrackIdentity = Type.Union([
+  Type.Object({
+    id: Type.Union([Type.String({ minLength: 1 }), Type.Number()]),
+  }, { additionalProperties: true }),
+  Type.Object({
+    songmid: Type.Union([Type.String({ minLength: 1 }), Type.Number()]),
+  }, { additionalProperties: true }),
+  Type.Object({
+    meta: Type.Object({
+      songId: Type.Union([Type.String({ minLength: 1 }), Type.Number()]),
+    }, { additionalProperties: true }),
+  }, { additionalProperties: true }),
+])
 
 const TrackInput = Type.Object({
   source: Type.String({ minLength: 1 }),
-  musicInfo: Type.Record(Type.String(), Type.Unknown()),
+  musicInfo: TrackIdentity,
 }, { additionalProperties: false })
 
 const SearchInput = Type.Object({
@@ -124,32 +139,48 @@ const sourceFailure = (error: unknown, message: string): never => {
   throw new ApiError(502, code, message)
 }
 
-const sourceSnapshot = (sources: SourcesService | undefined, provider: string, action: SourceAction): ReadonlyArray<Readonly<SourceCandidate>> => {
-  if (sources == null) return []
-  if (typeof sources.snapshot === 'function') return sources.snapshot(provider, action)
-  const active = sources.list().find(source => source.active && source.sources?.[provider]?.actions.includes(action))
-  return active == null ? [] : [{ id: active.id, priority: 0 }]
-}
-
-const rejectReplacementCharacters = <T>(lyrics: T): T => {
-  if (typeof lyrics !== 'object' || lyrics == null) return lyrics
-  const value = lyrics as Record<string, unknown>
-  for (const field of ['lyric', 'tlyric', 'rlyric', 'verbatimLyric']) {
-    if (typeof value[field] === 'string' && value[field].includes('\uFFFD')) {
-      throw Object.assign(new Error(`Lyric provider returned replacement characters in ${field}`), { code: 'SOURCE_PROTOCOL_ERROR' })
-    }
-  }
-  return lyrics
+const withRequestAbortSignal = async<T>(
+  raw: Pick<IncomingMessage, 'aborted' | 'once' | 'off'>,
+  operation: (signal: AbortSignal) => Promise<T>,
+): Promise<T> => {
+  const controller = new AbortController()
+  const abort = (): void => { controller.abort() }
+  if (raw.aborted) abort()
+  else raw.once('aborted', abort)
+  try { return await operation(controller.signal) } finally { raw.off('aborted', abort) }
 }
 
 export interface CatalogResourceOptions {
   mediaClient?: MediaClient
   resourceStore?: PlaybackResourceStore
+  trackResources?: TrackResourceService
+  getBuiltinLyrics?: (source: string, musicInfo: unknown) => ReturnType<typeof getLyric>
+  getBuiltinPicture?: (source: string, musicInfo: unknown) => ReturnType<typeof getPicture>
 }
 
 export const registerCatalogRoutes = (app: ApiFastifyInstance, sources?: SourcesService, resourceOptions: CatalogResourceOptions = {}): void => {
   const mediaClient = resourceOptions.mediaClient ?? new MediaClient()
   const resourceStore = resourceOptions.resourceStore ?? new PlaybackResourceStore()
+  const sourceAccess = sources == null
+    ? {
+        snapshot: () => [],
+        requestSource: async() => { throw new SourceServiceError('SOURCE_NOT_FOUND', 'Source not found', 'protocol') },
+      }
+    : typeof sources.snapshot === 'function'
+      ? sources
+      : {
+          snapshot: (provider: string, action: 'musicUrl' | 'lyric' | 'pic') => {
+            const active = sources.list().find(source => source.active && source.sources?.[provider]?.actions.includes(action))
+            return active == null ? [] : [{ id: active.id, priority: 0 }]
+          },
+          requestSource: sources.requestSource.bind(sources),
+        }
+  const trackResources = resourceOptions.trackResources ?? new TrackResourceService({
+    sources: sourceAccess as Pick<SourcesService, 'snapshot' | 'requestSource'>,
+    mediaClient,
+    getBuiltinLyrics: resourceOptions.getBuiltinLyrics ?? (async(source, musicInfo) => await getLyric(source, musicInfo)),
+    getBuiltinPicture: resourceOptions.getBuiltinPicture ?? (async(source, musicInfo) => await getPicture(source, musicInfo)),
+  })
   app.get('/api/v1/catalog/capabilities', {
     schema: {
       operationId: 'getCatalogCapabilities',
@@ -259,21 +290,7 @@ export const registerCatalogRoutes = (app: ApiFastifyInstance, sources?: Sources
     },
   }, async(request) => {
     try {
-      const candidates = sourceSnapshot(sources, request.body.source, 'lyric')
-      const lyrics = candidates.length === 0
-        ? await getLyric(request.body.source, request.body.musicInfo)
-        : (await runSourceFallback({
-            candidates,
-            action: 'lyric',
-            attempt: async candidate => await sources!.requestSource(candidate.id, {
-              source: request.body.source,
-              action: 'lyric',
-              info: request.body.musicInfo,
-            }),
-          })).value
-      return {
-        data: rejectReplacementCharacters(lyrics),
-      }
+      return { data: await withRequestAbortSignal(request.raw, async signal => await trackResources.resolveLyrics(request.body.source, request.body.musicInfo, signal)) }
     } catch (error) { return sourceFailure(error, 'Lyric lookup failed') }
   })
 
@@ -287,31 +304,9 @@ export const registerCatalogRoutes = (app: ApiFastifyInstance, sources?: Sources
     },
   }, async(request) => {
     try {
-      const storePicture = async(url: string): Promise<string> => {
-        try {
-          const picture = await mediaClient.fetchArtwork({ url })
-          const stored = resourceStore.putPicture(picture)
-          return `/api/v1/playback/resources/${stored.token}/picture`
-        } catch (error) {
-          if (error instanceof SourceServiceError && ['SOURCE_MEDIA_INVALID', 'SOURCE_MEDIA_UNAVAILABLE'].includes(error.code)) {
-            throw new SourceServiceError(error.code, error.message, 'service-network')
-          }
-          throw error
-        }
-      }
-      const candidates = sourceSnapshot(sources, request.body.source, 'pic')
-      const url = candidates.length === 0
-        ? await storePicture(await getPicture(request.body.source, request.body.musicInfo))
-        : (await runSourceFallback({
-            candidates,
-            action: 'pic',
-            attempt: async candidate => await storePicture(await sources!.requestSource<string>(candidate.id, {
-              source: request.body.source,
-              action: 'pic',
-              info: request.body.musicInfo,
-            })),
-          })).value
-      return { data: { url } }
+      const picture = await withRequestAbortSignal(request.raw, async signal => await trackResources.resolvePicture(request.body.source, request.body.musicInfo, signal))
+      const stored = resourceStore.putPicture(picture)
+      return { data: { url: `/api/v1/playback/resources/${stored.token}/picture` } }
     } catch (error) { return sourceFailure(error, 'Picture lookup failed') }
   })
 }

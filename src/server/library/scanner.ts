@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { closeSync, lstatSync, openSync, readSync, readdirSync, realpathSync, rmSync, statSync, type Dirent } from 'node:fs'
+import { closeSync, lstatSync, openSync, readFileSync, readSync, readdirSync, realpathSync, rmSync, statSync, type Dirent } from 'node:fs'
 import path from 'node:path'
 import { parseFile } from 'music-metadata'
 import { isPathInside } from '../config'
@@ -7,6 +7,7 @@ import { makeFileName } from '../downloads/filenames'
 import { isSameMusic } from '../downloads/matching'
 import type { DownloadExtension, DownloadFileIntegrity, DownloadFileNamePattern } from '../downloads/types'
 import type { LibraryDerivedResources, LibraryResourceStore } from './resources'
+import type { ValidatedTrackResources } from '../resources/trackResources'
 
 const EXTENSIONS = new Set(['.ape', '.flac', '.mp3', '.wav'])
 
@@ -115,6 +116,23 @@ export class LibraryScanner {
     )))
     const byName = [...this.entries.values()].find(entry => expected.has(normalizedFileName(path.basename(entry.filePath))))
     return byName == null ? undefined : { filePath: byName.filePath, track: byName.dto }
+  }
+
+  async readMatchingResources(musicInfo: unknown): Promise<ValidatedTrackResources | undefined> {
+    const match = await this.findMatchingFile(musicInfo)
+    if (match == null || this.resourceStore == null) return undefined
+    const resources = await this.resourceStore.ensure(match.filePath)
+    const lyrics = resources.lyrics == null || statSync(resources.lyrics.filePath).size > 2 * 1024 * 1024
+      ? undefined
+      : readFileSync(resources.lyrics.filePath, 'utf8').replace(/^\ufeff/, '').trim()
+    const picture = resources.picture == null
+      ? undefined
+      : { bytes: Uint8Array.from(readFileSync(resources.picture.filePath)), mimeType: resources.picture.mimeType }
+    if ((lyrics == null || lyrics === '') && picture == null) return undefined
+    return {
+      ...(lyrics == null || lyrics === '' ? {} : { lyrics: { lyric: lyrics } }),
+      ...(picture == null ? {} : { picture }),
+    }
   }
 
   async remove(id: string): Promise<{ filePath: string } | undefined> {

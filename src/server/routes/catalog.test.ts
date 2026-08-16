@@ -19,6 +19,27 @@ const appWithProductionErrors = () => {
 }
 
 describe('catalog routes', () => {
+  it('rejects track resource requests without a track identity', async() => {
+    const requestSource = vi.fn(async() => ({ lyric: '[00:00.00]fixture' }))
+    const sources = {
+      list: () => [{ id: 'user_api_fixture', active: true, sources: { kw: { type: 'music', actions: ['lyric'], qualitys: [] } } }],
+      requestSource,
+    }
+    const app = appWithProductionErrors()
+    registerCatalogRoutes(app as never, sources as never)
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/catalog/tracks/lyrics',
+      payload: { source: 'kw', musicInfo: {} },
+    })
+
+    expect(response.statusCode).toBe(400)
+    expect(response.json()).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'Request validation failed' } })
+    expect(requestSource).not.toHaveBeenCalled()
+    await app.close()
+  })
+
   it('advertises only search kinds implemented by each built-in provider', async() => {
     const app = appWithProductionErrors()
     registerCatalogRoutes(app as never)
@@ -103,14 +124,24 @@ describe('catalog routes', () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/catalog/tracks/lyrics',
-      payload: { source: 'kw', musicInfo: { id: 'track', source: 'kw' } },
+      payload: {
+        source: 'kw',
+        musicInfo: {
+          id: 'kw_track',
+          name: 'Fixture',
+          source: 'kw',
+          meta: { songId: 'track', picUrl: 'https://snapshot.test/cover.jpg' },
+        },
+      },
     })
 
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({ data: { lyric: '[00:00.00]fixture' } })
-    expect(requestSource).toHaveBeenCalledWith('user_api_fixture', {
-      source: 'kw', action: 'lyric', info: { id: 'track', source: 'kw' },
-    })
+    expect(requestSource).toHaveBeenCalledWith('user_api_fixture', expect.objectContaining({
+      source: 'kw',
+      action: 'lyric',
+      info: expect.objectContaining({ songmid: 'track', img: 'https://snapshot.test/cover.jpg' }),
+    }), expect.any(AbortSignal))
     await app.close()
   })
 
@@ -124,7 +155,7 @@ describe('catalog routes', () => {
       })),
     }
     const app = appWithProductionErrors()
-    registerCatalogRoutes(app as never, sources as never)
+    registerCatalogRoutes(app as never, sources as never, { getBuiltinLyrics: async() => undefined })
 
     const response = await app.inject({
       method: 'POST',
@@ -133,7 +164,7 @@ describe('catalog routes', () => {
     })
 
     expect(response.statusCode).toBe(502)
-    expect(response.json()).toEqual({ error: { code: 'SOURCE_PROTOCOL_ERROR', message: 'Lyric lookup failed' } })
+    expect(response.json()).toEqual({ error: { code: 'SOURCE_ALL_UNAVAILABLE', message: 'Lyric lookup failed' } })
     await app.close()
   })
 
@@ -159,10 +190,10 @@ describe('catalog routes', () => {
     await app.close()
   })
 
-  it('does not cross a terminal source-script failure', async() => {
+  it('continues lyrics lookup after a source-script failure', async() => {
     const requestSource = vi.fn(async(sourceId: string) => {
       if (sourceId === 'a') throw new SourceServiceError('SOURCE_PROTOCOL_ERROR', 'broken script', 'script')
-      return { lyric: '[00:00.00]must not run' }
+      return { lyric: '[00:00.00]backup' }
     })
     const sources = {
       snapshot: () => [{ id: 'a', priority: 0 }, { id: 'b', priority: 1 }],
@@ -175,8 +206,9 @@ describe('catalog routes', () => {
       method: 'POST', url: '/api/v1/catalog/tracks/lyrics', payload: { source: 'kw', musicInfo: { id: 'track', source: 'kw' } },
     })
 
-    expect(response.statusCode).toBe(502)
-    expect(requestSource.mock.calls.map(call => call[0])).toEqual(['a'])
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({ data: { lyric: '[00:00.00]backup' } })
+    expect(requestSource.mock.calls.map(call => call[0])).toEqual(['a', 'b'])
     await app.close()
   })
 

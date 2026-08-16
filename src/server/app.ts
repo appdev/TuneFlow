@@ -35,6 +35,9 @@ import { PlaybackHistoryRepository } from './playback/historyRepository'
 import { MediaClient } from './playback/mediaClient'
 import { PlaybackResourceStore } from './playback/resourceStore'
 import { PlaybackBundleResolver } from './playback/bundleResolver'
+import { TrackResourceService } from './resources/trackResources'
+import { LibraryMetadataEnricher } from './library/metadataEnricher'
+import { TrackResourceCoordinator } from './resources/trackResourceCoordinator'
 
 export type { ServerOptions } from './config'
 
@@ -69,6 +72,15 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
   const allowPrivatePlaybackTargets = process.env.NODE_ENV === 'test' && process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS === '1'
   const mediaClient = new MediaClient({ allowPrivateNetwork: allowPrivatePlaybackTargets })
   const playbackResources = new PlaybackResourceStore()
+  const trackResources = new TrackResourceService({
+    sources,
+    mediaClient,
+    readLocal: async musicInfo => await library.readMatchingResources(musicInfo),
+    findAlternatives: findAlternativeMusic,
+    getBuiltinLyrics: async(provider, musicInfo) => await getLyric(provider, musicInfo),
+    getBuiltinPicture: async(provider, musicInfo) => await getPicture(provider, musicInfo),
+  })
+  let resourceCoordinator: TrackResourceCoordinator | undefined
   const findLocalPlayback = async(musicInfo: unknown) => {
     const match = await library.findMatchingFile(musicInfo)
     return match == null
@@ -87,6 +99,19 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
     findAlternatives: findAlternativeMusic,
     getBuiltinLyrics: async(provider, musicInfo) => await getLyric(provider, musicInfo),
     getBuiltinPicture: async(provider, musicInfo) => await getPicture(provider, musicInfo),
+    onResourcesAvailable: (provider, musicInfo, resources) => {
+      const pictureToken = /^\/api\/v1\/playback\/resources\/([a-f0-9]{64})\/picture$/.exec(resources.pictureUrl ?? '')?.[1]
+      const picture = pictureToken == null ? undefined : playbackResources.getPicture(pictureToken)
+      trackResources.remember(provider, musicInfo, {
+        ...(resources.lyrics == null ? {} : { lyrics: resources.lyrics }),
+        ...(picture == null ? {} : { picture: { bytes: picture.bytes, mimeType: picture.mimeType } }),
+      })
+      const missing = new Set<'lyrics' | 'picture'>([
+        ...(resources.lyrics == null && resources.lyricsUrl == null ? ['lyrics' as const] : []),
+        ...(resources.pictureUrl == null ? ['picture' as const] : []),
+      ])
+      resourceCoordinator?.resolveMissingForPlayback(provider, musicInfo, missing)
+    },
     onAttempt: attempt => { app.log.info({ sourceAttempt: attempt }) },
   })
   const downloads = new DownloadManager({
@@ -107,27 +132,66 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
         info: { type: job.quality, musicInfo: job.musicInfo },
         preferLocal: false,
       }, signal)
-      const pictureToken = /^\/api\/v1\/playback\/resources\/([a-f0-9]{64})\/picture$/.exec(bundle.resources.pictureUrl ?? '')?.[1]
-      const picture = pictureToken == null ? undefined : playbackResources.getPicture(pictureToken)
-      return {
-        candidates: bundle.streamCandidates,
-        resources: {
+      const resourcesFor = (resources: typeof bundle.resources) => {
+        const pictureToken = /^\/api\/v1\/playback\/resources\/([a-f0-9]{64})\/picture$/.exec(resources.pictureUrl ?? '')?.[1]
+        const picture = pictureToken == null ? undefined : playbackResources.getPicture(pictureToken)
+        return {
           ...(picture == null ? {} : { pictureBytes: picture.bytes, pictureMimeType: picture.mimeType }),
-          ...(bundle.resources.lyrics == null ? {} : { lyrics: bundle.resources.lyrics }),
-        },
+          ...(resources.lyrics == null ? {} : { lyrics: resources.lyrics }),
+        }
+      }
+      const resolvedResources = resourcesFor(bundle.resources)
+      const currentSettings = settings.getSettings()
+      const missingResources = new Set<'lyrics' | 'picture'>([
+        ...((currentSettings['download.isEmbedLyric'] || currentSettings['download.isDownloadLrc']) && resolvedResources.lyrics == null
+          ? ['lyrics' as const]
+          : []),
+        ...(currentSettings['download.isEmbedPic'] && resolvedResources.pictureBytes == null
+          ? ['picture' as const]
+          : []),
+      ])
+      resourceCoordinator?.resolveMissingForDownload(job.musicInfo.source, job.musicInfo, missingResources, signal)
+      return {
+        candidates: bundle.downloadCandidates?.map(candidate => ({
+          sourceId: candidate.sourceId,
+          url: candidate.url,
+          headers: candidate.headers,
+          resources: resourcesFor(candidate.resources ?? {}),
+          completeness: candidate.completeness,
+          sourceIds: candidate.sourceIds,
+        })) ?? bundle.streamCandidates,
+        resources: resolvedResources,
       }
     },
-    metadata: async(filePath, job, currentSettings, resources) => applyDownloadMetadata(filePath, job, currentSettings, {
-      getPicture: async musicInfo => getPicture(musicInfo.source, musicInfo).catch(() => musicInfo.meta.picUrl ?? null),
-      getLyrics: async musicInfo => getLyric(musicInfo.source, musicInfo).catch(() => null),
+    metadata: async(filePath, job, currentSettings, resources, lyricFilePath) => await applyDownloadMetadata(filePath, job, currentSettings, {
       ...resources,
+      lyricFilePath,
     }),
     materializeResources: async filePath => { await libraryResources.ensure(filePath) },
     publish: jobs => {
       events.publishSnapshot('downloads.updated', jobs)
     },
-    onCompleted: async() => library.refresh(),
+    onCompleted: async(filePath, job) => {
+      if (resourceCoordinator == null) await library.refresh()
+      else await resourceCoordinator.onDownloadCompleted(filePath, job)
+    },
   })
+  const metadataEnricher = new LibraryMetadataEnricher(getAudioRoot(serverOptions.storageRoot), {
+    publish: input => downloads.publishMetadataPatch(input),
+  })
+  resourceCoordinator = new TrackResourceCoordinator({
+    downloads,
+    library,
+    libraryResources,
+    enricher: metadataEnricher,
+    resources: trackResources,
+    getSettings: () => settings.getSettings(),
+    getCached: identity => trackResources.cached(identity),
+    publishEvent: (type, data) => events.publish(type, data),
+    publishLibrary: tracks => events.publishSnapshot('library.updated', tracks),
+    onError: error => { app.log.error({ error }, 'Track resource backfill failed') },
+  })
+  const unsubscribeTrackResources = trackResources.subscribe(event => { resourceCoordinator?.accept(event) })
   integrityLookup = filePath => downloads.expectedIntegrity(filePath)
   downloadedAtLookup = filePath => downloads.completedAt(filePath)
   await library.refresh()
@@ -154,6 +218,9 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
     } catch { return payload }
   })
   app.addHook('onClose', async() => {
+    unsubscribeTrackResources()
+    resourceCoordinator?.close()
+    await resourceCoordinator?.waitForIdle()
     downloads.close()
     await sources.close()
     events.close()
@@ -166,7 +233,7 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
   registerListRoutes(app, events)
   registerEventRoutes(app, events)
   registerSourceRoutes(app, sources, events)
-  registerCatalogRoutes(app, sources, { mediaClient, resourceStore: playbackResources })
+  registerCatalogRoutes(app, sources, { mediaClient, resourceStore: playbackResources, trackResources })
   registerPlaybackRoutes(app, {
     sources,
     findLocalTrack: async musicInfo => (await library.findMatchingFile(musicInfo))?.track.streamUrl,

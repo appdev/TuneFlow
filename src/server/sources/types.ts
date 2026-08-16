@@ -27,6 +27,13 @@ export interface InstalledSource extends SourceInfo {
   sources?: SourceSummary['sources']
 }
 
+export interface SourceExportSource {
+  id: string
+  name: string
+  version: string
+  scriptPath: string
+}
+
 export interface SourceRequest {
   source: string
   action: SourceAction | string

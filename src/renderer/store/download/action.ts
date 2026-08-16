@@ -2,6 +2,8 @@ import { markRaw, toRaw } from '@common/utils/vueTools'
 import { DOWNLOAD_STATUS } from '@common/constants'
 import { qualityList } from '..'
 import { downloadList } from './state'
+import { dialog } from '@renderer/plugins/Dialog'
+import { runUserDownloads, ServiceRequestError } from './userDownload'
 
 interface ServiceDownloadDto {
   id: string
@@ -23,7 +25,10 @@ const serviceRequest = async<T>(method: string, path: string, body?: unknown): P
     method,
     ...(body === undefined ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
   })
-  if (!response.ok) throw new Error((await response.json().catch(() => null))?.error?.message ?? `Download request failed (${response.status})`)
+  if (!response.ok) {
+    const failure = (await response.json().catch(() => null))?.error
+    throw new ServiceRequestError(response.status, failure?.code ?? 'DOWNLOAD_REQUEST_FAILED', failure?.message ?? `Download request failed (${response.status})`, failure?.details)
+  }
   if (response.status === 204) return undefined as T
   return (await response.json()).data as T
 }
@@ -93,14 +98,24 @@ export const createDownloadTasks = async(
 ) => {
   if (!list.length) return
   subscribeServiceDownloads()
-  for (const musicInfo of list) {
+  const request = async(musicInfo: TuneFlow.Music.MusicInfoOnline, existingFilePolicy: 'error' | 'replace' | 'reuse') => {
     await serviceRequest<ServiceDownloadDto>('POST', '/api/v1/downloads', {
       musicInfo: toRaw(musicInfo),
       quality,
       qualityList: toRaw(qualityList.value),
       listId,
       ...options,
+      existingFilePolicy,
     })
+  }
+  if (options.skipExisting === true) {
+    for (const musicInfo of list) await request(musicInfo, 'reuse')
+  } else {
+    await runUserDownloads(list, request, async details => dialog.confirm({
+      message: window.i18n.t('download__replace_existing', { fileName: details.fileName ?? '' }),
+      cancelButtonText: window.i18n.t('btn_cancel'),
+      confirmButtonText: window.i18n.t('btn_confirm'),
+    }))
   }
   reconcileServiceDownloads(await serviceRequest<ServiceDownloadDto[]>('GET', '/api/v1/downloads'))
 }

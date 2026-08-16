@@ -1,4 +1,7 @@
-import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { createServer as createHttpServer } from 'node:http'
+import { once } from 'node:events'
+import type { AddressInfo } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -11,6 +14,7 @@ process.env.TUNEFLOW_SERVICE_NODE_MODULES = path.join(process.cwd(), 'dist/serve
 
 const roots: string[] = []
 const apps: Array<Awaited<ReturnType<typeof createServer>>> = []
+const upstreams: Array<ReturnType<typeof createHttpServer>> = []
 
 const createTestServer = async() => {
   const storageRoot = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-service-'))
@@ -25,6 +29,11 @@ const createTestServer = async() => {
 
 afterEach(async() => {
   for (const app of apps.splice(0)) await app.close()
+  await Promise.all(upstreams.splice(0).map(async server => {
+    await new Promise<void>(resolve => {
+      server.close(() => { resolve() })
+    })
+  }))
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 
@@ -39,6 +48,20 @@ describe('TuneFlow service', () => {
     const settings = (await app.inject({ method: 'GET', url: '/api/v1/settings' })).json()
     expect(settings.data['theme.id']).toBe(defaultSetting['theme.id'])
     expect(settings.data['download.savePath']).toBe(path.join(realpathSync(storageRoot), 'audio'))
+    expect(settings.data).toMatchObject({
+      'download.enable': true,
+      'download.fileName': '歌名 - 歌手',
+      'download.isUseOtherSource': true,
+      'download.isEmbedPic': true,
+      'download.isEmbedLyric': true,
+      'download.isEmbedVerbatimLyric': true,
+      'download.isEmbedLyricT': true,
+      'download.isEmbedLyricR': true,
+      'download.isDownloadLrc': true,
+      'download.isDownloadVerbatimLyric': true,
+      'download.isDownloadTLrc': true,
+      'download.isDownloadRLrc': true,
+    })
     expect(settings.data['desktopLyric.enable']).toBe(false)
   })
 
@@ -55,6 +78,46 @@ describe('TuneFlow service', () => {
     apps.push(restarted)
     expect((await restarted.inject({ method: 'GET', url: '/api/v1/settings' })).json().data['player.volume']).toBe(0.35)
     expect((await restarted.inject({ method: 'GET', url: '/api/v1/settings' })).json().data['player.autoDownloadOnPlay']).toBe(true)
+  })
+
+  it('preserves persisted disabled download settings when defaults are enabled', async() => {
+    const { app, storageRoot, webRoot } = await createTestServer()
+    const patched = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/settings',
+      payload: {
+        'download.enable': false,
+        'download.isUseOtherSource': false,
+        'download.isEmbedPic': false,
+        'download.isEmbedLyric': false,
+        'download.isEmbedVerbatimLyric': false,
+        'download.isEmbedLyricT': false,
+        'download.isEmbedLyricR': false,
+        'download.isDownloadLrc': false,
+        'download.isDownloadVerbatimLyric': false,
+        'download.isDownloadTLrc': false,
+        'download.isDownloadRLrc': false,
+      },
+    })
+    expect(patched.statusCode).toBe(200)
+    await app.close()
+    apps.splice(apps.indexOf(app), 1)
+
+    const restarted = await createServer({ storageRoot, webRoot, host: '127.0.0.1', port: 0 })
+    apps.push(restarted)
+    expect((await restarted.inject({ method: 'GET', url: '/api/v1/settings' })).json().data).toMatchObject({
+      'download.enable': false,
+      'download.isUseOtherSource': false,
+      'download.isEmbedPic': false,
+      'download.isEmbedLyric': false,
+      'download.isEmbedVerbatimLyric': false,
+      'download.isEmbedLyricT': false,
+      'download.isEmbedLyricR': false,
+      'download.isDownloadLrc': false,
+      'download.isDownloadVerbatimLyric': false,
+      'download.isDownloadTLrc': false,
+      'download.isDownloadRLrc': false,
+    })
   })
 
   it('migrates legacy branded setting keys without losing their values', async() => {
@@ -242,6 +305,108 @@ describe('TuneFlow service', () => {
     await app.inject({ method: 'POST', url: '/api/v1/playback/history', payload: { track: { id: 'local', source: 'local' }, platform: 'web' } })
     await new Promise(resolve => setImmediate(resolve))
     expect((await app.inject({ method: 'GET', url: '/api/v1/downloads' })).json().data).toHaveLength(1)
+  })
+
+  it('proactively resolves missing artwork while an asynchronous download proceeds', async() => {
+    const audio = readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3'))
+    const picture = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z9aQAAAAASUVORK5CYII=', 'base64')
+    let pictureRequests = 0
+    const upstream = createHttpServer((request, response) => {
+      if (request.url === '/picture') {
+        pictureRequests++
+        if (pictureRequests === 1) {
+          response.writeHead(503).end()
+          return
+        }
+        response.writeHead(200, { 'content-type': 'image/png', 'content-length': picture.length }).end(picture)
+        return
+      }
+      const range = typeof request.headers.range === 'string' ? /^bytes=(\d+)-(\d*)$/.exec(request.headers.range) : null
+      const start = range == null ? 0 : Number(range[1])
+      const end = range == null || range[2] === '' ? audio.length - 1 : Math.min(Number(range[2]), audio.length - 1)
+      response.writeHead(range == null ? 200 : 206, {
+        'accept-ranges': 'bytes',
+        'content-length': end - start + 1,
+        ...(range == null ? {} : { 'content-range': `bytes ${start}-${end}/${audio.length}` }),
+        'content-type': 'audio/mpeg',
+      }).end(audio.subarray(start, end + 1))
+    })
+    upstreams.push(upstream)
+    upstream.listen(0, '127.0.0.1')
+    await once(upstream, 'listening')
+    const origin = `http://127.0.0.1:${(upstream.address() as AddressInfo).port}`
+    const previousPrivateTargets = process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS
+    process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS = '1'
+    try {
+      const { app } = await createTestServer()
+      const script = `/*
+ * @name Download artwork retry fixture
+ * @description Returns deterministic audio while canonical artwork is resolved separately
+ * @version 1.0.0
+ */
+window.tuneflow.on(window.tuneflow.EVENT_NAMES.request, async ({ source, action }) => {
+  if (source !== 'kw') throw new Error('unexpected source')
+  if (action === 'musicUrl') return '${origin}/audio'
+  throw new Error('unexpected action')
+})
+window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
+  sources: { kw: { type: 'music', actions: ['musicUrl'], qualitys: ['128k'] } },
+})`
+      const installed = await app.inject({ method: 'POST', url: '/api/v1/sources', payload: { script } })
+      expect(installed.statusCode).toBe(200)
+      expect((await app.inject({
+        method: 'PUT',
+        url: '/api/v1/sources/active',
+        payload: { sourceId: installed.json().data.id },
+      })).statusCode).toBe(200)
+      await app.inject({
+        method: 'PATCH',
+        url: '/api/v1/settings',
+        payload: { 'download.isEmbedPic': true, 'download.isEmbedLyric': false, 'download.isDownloadLrc': false },
+      })
+      const created = await app.inject({
+        method: 'POST',
+        url: '/api/v1/downloads',
+        payload: {
+          musicInfo: {
+            id: 'download-artwork-retry',
+            source: 'kw',
+            name: 'Artwork retry',
+            singer: 'Artist',
+            interval: '00:02',
+            pic: `${origin}/picture`,
+            meta: { songId: 'download-artwork-retry', albumName: '', _qualitys: { '128k': {} } },
+          },
+          quality: '128k',
+        },
+      })
+      expect(created.statusCode).toBe(201)
+
+      let local: { id: string, pictureUrl?: string | null } | undefined
+      for (let attempt = 0; attempt < 100; attempt++) {
+        const tracks = (await app.inject({ method: 'GET', url: '/api/v1/library/tracks' })).json().data as Array<{ id: string, name: string, pictureUrl?: string | null }>
+        local = tracks.find(track => track.name === 'Artwork retry')
+        if (local?.pictureUrl != null) break
+        await new Promise(resolve => setTimeout(resolve, 20))
+      }
+      expect(local?.pictureUrl).toMatch(/^\/api\/v1\/library\/tracks\/[a-f0-9]{64}\/picture$/)
+      expect((await app.inject({ method: 'GET', url: local!.pictureUrl! })).statusCode).toBe(200)
+    } finally {
+      if (previousPrivateTargets == null) delete process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS
+      else process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS = previousPrivateTargets
+    }
+  })
+
+  it('clears download history through one idempotent collection route', async() => {
+    const { app } = await createTestServer()
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/downloads/history/records',
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({ data: { cleared: 0 } })
   })
 
   it('coalesces simultaneous playback starts into one Service download task', async() => {
@@ -443,6 +608,64 @@ describe('TuneFlow service', () => {
     expect(response.status).toBe(201)
     expect(new TextDecoder().decode((await reader.read()).value)).toBe(`event: playlists.created\ndata: ${JSON.stringify({ type: 'playlists.created', data: action, sequence: 2 })}\n\n`)
     await reader.cancel()
+  })
+
+  it('publishes a path-opaque resource event and serves the cached lyric without rerunning the source', async() => {
+    const { app, storageRoot } = await createTestServer()
+    const script = `/*
+ * @name Late lyrics fixture
+ * @description Deterministic app integration source
+ * @version 1.0.0
+ */
+let lyricCalls = 0
+window.tuneflow.on(window.tuneflow.EVENT_NAMES.request, async ({ source, action }) => {
+  if (source !== 'tx' || action !== 'lyric') throw new Error('unexpected action')
+  lyricCalls++
+  if (lyricCalls > 1) throw new Error('lyric source was called twice')
+  return { lyric: '[00:00.00]Late lyric' }
+})
+window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
+  sources: { tx: { type: 'music', actions: ['lyric'], qualitys: [] } },
+})`
+    const installed = await app.inject({ method: 'POST', url: '/api/v1/sources', payload: { script } })
+    expect(installed.statusCode).toBe(200)
+    expect((await app.inject({
+      method: 'PUT', url: '/api/v1/sources/active', payload: { sourceId: installed.json().data.id },
+    })).statusCode).toBe(200)
+    const origin = await app.listen({ host: '127.0.0.1', port: 0 })
+    const stream = await fetch(`${origin}/api/v1/events`)
+    const reader = stream.body!.getReader()
+    expect(new TextDecoder().decode((await reader.read()).value)).toBe(': connected\n\n')
+    const payload = {
+      source: 'tx',
+      musicInfo: {
+        id: 'track-1',
+        name: 'Song',
+        singer: 'Singer',
+        source: 'tx',
+        interval: '00:01',
+        meta: { songId: 'track-1', albumName: '', _qualitys: {} },
+      },
+    }
+
+    try {
+      const first = await fetch(`${origin}/api/v1/catalog/tracks/lyrics`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
+      })
+      expect(await first.json()).toMatchObject({ data: { lyric: '[00:00.00]Late lyric' } })
+      const eventText = new TextDecoder().decode((await reader.read()).value)
+      expect(eventText).toContain('event: track.resources.updated')
+      expect(eventText).toContain(JSON.stringify({ source: 'tx', trackId: 'track-1', resources: ['lyrics'] }))
+      expect(eventText).not.toContain('Late lyric')
+      expect(eventText).not.toContain(storageRoot)
+
+      const cached = await fetch(`${origin}/api/v1/catalog/tracks/lyrics`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
+      })
+      expect(await cached.json()).toMatchObject({ data: { lyric: '[00:00.00]Late lyric' } })
+    } finally {
+      await reader.cancel()
+    }
   })
 
   it('uses the stable error envelope for invalid settings and missing lists', async() => {

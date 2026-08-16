@@ -34,6 +34,12 @@ export const registerDownloadRoutes = (app: ApiFastifyInstance, manager: Downloa
         qualityList: Type.Optional(Type.Unknown()),
         listId: Type.Optional(Type.String()),
         skipExisting: Type.Optional(Type.Boolean()),
+        existingFilePolicy: Type.Optional(Type.Union([
+          Type.Literal('reuse'),
+          Type.Literal('error'),
+          Type.Literal('replace'),
+          Type.Literal('duplicate'),
+        ])),
         qualityPolicy: Type.Optional(Type.Union([Type.Literal('selected'), Type.Literal('highest')])),
       }, { additionalProperties: false }),
       response: { 201: downloadResponse, ...ErrorResponses },
@@ -43,6 +49,19 @@ export const registerDownloadRoutes = (app: ApiFastifyInstance, manager: Downloa
     if (body?.musicInfo == null || typeof body.quality !== 'string') throw new ApiError(400, 'INVALID_DOWNLOAD', 'Music info and quality are required')
     return reply.code(201).send({ data: await manager.create(body as DownloadCreateInput) })
   })
+  app.delete('/api/v1/downloads/history/records', {
+    schema: {
+      operationId: 'clearDownloadHistory',
+      tags: ['Downloads'],
+      summary: 'Clear completed and failed download history',
+      response: {
+        200: ApiSuccess(Type.Object({
+          cleared: Type.Integer({ minimum: 0 }),
+        })),
+        ...ErrorResponses,
+      },
+    },
+  }, async() => ({ data: { cleared: manager.clearHistory() } }))
   app.post('/api/v1/downloads/:id/start', { schema: downloadSchema('startDownload', 'Start a download') }, async(request) => { await manager.start(id(request.params)); return { data: manager.get(id(request.params)) } })
   app.post('/api/v1/downloads/:id/resume', { schema: downloadSchema('resumeDownload', 'Resume a download') }, async(request) => { await manager.resume(id(request.params)); return { data: manager.get(id(request.params)) } })
   app.post('/api/v1/downloads/:id/pause', { schema: downloadSchema('pauseDownload', 'Pause a download') }, async(request) => { manager.pause(id(request.params)); return { data: manager.get(id(request.params)) } })

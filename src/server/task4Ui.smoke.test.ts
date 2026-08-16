@@ -5,6 +5,7 @@ import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import { chromium } from '@playwright/test'
+import AdmZip from 'adm-zip'
 import { afterAll, describe, expect, it } from 'vitest'
 
 const fixtureSource = `/*
@@ -137,6 +138,9 @@ describe('Task 4 prepared Service UI smoke', () => {
       const manage = page.getByRole('button', { name: 'Music API Management' })
       await manage.waitFor({ state: 'visible' })
       await manage.click()
+      const exportButton = page.getByTestId('user-api-export')
+      await exportButton.waitFor({ state: 'visible' })
+      expect(await exportButton.isDisabled()).toBe(true)
       await page.getByRole('button', { name: 'Import from Network' }).click()
       await page.locator('input[type="url"]').fill(`http://127.0.0.1:${sourcePort}/source.js`)
       await page.getByRole('button', { name: 'Import', exact: true }).click()
@@ -147,6 +151,33 @@ describe('Task 4 prepared Service UI smoke', () => {
         buffer: Buffer.from(fixtureSource.replace('@name UI smoke source', '@name Local UI smoke source')),
       })
       await page.getByRole('heading', { name: /^Local UI smoke source/ }).waitFor({ state: 'visible' })
+      expect(await exportButton.isEnabled()).toBe(true)
+      const downloadPromise = page.waitForEvent('download')
+      const exportResponsePromise = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/sources/export')
+      await exportButton.click()
+      const exportResponse = await exportResponsePromise
+      expect(exportResponse.status()).toBe(200)
+      expect(exportResponse.headers()['content-type']).toBe('application/zip')
+      const download = await downloadPromise
+      expect(download.suggestedFilename()).toMatch(/^tuneflow-sources-\d{8}-\d{6}\.zip$/)
+      const downloadPath = await download.path()
+      expect(downloadPath).not.toBeNull()
+      const exportedScripts = new AdmZip(downloadPath).getEntries().map(entry => entry.getData().toString('utf8'))
+      expect(exportedScripts).toEqual([
+        fixtureSource,
+        fixtureSource.replace('@name UI smoke source', '@name Local UI smoke source'),
+      ])
+      await page.route('**/api/v1/sources/export', async route => {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: { code: 'SOURCE_EXPORT_FAILED', message: 'Unable to export installed sources' } }),
+        })
+      })
+      await exportButton.click()
+      await page.getByText('Source export failed: Unable to export installed sources', { exact: true }).waitFor({ state: 'visible' })
+      expect(await exportButton.isEnabled()).toBe(true)
+      await page.getByRole('button', { name: 'OK', exact: true }).click()
       const closeSourceManager = page.getByRole('heading', { name: /^UI smoke source/ }).locator('xpath=ancestor::main/preceding-sibling::header/button')
       await closeSourceManager.click()
       await page.getByRole('heading', { name: /^UI smoke source/ }).waitFor({ state: 'detached' })

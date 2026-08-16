@@ -7,12 +7,15 @@ import { writeAudioMetadata } from './taglibMetadata'
 import type { AudioMetadata } from './taglibMetadata'
 
 export interface MetadataDependencies {
-  getPicture?: (musicInfo: TuneFlow.Music.MusicInfoOnline) => Promise<string | null>
-  getLyrics?: (musicInfo: TuneFlow.Music.MusicInfoOnline) => Promise<TuneFlow.Music.LyricInfo | null>
   pictureBytes?: Uint8Array
   pictureMimeType?: string
   lyrics?: TuneFlow.Music.LyricInfo
   writeAudioMetadata?: (filePath: string, meta: AudioMetadata) => Promise<void>
+  lyricFilePath?: string
+}
+
+export interface MetadataWriteResult {
+  warnings: string[]
 }
 
 const fixKgLyric = (lrc: string): string => /\[00:\d\d:\d\d.\d+\]/.test(lrc) ? lrc.replace(/(?:\[00:(\d\d:\d\d.\d+\]))/gm, '[$1') : lrc
@@ -30,43 +33,24 @@ const detectPictureMimeType = (bytes: Uint8Array): string | undefined => {
   return undefined
 }
 
-const resolvePicture = async(source: string | Uint8Array | null | PromiseLike<string | null>, hintedMimeType?: string): Promise<{ bytes: Buffer, mimeType: string } | undefined> => {
-  const resolved = await source
+const resolvePicture = (resolved?: Uint8Array, hintedMimeType?: string): { bytes: Buffer, mimeType: string } | undefined => {
   if (resolved == null) return undefined
-  let bytes: Buffer
-  let responseMimeType: string | undefined
-  if (typeof resolved === 'string') {
-    let url: URL
-    try { url = new URL(resolved) } catch { throw new Error('Artwork URL is invalid') }
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error(`Unsupported artwork URL protocol: ${url.protocol}`)
-    const response = await fetch(resolved)
-    if (!response.ok) throw new Error(`Artwork request returned HTTP ${response.status}`)
-    bytes = Buffer.from(await response.arrayBuffer())
-    responseMimeType = response.headers.get('content-type') ?? undefined
-  } else {
-    bytes = Buffer.from(resolved)
-  }
+  const bytes = Buffer.from(resolved)
   if (bytes.length === 0) throw new Error('Artwork response is empty')
-  const mimeType = normalizedMimeType(hintedMimeType) ?? normalizedMimeType(responseMimeType) ?? detectPictureMimeType(bytes)
+  const mimeType = normalizedMimeType(hintedMimeType) ?? detectPictureMimeType(bytes)
   if (mimeType == null) throw new Error('Artwork image type is unsupported or unknown')
   return { bytes, mimeType }
 }
 
-export const applyDownloadMetadata = async(filePath: string, job: DownloadJobRecord, settings: TuneFlow.AppSetting, dependencies: MetadataDependencies = {}): Promise<void> => {
+export const applyDownloadMetadata = async(filePath: string, job: DownloadJobRecord, settings: TuneFlow.AppSetting, dependencies: MetadataDependencies = {}): Promise<MetadataWriteResult> => {
   const canEmbed = ['mp3', 'flac', 'ape', 'wav'].includes(job.extension)
-  const [picture, lyrics] = await Promise.all([
-    settings['download.isEmbedPic']
-      ? resolvePicture(
-        dependencies.pictureBytes ?? dependencies.getPicture?.(job.musicInfo) ?? Promise.resolve(job.musicInfo.meta.picUrl ?? null),
-        dependencies.pictureMimeType,
-      )
-      : Promise.resolve(undefined),
-    settings['download.isEmbedLyric'] || settings['download.isDownloadLrc']
-      ? dependencies.lyrics == null
-        ? dependencies.getLyrics?.(job.musicInfo) ?? Promise.resolve(null)
-        : Promise.resolve(dependencies.lyrics)
-      : Promise.resolve(null),
-  ])
+  const wantsPicture = settings['download.isEmbedPic']
+  const wantsLyrics = settings['download.isEmbedLyric'] || settings['download.isDownloadLrc']
+  const picture = wantsPicture ? resolvePicture(dependencies.pictureBytes, dependencies.pictureMimeType) : undefined
+  const lyrics = wantsLyrics ? dependencies.lyrics ?? null : null
+  const warnings: string[] = []
+  if (wantsPicture && picture == null) warnings.push('Artwork unavailable')
+  if (wantsLyrics && lyrics == null) warnings.push('Lyrics unavailable')
   const embeddedLyrics = canEmbed && settings['download.isEmbedLyric'] && lyrics != null
     ? buildLyrics(lyrics, settings['download.isEmbedVerbatimLyric'], settings['download.isEmbedLyricT'], settings['download.isEmbedLyricR'])
     : null
@@ -78,12 +62,13 @@ export const applyDownloadMetadata = async(filePath: string, job: DownloadJobRec
     pictureMimeType: picture?.mimeType,
     lyrics: embeddedLyrics,
   }
-  if (canEmbed && (settings['download.isEmbedPic'] || settings['download.isEmbedLyric'])) {
+  if (canEmbed) {
     await (dependencies.writeAudioMetadata ?? writeAudioMetadata)(filePath, meta)
   }
   if (settings['download.isDownloadLrc'] && lyrics?.lyric) {
     const lrc = buildLyrics({ ...lyrics, lyric: fixKgLyric(lyrics.lyric) }, settings['download.isDownloadVerbatimLyric'], settings['download.isDownloadTLrc'], settings['download.isDownloadRLrc'])
     const encoded = iconv.encode(lrc, settings['download.lrcFormat'] === 'gbk' ? 'gbk' : 'utf8', { addBOM: true })
-    await writeFile(filePath.slice(0, -path.extname(filePath).length) + '.lrc', encoded)
+    await writeFile(dependencies.lyricFilePath ?? filePath.slice(0, -path.extname(filePath).length) + '.lrc', encoded)
   }
+  return { warnings }
 }

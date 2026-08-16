@@ -110,11 +110,43 @@ their filesystem creation time, or modification time when creation time is not
 available.
 
 MP3, FLAC, APE, and WAV downloads use TagLib-Wasm to persist title, artist,
-album, cover artwork, and lyrics. The Service reads requested fields back after
-writing and records a metadata warning on the completed download when
-verification fails. The legacy `node-id3` writer is no longer packaged.
+album, cover artwork, and lyrics. The Service writes basic tags and every
+available enrichment field to the staged file, then reads requested fields back
+before publication. Missing requested artwork or lyrics completes with a
+bounded warning; a write, parse, or read-back verification failure is fatal and
+does not publish the staged file. The legacy `node-id3` writer is no longer packaged.
 Existing audio is not rewritten automatically during an upgrade or ordinary
 scan.
+
+Client requests carry music identity and provider query context under
+`musicInfo.meta`; they do not carry trusted artwork or lyrics bytes. The
+canonical artwork snapshot field is `meta.picUrl`. For compatibility, the
+Service promotes the first non-empty HTTP(S) value from `meta.picUrl`, `img`,
+then `pic`, and normalizes persisted legacy download records for future resume
+or explicit redownload without rewriting completed media.
+
+User-initiated downloads first ask the Service to reject an existing match. If
+one exists, the Web client asks for confirmation and retries with replacement
+only after approval. The create API accepts `existingFilePolicy` values
+`reuse`, `error`, `replace`, and `duplicate`; an explicit policy overrides the
+legacy `skipExisting` field and setting. Automatic playback saves use `reuse`.
+
+Replacement downloads keep the existing audio available while the new file is
+downloaded, parsed, tagged, and synchronized in staging. Same-format success is
+published by an atomic rename over the original. A format change publishes the
+new file before removing the verified old file. Persisted integrity markers let
+startup recovery finish an interrupted publication, while a changed original
+or unrelated destination causes a conflict instead of an overwrite. Once a
+replacement reaches its prepared phase, let the short publication transaction
+finish before rolling back or stopping the Service.
+
+For multi-source downloads, each audio candidate carries its own validated
+lyrics and artwork. The Service prefers a complete same-source bundle and fills
+only missing resources from other validated sources. Built-in provider lookup
+is attempted next, followed by the canonical `meta.picUrl` artwork snapshot.
+Every artwork candidate uses the same SSRF, redirect, size, signature,
+dimension, and MIME checks. A failed audio candidate's partial bytes and
+metadata are discarded before the next candidate starts.
 
 ## Source trust boundary
 
@@ -132,6 +164,12 @@ sandbox. Install
 only sources you trust and accept responsibility for the source and returned
 content. Never put source code, resolved audio URLs, credentials, cookies, or
 request headers into screenshots, issue reports, or logs.
+
+The hosted Web source manager can export every installed custom source as one
+ZIP archive. The archive contains only the persisted JavaScript files; it does
+not contain original import URLs, source selection order, enabled state, or a
+restore manifest. Treat the archive as sensitive because source scripts can
+contain private configuration.
 
 ### Ordered multi-source fallback
 

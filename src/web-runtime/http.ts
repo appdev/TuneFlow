@@ -30,6 +30,13 @@ const isErrorEnvelope = (body: unknown): body is ErrorEnvelope => {
   return error != null && typeof error === 'object' && 'code' in error && typeof error.code === 'string' && 'message' in error && typeof error.message === 'string'
 }
 
+export const webRuntimeResponseError = (response: Response, parsed: unknown): WebRuntimeError => {
+  if (isErrorEnvelope(parsed)) {
+    return new WebRuntimeError(parsed.error.code, response.status, parsed.error.message, parsed.error.details)
+  }
+  return new WebRuntimeError('HTTP_ERROR', response.status, response.statusText || `HTTP ${response.status}`)
+}
+
 const parseResponse = async(response: Response): Promise<unknown> => {
   if (response.status === 204) return undefined
   const text = await response.text()
@@ -57,12 +64,7 @@ export const createRequest = (fetchImpl: typeof globalThis.fetch): RuntimeReques
     throw new WebRuntimeError('NETWORK_ERROR', 0, 'Unable to reach TuneFlow Service', { cause })
   }
   const parsed = await parseResponse(response)
-  if (!response.ok) {
-    if (isErrorEnvelope(parsed)) {
-      throw new WebRuntimeError(parsed.error.code, response.status, parsed.error.message, parsed.error.details)
-    }
-    throw new WebRuntimeError('HTTP_ERROR', response.status, response.statusText || `HTTP ${response.status}`)
-  }
+  if (!response.ok) throw webRuntimeResponseError(response, parsed)
   if (parsed != null && typeof parsed === 'object' && 'data' in parsed) return (parsed as DataEnvelope<T>).data
   return parsed as T
 }

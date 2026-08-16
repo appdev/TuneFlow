@@ -47,10 +47,10 @@ describe('Service download metadata writer', () => {
     let writtenLyrics: string | null | undefined
 
     await applyDownloadMetadata('/library/fixture.flac', job, settings, {
-      getLyrics: async() => ({
+      lyrics: {
         lyric: '[00:01.00]Original',
         tlyric: '[00:01.00]Translated\n[00:02.00]Unmatched',
-      }),
+      },
       writeAudioMetadata: async(_path, metadata) => { writtenLyrics = metadata.lyrics },
     })
 
@@ -59,8 +59,6 @@ describe('Service download metadata writer', () => {
 
   it('passes resolved artwork bytes and MIME to FLAC without refetching', async() => {
     const pictureBytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
-    const getPicture = vi.fn(async() => { throw new Error('must not fetch picture') })
-    const getLyrics = vi.fn(async() => { throw new Error('must not fetch lyrics') })
     let written: Record<string, unknown> | undefined
 
     await applyDownloadMetadata('/library/fixture.flac', job, {
@@ -70,13 +68,9 @@ describe('Service download metadata writer', () => {
       pictureBytes,
       pictureMimeType: 'image/png',
       lyrics: { lyric: '[00:01.00]Bundle lyric' },
-      getPicture,
-      getLyrics,
       writeAudioMetadata: async(_path, metadata) => { written = metadata as unknown as Record<string, unknown> },
     })
 
-    expect(getPicture).not.toHaveBeenCalled()
-    expect(getLyrics).not.toHaveBeenCalled()
     expect(written).toMatchObject({
       picture: pictureBytes,
       pictureMimeType: 'image/png',
@@ -84,26 +78,58 @@ describe('Service download metadata writer', () => {
     })
   })
 
-  it('downloads HTTPS fallback artwork with fetch and forwards its response MIME', async() => {
-    const pictureBytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
-    const fetchMock = vi.fn(async() => new Response(pictureBytes, {
-      status: 200,
-      headers: { 'content-type': 'image/png' },
-    }))
+  it('does not refetch snapshot URLs and reports missing requested artwork', async() => {
+    const fetchMock = vi.fn(async() => { throw new Error('metadata must not fetch') })
     vi.stubGlobal('fetch', fetchMock)
     let written: Record<string, unknown> | undefined
 
-    await applyDownloadMetadata('/library/fixture.flac', job, {
+    const result = await applyDownloadMetadata('/library/fixture.flac', {
+      ...job,
+      musicInfo: { ...job.musicInfo, meta: { ...job.musicInfo.meta, picUrl: 'https://example.test/cover' } },
+    }, {
       ...settings,
       'download.isEmbedPic': true,
       'download.isEmbedLyric': false,
     }, {
-      getPicture: async() => 'https://example.test/cover',
       writeAudioMetadata: async(_path, metadata) => { written = metadata as unknown as Record<string, unknown> },
     })
 
-    expect(fetchMock).toHaveBeenCalledWith('https://example.test/cover')
-    expect(written).toMatchObject({ picture: pictureBytes, pictureMimeType: 'image/png' })
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(written).toMatchObject({ title: 'Fixture track', picture: undefined })
+    expect(result.warnings).toEqual(['Artwork unavailable'])
+  })
+
+  it('keeps artwork and basic tags when requested lyrics are absent', async() => {
+    const pictureBytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
+    const writer = vi.fn(async() => {})
+
+    const result = await applyDownloadMetadata('/library/fixture.flac', job, {
+      ...settings,
+      'download.isEmbedPic': true,
+    }, { pictureBytes, pictureMimeType: 'image/png', writeAudioMetadata: writer })
+
+    expect(writer).toHaveBeenCalledWith('/library/fixture.flac', expect.objectContaining({
+      title: 'Fixture track',
+      picture: pictureBytes,
+      lyrics: null,
+    }))
+    expect(result.warnings).toEqual(['Lyrics unavailable'])
+  })
+
+  it('writes basic tags even when enrichment embedding is disabled', async() => {
+    const writer = vi.fn(async() => {})
+
+    const result = await applyDownloadMetadata('/library/fixture.flac', job, {
+      ...settings,
+      'download.isEmbedLyric': false,
+    }, { writeAudioMetadata: writer })
+
+    expect(writer).toHaveBeenCalledWith('/library/fixture.flac', expect.objectContaining({
+      title: 'Fixture track',
+      artist: 'Fixture artist',
+      album: 'Fixture album',
+    }))
+    expect(result.warnings).toEqual([])
   })
 
   it.each(['mp3', 'flac', 'ape', 'wav'] as const)('routes enabled %s metadata through the unified writer', async(extension) => {

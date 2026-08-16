@@ -17,6 +17,8 @@ import { close as closeDatabase, getDB, init as initDatabase } from '../db/core/
 import { applyDownloadMetadata } from './metadata'
 import { parseFile } from 'music-metadata'
 import { apeFixture } from './apeFixture.testData'
+import type { ApiError } from '../errors'
+import type { DownloadDto } from './types'
 
 process.env.TUNEFLOW_SERVICE_NODE_MODULES = path.join(process.cwd(), 'dist/server/node_modules')
 
@@ -130,7 +132,7 @@ describe('TuneFlow download policy', () => {
     expect(readFileSync(path.join(root, 'audio', 'Song.mp3'), 'utf8')).toBe('original')
   })
 
-  it('preserves raw bytes when embedding is disabled and writes MP3 and APE metadata when enabled', async() => {
+  it('writes basic tags when enrichment is disabled and writes MP3 and APE lyrics when enabled', async() => {
     const root = createRoot()
     const mp3 = path.join(root, 'audio', 'metadata.mp3')
     const ape = path.join(root, 'audio', 'metadata.ape')
@@ -143,13 +145,13 @@ describe('TuneFlow download policy', () => {
       extension: 'mp3',
     } as unknown as Parameters<typeof applyDownloadMetadata>[1]
     await applyDownloadMetadata(mp3, record, baseSettings)
-    expect(readFileSync(mp3)).toEqual(original)
+    expect((await parseFile(mp3)).common).toMatchObject({ title: fixtureTrack.name, artist: 'One;Two', album: 'Fixture' })
     await applyDownloadMetadata(mp3, record, { ...baseSettings, 'download.isEmbedLyric': true }, {
-      getLyrics: async() => ({ lyric: '[00:00.00]Fixture lyric' }),
+      lyrics: { lyric: '[00:00.00]Fixture lyric' },
     })
     expect((await parseFile(mp3)).common.title).toBe(fixtureTrack.name)
     await applyDownloadMetadata(ape, { ...record, extension: 'ape' }, { ...baseSettings, 'download.isEmbedLyric': true }, {
-      getLyrics: async() => ({ lyric: '[00:00.00]Fixture lyric' }),
+      lyrics: { lyric: '[00:00.00]Fixture lyric' },
     })
     expect((await parseFile(ape)).common).toMatchObject({
       title: fixtureTrack.name,
@@ -185,14 +187,14 @@ describe('TuneFlow download policy', () => {
     const root = createRoot()
     const flac = path.join(root, 'audio', 'metadata.flac')
     const cover = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
-    const artwork = await startUpstream({ payload: cover })
     writeFileSync(flac, minimalFlac())
     const record = { musicInfo: fixtureTrack, extension: 'flac' } as unknown as Parameters<typeof applyDownloadMetadata>[1]
     const started = Date.now()
     await expect(Promise.race([
       applyDownloadMetadata(flac, record, metadataSettings({ 'download.isEmbedPic': true, 'download.isEmbedLyric': true }), {
-        getPicture: async() => artwork.url,
-        getLyrics: async() => ({ lyric: '[00:00.00]Fixture FLAC lyric' }),
+        pictureBytes: cover,
+        pictureMimeType: 'image/png',
+        lyrics: { lyric: '[00:00.00]Fixture FLAC lyric' },
       }).then(() => 'completed'),
       new Promise<string>(resolve => setTimeout(() => { resolve('timed-out') }, 1_000)),
     ])).resolves.toBe('completed')
@@ -212,6 +214,130 @@ describe('TuneFlow download policy', () => {
 })
 
 describe('durable download manager', () => {
+  it('honors explicit existing-file policy before the legacy setting', async() => {
+    const root = createRoot()
+    const existing = path.join(root, 'audio', 'ABSong.mp3')
+    writeFileSync(existing, validMp3)
+    let resolveCount = 0
+    const manager = new DownloadManager({
+      storageRoot: root,
+      autoStart: false,
+      getSettings: () => ({
+        'download.savePath': path.join(root, 'audio'),
+        'download.maxDownloadNum': 1,
+        'download.fileName': '歌名',
+        'download.skipExistFile': true,
+      } as TuneFlow.AppSetting),
+      findExistingFile: async() => existing,
+      resolve: async() => { resolveCount++; throw new Error('must not resolve') },
+    })
+
+    await expect(manager.create({
+      musicInfo: fixtureTrack,
+      quality: '128k',
+      existingFilePolicy: 'error',
+    })).rejects.toMatchObject<ApiError>({
+      statusCode: 409,
+      code: 'DOWNLOAD_ALREADY_EXISTS',
+      details: { fileName: 'ABSong.mp3', extension: 'mp3' },
+    })
+    const duplicate = await manager.create({
+      musicInfo: fixtureTrack,
+      quality: '128k',
+      existingFilePolicy: 'duplicate',
+    })
+
+    expect(duplicate).toMatchObject({ status: 'waiting', fileName: 'ABSong (1).mp3' })
+    expect(resolveCount).toBe(0)
+    manager.close()
+  })
+
+  it('keeps the original intact until replacement metadata succeeds', async() => {
+    const root = createRoot()
+    const existing = path.join(root, 'audio', 'ABSong.mp3')
+    const original = Buffer.from(validMp3)
+    const replacement = Buffer.concat([validMp3, Buffer.from('replacement')])
+    writeFileSync(existing, original)
+    const upstream = await startUpstream({ payload: replacement })
+    let metadataObservedOriginal = false
+    const manager = new DownloadManager({
+      storageRoot: root,
+      getSettings: () => ({
+        'download.savePath': path.join(root, 'audio'),
+        'download.maxDownloadNum': 1,
+        'download.fileName': '歌名',
+      } as TuneFlow.AppSetting),
+      findExistingFile: async() => existing,
+      resolve: async() => ({ url: upstream.url }),
+      metadata: async filePath => {
+        metadataObservedOriginal = readFileSync(existing).equals(original)
+        expect(filePath).toContain(`${path.sep}tmp${path.sep}`)
+      },
+    })
+
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: '128k', existingFilePolicy: 'replace' })
+    await manager.waitForIdle()
+
+    expect(metadataObservedOriginal).toBe(true)
+    expect(manager.get(job.id)).toMatchObject({ status: 'completed', fileName: 'ABSong.mp3' })
+    expect(readFileSync(existing)).toEqual(replacement)
+    manager.close()
+  })
+
+  it('preserves the original when replacement metadata fails', async() => {
+    const root = createRoot()
+    const existing = path.join(root, 'audio', 'ABSong.mp3')
+    const original = Buffer.from(validMp3)
+    writeFileSync(existing, original)
+    const upstream = await startUpstream({ payload: validMp3 })
+    const manager = new DownloadManager({
+      storageRoot: root,
+      getSettings: () => ({
+        'download.savePath': path.join(root, 'audio'),
+        'download.maxDownloadNum': 1,
+        'download.fileName': '歌名',
+      } as TuneFlow.AppSetting),
+      findExistingFile: async() => existing,
+      resolve: async() => ({ url: upstream.url }),
+      metadata: async() => { throw new Error('metadata failed at /private/library and https://secret.test') },
+    })
+
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: '128k', existingFilePolicy: 'replace' })
+    await manager.waitForIdle()
+
+    expect(manager.get(job.id)).toMatchObject({ status: 'error', error: 'DOWNLOAD_REPLACEMENT_FAILED: Metadata processing failed' })
+    expect(manager.get(job.id)?.error).not.toContain('/private')
+    expect(manager.get(job.id)?.error).not.toContain('https://')
+    expect(readFileSync(existing)).toEqual(original)
+    manager.close()
+  })
+
+  it('publishes a cross-format replacement before retiring the old format', async() => {
+    const root = createRoot()
+    const existing = path.join(root, 'audio', 'ABSong.mp3')
+    writeFileSync(existing, validMp3)
+    const upstream = await startUpstream({ payload: minimalFlac() })
+    const manager = new DownloadManager({
+      storageRoot: root,
+      getSettings: () => ({
+        'download.savePath': path.join(root, 'audio'),
+        'download.maxDownloadNum': 1,
+        'download.fileName': '歌名',
+      } as TuneFlow.AppSetting),
+      findExistingFile: async() => existing,
+      resolve: async() => ({ url: upstream.url }),
+      metadata: async() => {},
+    })
+
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: 'flac', existingFilePolicy: 'replace' })
+    await manager.waitForIdle()
+
+    expect(manager.get(job.id)).toMatchObject({ status: 'completed', extension: 'flac', fileName: 'ABSong.flac' })
+    expect(existsSync(existing)).toBe(false)
+    expect(readFileSync(path.join(root, 'audio', 'ABSong.flac'))).toEqual(minimalFlac())
+    manager.close()
+  })
+
   it('uses default download policy for playback saves when normal downloads are disabled', async() => {
     const root = createRoot()
     const manager = new DownloadManager({
@@ -343,16 +469,17 @@ describe('durable download manager', () => {
     const root = createRoot()
     const first = await startUpstream({ disconnectOnce: true, payload: validMp3 })
     const second = await startUpstream({ payload: validMp3 })
+    let appliedLyric: string | undefined
     const manager = new DownloadManager({
       storageRoot: root,
       getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => ({
         candidates: [
-          { sourceId: 'a', url: first.url },
-          { sourceId: 'b', url: second.url },
+          { sourceId: 'a', url: first.url, resources: { lyrics: { lyric: '[00:00]a' } } },
+          { sourceId: 'b', url: second.url, resources: { lyrics: { lyric: '[00:00]b' } } },
         ],
       }),
-      metadata: async() => {},
+      metadata: async(_file, _record, _settings, resources) => { appliedLyric = resources?.lyrics?.lyric },
     })
 
     const job = await manager.create({ musicInfo: fixtureTrack, quality: '128k' })
@@ -362,6 +489,7 @@ describe('durable download manager', () => {
     expect(manager.get(job.id)).toMatchObject({ status: 'completed' })
     expect(first.requests).toEqual([{ range: undefined }])
     expect(second.requests).toEqual([{ range: undefined }])
+    expect(appliedLyric).toBe('[00:00]b')
     expect(readFileSync(finalPath)).toEqual(validMp3)
     expect(existsSync(path.join(root, 'tmp', `${job.id}.part`))).toBe(false)
     expect(manager.expectedIntegrity(finalPath)).toEqual({
@@ -547,7 +675,13 @@ describe('durable download manager', () => {
     const legacy = {
       id: 'undefined_320k_mp3',
       status: 'error',
-      musicInfo: { ...fixtureTrack, id: undefined, songmid: 'legacy-songmid' },
+      musicInfo: {
+        ...fixtureTrack,
+        id: undefined,
+        songmid: 'legacy-songmid',
+        img: 'https://legacy.test/cover.jpg',
+        meta: { songId: 'legacy-songmid', albumName: 'Legacy' },
+      },
       quality: '320k',
       extension: 'mp3',
       fileName: 'Legacy.mp3',
@@ -567,11 +701,15 @@ describe('durable download manager', () => {
     expect(manager.list()).toEqual([
       expect.objectContaining({
         id: legacy.id,
-        musicInfo: expect.objectContaining({ id: 'legacy-songmid', songmid: 'legacy-songmid' }),
+        musicInfo: expect.objectContaining({
+          id: 'legacy-songmid',
+          songmid: 'legacy-songmid',
+          meta: expect.objectContaining({ picUrl: 'https://legacy.test/cover.jpg' }),
+        }),
       }),
     ])
     expect(JSON.parse((getDB().prepare('SELECT record FROM web_downloads WHERE id = ?').get(legacy.id) as { record: string }).record))
-      .toMatchObject({ musicInfo: { id: 'legacy-songmid', songmid: 'legacy-songmid' } })
+      .toMatchObject({ musicInfo: { id: 'legacy-songmid', songmid: 'legacy-songmid', meta: { picUrl: 'https://legacy.test/cover.jpg' } } })
     manager.close()
   })
 
@@ -622,7 +760,30 @@ describe('durable download manager', () => {
     manager.close()
   })
 
-  it('keeps the completed audio and records a warning when resource materialization fails', async() => {
+  it('attaches newly resolved resources to an active matching download without replacing audio', async() => {
+    const root = createRoot()
+    const upstream = await startUpstream()
+    const metadata = vi.fn(async() => {})
+    const manager = new DownloadManager({
+      storageRoot: root,
+      autoStart: false,
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async() => ({ url: upstream.url, headers: {} }),
+      metadata,
+    })
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: '128k' })
+
+    expect(manager.attachResolvedResources(fixtureTrack, { lyrics: { lyric: '[00:00.00]Late lyric' } })).toBe(1)
+    await manager.start(job.id)
+    await manager.waitForIdle()
+
+    expect(metadata).toHaveBeenCalledWith(expect.any(String), expect.anything(), expect.anything(), {
+      lyrics: { lyric: '[00:00.00]Late lyric' },
+    }, expect.any(String))
+    manager.close()
+  })
+
+  it('atomically publishes a metadata patch and updates retained integrity', async() => {
     const root = createRoot()
     const upstream = await startUpstream()
     const manager = new DownloadManager({
@@ -630,6 +791,71 @@ describe('durable download manager', () => {
       getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => ({ url: upstream.url, headers: {} }),
       metadata: async() => {},
+    })
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: '128k' })
+    await manager.waitForIdle()
+    const targetPath = path.join(root, 'audio', manager.get(job.id)!.fileName)
+    const stagedPath = path.join(root, 'audio', '.metadata-patch.tuneflowtmp')
+    const replacement = Buffer.concat([bytes, Buffer.from('metadata')])
+    writeFileSync(stagedPath, replacement)
+    const originalIntegrity = { size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') }
+    const replacementIntegrity = { size: replacement.length, sha256: createHash('sha256').update(replacement).digest('hex') }
+
+    expect(manager.publishMetadataPatch({ targetPath, stagedPath, originalIntegrity, replacementIntegrity })).toBe(true)
+
+    expect(readFileSync(targetPath)).toEqual(replacement)
+    expect(manager.expectedIntegrity(targetPath)).toEqual(replacementIntegrity)
+    expect(existsSync(stagedPath)).toBe(false)
+    manager.close()
+  })
+
+  it('recovers a prepared metadata patch after restart', async() => {
+    const root = createRoot()
+    const upstream = await startUpstream()
+    const options = {
+      storageRoot: root,
+      autoStart: false,
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async() => ({ url: upstream.url, headers: {} }),
+      metadata: async() => {},
+    }
+    const manager = new DownloadManager({ ...options, autoStart: true })
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: '128k' })
+    await manager.waitForIdle()
+    const targetPath = path.join(root, 'audio', manager.get(job.id)!.fileName)
+    const stagedPath = path.join(root, 'audio', '.metadata-recovery.tuneflowtmp')
+    const replacement = Buffer.concat([bytes, Buffer.from('recovered metadata')])
+    writeFileSync(stagedPath, replacement)
+    const originalIntegrity = { size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') }
+    const replacementIntegrity = { size: replacement.length, sha256: createHash('sha256').update(replacement).digest('hex') }
+    const row = getDB().prepare('SELECT record FROM web_downloads WHERE id = ?').get(job.id) as { record: string }
+    const record = JSON.parse(row.record)
+    record.metadataPatch = {
+      stagedRelativePath: path.relative(root, stagedPath).split(path.sep).join('/'),
+      originalIntegrity,
+      replacementIntegrity,
+    }
+    getDB().prepare('UPDATE web_downloads SET record = ? WHERE id = ?').run(JSON.stringify(record), job.id)
+    manager.close()
+
+    const restarted = new DownloadManager(options)
+
+    expect(readFileSync(targetPath)).toEqual(replacement)
+    expect(restarted.expectedIntegrity(targetPath)).toEqual(replacementIntegrity)
+    expect(existsSync(stagedPath)).toBe(false)
+    const recovered = JSON.parse((getDB().prepare('SELECT record FROM web_downloads WHERE id = ?').get(job.id) as { record: string }).record)
+    expect(recovered.metadataPatch).toBeUndefined()
+    restarted.close()
+  })
+
+  it('keeps the completed audio and records a warning when resource materialization fails', async() => {
+    const root = createRoot()
+    const upstream = await startUpstream()
+    const manager = new DownloadManager({
+      storageRoot: root,
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async() => ({ url: upstream.url, headers: {} }),
+      metadata: async() => ({ warnings: ['Artwork unavailable', 'Lyrics unavailable'] }),
       materializeResources: async() => { throw new Error('fixture resource failure') },
     })
 
@@ -637,7 +863,10 @@ describe('durable download manager', () => {
     await manager.waitForIdle()
 
     const completed = manager.get(job.id)!
-    expect(completed).toMatchObject({ status: 'completed', warning: 'Resources: fixture resource failure' })
+    expect(completed).toMatchObject({
+      status: 'completed',
+      warning: 'Metadata: Artwork unavailable; Metadata: Lyrics unavailable; Resources: unavailable',
+    })
     expect(readFileSync(path.join(root, 'audio', completed.fileName))).toEqual(bytes)
     manager.close()
   })
@@ -694,7 +923,7 @@ describe('durable download manager', () => {
     manager.close()
   })
 
-  it('keeps a completed file when metadata fails and reserves duplicate jobs with suffixes', async() => {
+  it('does not publish an ordinary download when metadata verification fails', async() => {
     const root = createRoot()
     const upstream = await startUpstream()
     const manager = new DownloadManager({
@@ -709,18 +938,48 @@ describe('durable download manager', () => {
     expect([first.fileName, second.fileName]).toEqual(['ABSong.mp3', 'ABSong (1).mp3'])
     await manager.start(first.id)
     await manager.waitForIdle()
-    expect(manager.get(first.id)).toMatchObject({ status: 'completed', warning: 'Metadata: fixture metadata failure' })
-    expect(readFileSync(path.join(root, 'audio', first.fileName))).toEqual(bytes)
+    expect(manager.get(first.id)).toMatchObject({ status: 'error', error: 'Metadata processing failed' })
+    expect(existsSync(path.join(root, 'audio', first.fileName))).toBe(false)
+    expect(existsSync(path.join(root, 'tmp', `${first.id}.part`))).toBe(false)
     manager.close()
+  })
 
-    const restarted = new DownloadManager({
+  it('discards a metadata-mutated stage when paused before publication', async() => {
+    const root = createRoot()
+    const upstream = await startUpstream()
+    let entered!: () => void
+    const metadataStarted = new Promise<void>(resolve => { entered = resolve })
+    let release!: () => void
+    const metadataGate = new Promise<void>(resolve => { release = resolve })
+    let metadataCalls = 0
+    const manager = new DownloadManager({
       storageRoot: root,
-      autoStart: false,
       getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
       resolve: async() => ({ url: upstream.url, headers: {} }),
+      metadata: async filePath => {
+        metadataCalls++
+        if (metadataCalls === 1) {
+          entered()
+          await metadataGate
+        }
+        writeFileSync(filePath, Buffer.concat([readFileSync(filePath), Buffer.from('verified tags')]))
+      },
     })
-    expect(restarted.get(first.id)).toMatchObject({ status: 'completed', downloaded: bytes.length, total: bytes.length, progress: 100 })
-    restarted.close()
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: '128k' })
+    await metadataStarted
+
+    manager.pause(job.id)
+    release()
+    await manager.waitForIdle()
+
+    expect(manager.get(job.id)).toMatchObject({ status: 'paused', downloaded: 0, total: 0 })
+    expect(existsSync(path.join(root, 'tmp', `${job.id}.part`))).toBe(false)
+
+    await manager.resume(job.id)
+    await manager.waitForIdle()
+    expect(manager.get(job.id)).toMatchObject({ status: 'completed', progress: 100 })
+    expect(upstream.requests).toHaveLength(2)
+    manager.close()
   })
 
   it('reuses the original filename after a completed download is deleted outside the app', async() => {
@@ -786,6 +1045,68 @@ describe('durable download manager', () => {
     manager.close()
   })
 
+  it('clears completed and failed history while preserving media and active jobs', async() => {
+    const root = createRoot()
+    const publications: DownloadDto[][] = []
+    const manager = new DownloadManager({
+      storageRoot: root,
+      autoStart: false,
+      publish: jobs => publications.push(jobs),
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async() => ({ url: 'http://127.0.0.1/unused', headers: {} }),
+      metadata: async() => {},
+    })
+    const track = (id: string) => ({
+      ...fixtureTrack,
+      id,
+      meta: { ...fixtureTrack.meta, songId: id },
+    }) as TuneFlow.Music.MusicInfoOnline
+    const completed = await manager.create({ musicInfo: track('completed'), quality: '128k' })
+    const failed = await manager.create({ musicInfo: track('failed'), quality: '128k' })
+    const waiting = await manager.create({ musicInfo: track('waiting'), quality: '128k' })
+    const running = await manager.create({ musicInfo: track('running'), quality: '128k' })
+    const paused = await manager.create({ musicInfo: track('paused'), quality: '128k' })
+    manager.__setStateForTest(completed.id, 'completed')
+    manager.__setStateForTest(failed.id, 'error')
+    manager.__setStateForTest(running.id, 'running')
+    manager.__setStateForTest(paused.id, 'paused')
+    const finalPath = path.join(root, 'audio', completed.fileName)
+    const partPath = path.join(root, 'tmp', `${failed.id}.part`)
+    writeFileSync(finalPath, bytes)
+    writeFileSync(partPath, bytes)
+    writeFileSync(`${partPath}.lrc`, 'fixture')
+    const publicationCount = publications.length
+
+    expect(manager.clearHistory()).toBe(2)
+    expect(manager.list().map(job => job.id).sort()).toEqual(
+      [waiting.id, running.id, paused.id].sort(),
+    )
+    expect(existsSync(finalPath)).toBe(true)
+    expect(existsSync(partPath)).toBe(false)
+    expect(existsSync(`${partPath}.lrc`)).toBe(false)
+    expect(publications).toHaveLength(publicationCount + 1)
+    manager.close()
+  })
+
+  it('keeps history records when failed-artifact cleanup cannot complete', async() => {
+    const root = createRoot()
+    const manager = new DownloadManager({
+      storageRoot: root,
+      autoStart: false,
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async() => ({ url: 'http://127.0.0.1/unused', headers: {} }),
+      metadata: async() => {},
+    })
+    const failed = await manager.create({ musicInfo: fixtureTrack, quality: '128k' })
+    manager.__setStateForTest(failed.id, 'error')
+    mkdirSync(path.join(root, 'tmp', `${failed.id}.part`))
+
+    expect(() => manager.clearHistory()).toThrow()
+    expect(manager.get(failed.id)).toBeDefined()
+    expect(getDB().prepare('SELECT id FROM web_downloads WHERE id = ?').get(failed.id)).toEqual({ id: failed.id })
+    manager.close()
+  })
+
   it('reports the persisted completion time for a canonical downloaded file', async() => {
     const root = createRoot()
     const upstream = await startUpstream({ payload: validMp3 })
@@ -810,7 +1131,7 @@ describe('durable download manager', () => {
     manager.close()
   })
 
-  it('keeps a raw FLAC completed with a warning when its awaited metadata writer rejects asynchronously', async() => {
+  it('does not publish FLAC when its awaited metadata writer rejects asynchronously', async() => {
     const root = createRoot()
     const original = minimalFlac()
     const upstream = await startUpstream({ payload: original })
@@ -824,7 +1145,7 @@ describe('durable download manager', () => {
       } as TuneFlow.AppSetting),
       resolve: async() => ({ url: upstream.url, headers: {} }),
       metadata: async(filePath, job, settings) => applyDownloadMetadata(filePath, job, settings, {
-        getLyrics: async() => ({ lyric: '[00:00.00]Fixture FLAC lyric' }),
+        lyrics: { lyric: '[00:00.00]Fixture FLAC lyric' },
         writeAudioMetadata: async() => {
           await Promise.resolve()
           throw new Error('async FLAC writer failed')
@@ -834,13 +1155,13 @@ describe('durable download manager', () => {
     const job = await manager.create({ musicInfo: fixtureTrack, quality: 'flac' })
     await manager.waitForIdle()
 
-    expect(manager.get(job.id)).toMatchObject({ status: 'completed', warning: 'Metadata: async FLAC writer failed' })
-    expect(readFileSync(path.join(root, 'audio', job.fileName))).toEqual(original)
+    expect(manager.get(job.id)).toMatchObject({ status: 'error', error: 'Metadata processing failed' })
+    expect(existsSync(path.join(root, 'audio', job.fileName))).toBe(false)
     expect(() => readFileSync(path.join(root, 'audio', `${job.fileName}.tuneflowtmp`))).toThrow()
     manager.close()
   })
 
-  it('recovers a final published in the post-rename crash window without resolving or downloading again', async() => {
+  it('rejects a changed final in the published crash window', async() => {
     const root = createRoot()
     const upstream = await startUpstream()
     const embeddedSuffix = Buffer.from('metadata changed the published file size')
@@ -873,13 +1194,11 @@ describe('durable download manager', () => {
       metadata: async() => {},
     })
     expect(restarted.get(job.id)).toMatchObject({
-      status: 'completed',
-      downloaded: bytes.length + embeddedSuffix.length,
-      total: bytes.length + embeddedSuffix.length,
-      progress: 100,
+      status: 'error',
+      downloaded: 0,
+      total: 0,
+      progress: 0,
     })
-    await restarted.resume(job.id)
-    await restarted.waitForIdle()
     expect(resolveCount).toBe(1)
     expect(upstream.requests).toHaveLength(1)
     expect(readFileSync(path.join(root, 'audio', job.fileName))).toEqual(Buffer.concat([bytes, embeddedSuffix]))
@@ -922,6 +1241,95 @@ describe('durable download manager', () => {
       restarted.close()
     },
   )
+
+  it('recovers a staged lyrics sidecar after an audio-rename crash', async() => {
+    const root = createRoot()
+    const upstream = await startUpstream()
+    const first = new DownloadManager({
+      storageRoot: root,
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async() => ({ url: upstream.url, headers: {} }),
+      metadata: async(_filePath, _job, _settings, _resources, lyricFilePath) => {
+        writeFileSync(lyricFilePath!, '[00:00]staged lyric')
+        return { warnings: ['Artwork unavailable'] }
+      },
+      finalizationCheckpoint: point => point === 'after-rename' ? 'simulate-crash' : undefined,
+    })
+    const job = await first.create({ musicInfo: fixtureTrack, quality: '128k' })
+    await first.waitForIdle()
+    first.close()
+
+    const finalLyric = path.join(root, 'audio', job.fileName.replace(/\.mp3$/, '.lrc'))
+    expect(existsSync(finalLyric)).toBe(false)
+    expect(existsSync(path.join(root, 'tmp', `${job.id}.part.lrc`))).toBe(true)
+
+    const restarted = new DownloadManager({
+      storageRoot: root,
+      autoStart: false,
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async() => { throw new Error('must not redownload') },
+    })
+
+    expect(restarted.get(job.id)).toMatchObject({
+      status: 'completed',
+      progress: 100,
+      warning: 'Metadata: Artwork unavailable',
+    })
+    expect(readFileSync(finalLyric, 'utf8')).toBe('[00:00]staged lyric')
+    expect(existsSync(path.join(root, 'tmp', `${job.id}.part.lrc`))).toBe(false)
+    restarted.close()
+  })
+
+  it('does not overwrite an unrelated lyrics sidecar during ordinary publication', async() => {
+    const root = createRoot()
+    const upstream = await startUpstream()
+    const finalLyric = path.join(root, 'audio', 'ABSong.lrc')
+    writeFileSync(finalLyric, 'unrelated lyric')
+    const manager = new DownloadManager({
+      storageRoot: root,
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async() => ({ url: upstream.url, headers: {} }),
+      metadata: async(_filePath, _job, _settings, _resources, lyricFilePath) => {
+        writeFileSync(lyricFilePath!, '[00:00]new lyric')
+      },
+    })
+
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: '128k' })
+    await manager.waitForIdle()
+
+    expect(manager.get(job.id)).toMatchObject({ status: 'error', error: 'Download sidecar destination already exists' })
+    expect(readFileSync(finalLyric, 'utf8')).toBe('unrelated lyric')
+    expect(existsSync(path.join(root, 'audio', job.fileName))).toBe(false)
+    manager.close()
+  })
+
+  it('rejects conflicting staged and final lyrics during recovery', async() => {
+    const root = createRoot()
+    const upstream = await startUpstream()
+    const first = new DownloadManager({
+      storageRoot: root,
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async() => ({ url: upstream.url, headers: {} }),
+      metadata: async(_filePath, _job, _settings, _resources, lyricFilePath) => { writeFileSync(lyricFilePath!, '[00:00]staged') },
+      finalizationCheckpoint: point => point === 'after-rename' ? 'simulate-crash' : undefined,
+    })
+    const job = await first.create({ musicInfo: fixtureTrack, quality: '128k' })
+    await first.waitForIdle()
+    first.close()
+    const finalLyric = path.join(root, 'audio', job.fileName.replace(/\.mp3$/, '.lrc'))
+    writeFileSync(finalLyric, 'unrelated lyric')
+
+    const restarted = new DownloadManager({
+      storageRoot: root,
+      autoStart: false,
+      getSettings: () => ({ 'download.savePath': path.join(root, 'audio'), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async() => { throw new Error('must not redownload') },
+    })
+
+    expect(restarted.get(job.id)).toMatchObject({ status: 'error' })
+    expect(readFileSync(finalLyric, 'utf8')).toBe('unrelated lyric')
+    restarted.close()
+  })
 
   it('publishes a prepared part to a suffix instead of adopting or overwriting a conflicting final', async() => {
     const root = createRoot()

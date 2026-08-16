@@ -65,7 +65,7 @@ try {
   if (!install.ok) throw new Error('isolated source install failed')
   const installed = await install.json()
   await activateSource(origin, installed.data.id)
-  if (await requestLyric(origin, 'fixture', {}) !== 'fixture') throw new Error('isolated worker action failed')
+  if (await requestLyric(origin, 'fixture', { id: 'isolated-fixture', source: 'fixture' }) !== 'fixture') throw new Error('isolated worker action failed')
   console.log(JSON.stringify({ isolatedPackage: true, main: true, worker: true, action: true }))
 } finally {
   if (service != null && service.exitCode == null) {

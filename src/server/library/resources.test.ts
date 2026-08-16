@@ -23,6 +23,30 @@ afterEach(() => {
 })
 
 describe('LibraryResourceStore', () => {
+  it('invalidates only derived resources so the audio is reparsed', async() => {
+    const root = createRoot()
+    const audio = path.join(root, 'audio', 'invalidate.mp3')
+    writeFileSync(audio, 'audio')
+    let lyric = 'First lyric'
+    let parseCalls = 0
+    const store = new LibraryResourceStore(root, {
+      parseFile: async() => {
+        parseCalls++
+        return { common: { lyrics: [{ text: lyric }] }, format: {}, native: {}, quality: { warnings: [] } } as never
+      },
+    })
+    const first = await store.ensure(audio)
+    lyric = 'Second lyric'
+
+    store.invalidate(audio)
+    const second = await store.ensure(audio)
+
+    expect(existsSync(audio)).toBe(true)
+    expect(first.lyrics?.filePath).toBe(second.lyrics?.filePath)
+    expect(parseCalls).toBe(2)
+    expect(readFileSync(second.lyrics!.filePath, 'utf8')).toBe('Second lyric')
+  })
+
   it('persists mirrored embedded resources and reuses them after restart', async() => {
     const root = createRoot()
     const audio = path.join(root, 'audio', '歌单A', '123.mp3')

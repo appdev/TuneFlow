@@ -144,6 +144,13 @@ test('Service build and runtime target Node 24 with TagLib-Wasm packaged', () =>
   assert.equal([...dockerfile.matchAll(/^FROM node:24-bookworm-slim/gm)].length, 2)
 })
 
+test('Service build packages the source ZIP runtime dependency', () => {
+  const buildConfig = readFileSync(join(root, 'build-config/server/build.mjs'), 'utf8')
+
+  assert.equal(pkg.dependencies.archiver, '8.0.0')
+  assert.match(buildConfig, /archiver:\s*'8\.0\.0'/)
+})
+
 test('supported Web and Service files do not import or invoke Electron', () => {
   const forbidden = /@main|@lyric|src\/main|renderer-lyric|renderer-scripts|electron-builder|electron-rebuild|build-config\/pack|from\s+['"]electron(?:[-/][^'"]*)?['"]|require\(['"]electron(?:[-/][^'"]*)?['"]\)/i
   const matches = productionRoots

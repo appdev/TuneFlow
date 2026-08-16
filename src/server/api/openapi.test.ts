@@ -32,12 +32,12 @@ describe('Service OpenAPI contract', () => {
       '/api/v1/playlists', '/api/v1/playlists/{id}', '/api/v1/playlists/{id}/tracks', '/api/v1/playlists/{id}/tracks/remove',
       '/api/v1/playlists/reorder', '/api/v1/playlists/tracks/move', '/api/v1/playlists/{id}/tracks/reorder', '/api/v1/playlists/import',
       '/api/v1/playlists/{id}/tracks/{trackId}/exists', '/api/v1/tracks/{id}/playlists', '/api/v1/events/snapshot', '/api/v1/events',
-      '/api/v1/sources', '/api/v1/sources/import', '/api/v1/sources/active', '/api/v1/sources/enabled', '/api/v1/sources/{id}', '/api/v1/catalog/capabilities', '/api/v1/catalog/tracks/search',
+      '/api/v1/sources', '/api/v1/sources/import', '/api/v1/sources/export', '/api/v1/sources/active', '/api/v1/sources/enabled', '/api/v1/sources/{id}', '/api/v1/catalog/capabilities', '/api/v1/catalog/tracks/search',
       '/api/v1/catalog/leaderboards', '/api/v1/catalog/leaderboards/tracks',
       '/api/v1/catalog/playlists/tags', '/api/v1/catalog/playlists/browse', '/api/v1/catalog/playlists/detail',
       '/api/v1/catalog/playlists/search', '/api/v1/catalog/albums/search', '/api/v1/catalog/tracks/lyrics',
       '/api/v1/catalog/tracks/picture', '/api/v1/playback/tracks/resolve', '/api/v1/playback/resources/{token}/picture', '/api/v1/playback/history', '/api/v1/playback/history/{id}', '/api/v1/streams/{token}', '/api/v1/downloads',
-      '/api/v1/downloads/{id}/start', '/api/v1/downloads/{id}/resume', '/api/v1/downloads/{id}/pause', '/api/v1/downloads/{id}',
+      '/api/v1/downloads/history/records', '/api/v1/downloads/{id}/start', '/api/v1/downloads/{id}/resume', '/api/v1/downloads/{id}/pause', '/api/v1/downloads/{id}',
       '/api/v1/library/tracks', '/api/v1/library/scan', '/api/v1/library/tracks/{id}', '/api/v1/library/tracks/{id}/stream',
       '/api/v1/library/tracks/{id}/picture', '/api/v1/library/tracks/{id}/lyrics',
     ]
@@ -50,6 +50,10 @@ describe('Service OpenAPI contract', () => {
     expect(document.paths['/api/v1/sources/enabled'].put.requestBody.content['application/json'].schema).toMatchObject({
       required: ['sourceIds'],
       additionalProperties: false,
+    })
+    expect(document.paths['/api/v1/sources/export'].get.operationId).toBe('exportSourceScripts')
+    expect(document.paths['/api/v1/sources/export'].get.responses['200'].content['application/json'].schema).toMatchObject({
+      type: 'string', format: 'binary', contentMediaType: 'application/zip',
     })
     expect(successDataSchema('/api/v1/catalog/tracks/search').properties.list.items.required).toEqual(expect.arrayContaining(['id', 'songmid', 'name', 'singer', 'source', 'interval']))
     expect(successDataSchema('/api/v1/catalog/playlists/search').properties.list.items.required).toEqual(expect.arrayContaining(['id', 'kind', 'name', 'source']))
@@ -70,6 +74,19 @@ describe('Service OpenAPI contract', () => {
     expect(historyItem.properties.track.required).toEqual(expect.arrayContaining(['id', 'source']))
     const downloadItem = successDataSchema('/api/v1/downloads', 'get').items
     expect(downloadItem.required).toEqual(expect.arrayContaining(['queuePosition', 'createdAt', 'updatedAt']))
+    expect(document.paths['/api/v1/downloads'].post.requestBody.content['application/json'].schema.properties.existingFilePolicy.anyOf)
+      .toEqual([
+        { enum: ['reuse'], type: 'string' },
+        { enum: ['error'], type: 'string' },
+        { enum: ['replace'], type: 'string' },
+        { enum: ['duplicate'], type: 'string' },
+      ])
+    expect(document.paths['/api/v1/downloads/history/records'].delete.operationId).toBe('clearDownloadHistory')
+    expect(successDataSchema('/api/v1/downloads/history/records', 'delete')).toMatchObject({
+      type: 'object',
+      required: ['cleared'],
+      properties: { cleared: { type: 'integer', minimum: 0 } },
+    })
     const libraryItem = successDataSchema('/api/v1/library/tracks', 'get').items
     expect(document.paths['/api/v1/library/tracks/{id}'].delete.operationId).toBe('deleteLibraryTrack')
     const libraryResourceProperties = libraryItem.allOf.find((schema: { properties?: Record<string, unknown> }) => schema.properties?.streamUrl != null).properties
