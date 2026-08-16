@@ -5,9 +5,9 @@ runs:
   using: composite
   steps:
     - name: Setup Node.js
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
-        node-version: '22'
+        node-version: '24'
 
     # - name: Get npm cache directory
     #   run: node -p -e '`NPM_CACHE_DIR=${require("child_process").execSync("npm config get cache").toString()}`' >> $GITHUB_ENV
@@ -16,7 +16,7 @@ runs:
     # https://docs.npmjs.com/cli/v10/configuring-npm/folders#cache
     - name: Cache node modules
       id: cache-npm
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: ${{ env.NPM_CACHE }}
         key: ${{ runner.os }}-npm-cache-${{ hashFiles('package-lock.json') }}

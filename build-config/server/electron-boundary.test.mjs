@@ -129,6 +129,22 @@ test('maintained CI runs the Web and Service test suite', () => {
   assert.match(readFileSync(join(root, '.github/workflows/build-test.yml'), 'utf8'), /run:\s+npm test/)
 })
 
+test('GitHub Actions use Node 24 runtime generations', () => {
+  const buildWorkflow = readFileSync(join(root, '.github/workflows/build-test.yml'), 'utf8')
+  const dockerWorkflow = readFileSync(join(root, '.github/workflows/docker-build.yml'), 'utf8')
+  const setupAction = readFileSync(join(root, '.github/actions/setup/action.yml'), 'utf8')
+
+  assert.match(buildWorkflow, /uses:\s+actions\/checkout@v7/)
+  assert.match(buildWorkflow, /uses:\s+actions\/setup-node@v7/)
+  assert.match(dockerWorkflow, /uses:\s+actions\/checkout@v7/)
+  assert.match(dockerWorkflow, /uses:\s+docker\/setup-buildx-action@v4/)
+  assert.match(dockerWorkflow, /uses:\s+docker\/build-push-action@v7/)
+  assert.match(dockerWorkflow, /uses:\s+docker\/login-action@v4/)
+  assert.match(setupAction, /uses:\s+actions\/setup-node@v7/)
+  assert.match(setupAction, /node-version:\s*['"]?24['"]?/)
+  assert.match(setupAction, /uses:\s+actions\/cache@v6/)
+})
+
 test('Service build and runtime target Node 24 with TagLib-Wasm packaged', () => {
   const buildConfig = readFileSync(join(root, 'build-config/server/build.mjs'), 'utf8')
   const prepareConfig = readFileSync(join(root, 'build-config/server/prepare.mjs'), 'utf8')
