@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import net from 'node:net'
 import os from 'node:os'
@@ -52,6 +52,16 @@ afterEach(() => {
 })
 
 describe('Service process shutdown', () => {
+  it('documents legacy and split storage environment variables', () => {
+    const result = spawnSync(process.execPath, ['dist/server/index.cjs', '--help'], { encoding: 'utf8' })
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('TUNEFLOW_STORAGE_ROOT')
+    expect(result.stdout).toContain('TUNEFLOW_CONFIG_ROOT')
+    expect(result.stdout).toContain('TUNEFLOW_MEDIA_ROOT')
+    expect(result.stdout).toContain('TUNEFLOW_CACHE_ROOT')
+    expect(result.stdout).toContain('TUNEFLOW_TEMP_ROOT')
+  })
+
   it('starts and gracefully stops the prepared Service command', async() => {
     const storageRoot = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-service-signal-'))
     const webRoot = path.join(storageRoot, 'web')

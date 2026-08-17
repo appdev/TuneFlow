@@ -78,3 +78,12 @@ await build({
     '@common/rendererIpc': path.join(root, 'src/server/tuneFlowSdk/rendererIpcShim.ts'),
   },
 })
+await build({
+  entryPoints: [path.join(root, 'src/server/storage/migrateLegacyStorageCli.ts')],
+  bundle: true,
+  platform: 'node',
+  target: 'node24',
+  format: 'cjs',
+  outfile: path.join(root, 'dist/server/migrate-storage.cjs'),
+  packages: 'external',
+})

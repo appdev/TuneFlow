@@ -1,4 +1,4 @@
-import { cpSync, mkdtempSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { spawn, spawnSync } from 'node:child_process'
 import net from 'node:net'
 import os from 'node:os'
@@ -34,6 +34,14 @@ let portServer
 try {
   cpSync(path.join(root, 'dist/server'), path.join(isolatedRoot, 'server'), { recursive: true })
   cpSync(path.join(root, 'dist/web'), path.join(isolatedRoot, 'web'), { recursive: true })
+  if (!existsSync(path.join(isolatedRoot, 'server/migrate-storage.cjs'))) throw new Error('isolated migration CLI is missing')
+  const migrationHelp = spawnSync(process.execPath, ['server/migrate-storage.cjs', '--help'], {
+    cwd: isolatedRoot,
+    encoding: 'utf8',
+  })
+  if (migrationHelp.status !== 0 || !migrationHelp.stdout.includes('TuneFlow storage migration')) {
+    throw new Error('isolated migration CLI help failed')
+  }
   const taglib = spawnSync(process.execPath, [
     '--input-type=module',
     '--eval',

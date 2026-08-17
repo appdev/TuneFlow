@@ -86,6 +86,7 @@ export class LibraryScanner {
     private readonly getExpectedIntegrity: (filePath: string) => DownloadFileIntegrity | undefined = () => undefined,
     private readonly resourceStore?: LibraryResourceStore,
     private readonly getDownloadedAt: (filePath: string) => number | undefined = () => undefined,
+    private readonly mediaIdentityPrefix?: string,
   ) {}
 
   list(): LibraryTrackDto[] {
@@ -207,7 +208,9 @@ export class LibraryScanner {
       if (expectedIntegrity != null &&
         (stat.size !== expectedIntegrity.size || sha256File(filePath) !== expectedIntegrity.sha256)) continue
       const relative = path.relative(root, filePath).split(path.sep).join('/')
-      const identity = `${path.relative(this.storageRoot, root).split(path.sep).join('/')}/${relative}\0${stat.dev}\0${stat.ino}\0${stat.size}\0${stat.mtimeMs}`
+      const prefix = this.mediaIdentityPrefix ?? path.relative(this.storageRoot, root).split(path.sep).join('/')
+      const logicalPath = prefix === '' ? relative : `${prefix}/${relative}`
+      const identity = `${logicalPath}\0${stat.dev}\0${stat.ino}\0${stat.size}\0${stat.mtimeMs}`
       const id = createHash('sha256').update(identity).digest('hex')
       const extension = path.extname(filePath).slice(1).toLowerCase()
       const signature = `${stat.dev}\0${stat.ino}\0${stat.size}\0${stat.mtimeMs}`

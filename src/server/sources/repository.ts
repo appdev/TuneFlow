@@ -5,6 +5,7 @@ import { MAX_SOURCE_SCRIPT_BYTES } from '../../common/constants'
 import { getDB } from '../db/core/db'
 import { parseSourceScript } from './parser'
 import { SourceServiceError, type InstalledSource, type SourceExportSource, type SourceSummary } from './types'
+import { validateInstalledSourceFiles } from './storageValidation'
 
 interface SourceRow extends Omit<InstalledSource, 'sources'> {
   sources: string | null
@@ -14,8 +15,8 @@ interface SourceRow extends Omit<InstalledSource, 'sources'> {
 export class SourceRepository {
   private readonly sourceDir: string
 
-  constructor(storageRoot: string) {
-    this.sourceDir = path.join(storageRoot, 'sources')
+  constructor(root: string | { sourceRoot: string }) {
+    this.sourceDir = typeof root === 'string' ? path.join(root, 'sources') : root.sourceRoot
     getDB().exec(`
       CREATE TABLE IF NOT EXISTS web_sources (
         id TEXT PRIMARY KEY,
@@ -45,6 +46,7 @@ export class SourceRepository {
         AND EXISTS (SELECT 1 FROM web_sources WHERE id = active_source_id)
         AND NOT EXISTS (SELECT 1 FROM web_source_selection);
     `)
+    validateInstalledSourceFiles(getDB(), this.sourceDir)
   }
 
   getSourceRoot(): string { return this.sourceDir }

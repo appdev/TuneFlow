@@ -1,7 +1,6 @@
 import defaultSetting from '../../common/defaultSetting'
 import { getDB } from './core/db'
 import { ApiError } from '../errors'
-import { getAudioRoot } from '../config'
 
 const serviceDefaults: Partial<TuneFlow.AppSetting> = {
   'common.transparentWindow': false,
@@ -21,7 +20,7 @@ const legacySettingKeys = [
 ] as const
 
 export class SettingsRepository {
-  constructor(private readonly storageRoot: string) {
+  constructor(private readonly mediaRoot: string) {
     const db = getDB()
     db.exec('CREATE TABLE IF NOT EXISTS web_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);')
     const migrate = db.prepare(`
@@ -50,7 +49,7 @@ export class SettingsRepository {
       ...defaultSetting,
       ...this.values(),
       ...serviceDefaults,
-      'download.savePath': getAudioRoot(this.storageRoot),
+      'download.savePath': this.mediaRoot,
     }
   }
 

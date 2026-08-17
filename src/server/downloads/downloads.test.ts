@@ -2,7 +2,7 @@
 import { createServer as createHttpServer } from 'node:http'
 import { createHash } from 'node:crypto'
 import { once } from 'node:events'
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, readdirSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import type { AddressInfo } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
@@ -214,6 +214,88 @@ describe('TuneFlow download policy', () => {
 })
 
 describe('durable download manager', () => {
+  it('recovers split publication through a media-local stage without cross-root rename', async() => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-downloads-split-'))
+    roots.push(root)
+    const databaseRoot = path.join(root, 'config', 'database')
+    const mediaRoot = path.join(root, 'music')
+    const tempRoot = path.join(root, 'tmp')
+    for (const directory of [databaseRoot, mediaRoot, tempRoot]) mkdirSync(directory, { recursive: true })
+    if (initDatabase(databaseRoot) == null) throw new Error('Unable to initialize split fixture database')
+    const upstream = await startUpstream({ payload: validMp3 })
+    const rootsOption = { mode: 'split' as const, databaseRoot, mediaRoot, tempRoot }
+    const settings = () => ({
+      'download.savePath': mediaRoot,
+      'download.maxDownloadNum': 1,
+      'download.fileName': '歌名',
+    } as TuneFlow.AppSetting)
+    const first = new DownloadManager({
+      roots: rootsOption,
+      getSettings: settings,
+      resolve: async() => ({ url: upstream.url }),
+      metadata: async() => {},
+      finalizationCheckpoint: point => point === 'after-marker' ? 'simulate-crash' : undefined,
+    })
+
+    const job = await first.create({ musicInfo: fixtureTrack, quality: '128k' })
+    await first.waitForIdle()
+    const stored = JSON.parse((getDB().prepare('SELECT record FROM web_downloads WHERE id=?').get(job.id) as { record: string }).record) as {
+      publication?: { stagedMediaRelativePath?: string }
+    }
+    expect(stored.publication?.stagedMediaRelativePath).toMatch(/\.tuneflowtmp$/)
+    expect(readdirSync(mediaRoot)).toEqual([expect.stringMatching(/\.tuneflowtmp$/)])
+    expect(existsSync(path.join(tempRoot, `${job.id}.part`))).toBe(true)
+    first.close()
+    writeFileSync(path.join(mediaRoot, '.orphan.00000000-0000-4000-8000-000000000000.tuneflowtmp'), 'orphan')
+
+    const restarted = new DownloadManager({
+      roots: rootsOption,
+      autoStart: false,
+      getSettings: settings,
+      resolve: async() => { throw new Error('must not redownload') },
+      metadata: async() => {},
+    })
+    expect(restarted.get(job.id)).toMatchObject({ status: 'completed', progress: 100 })
+    expect(readFileSync(path.join(mediaRoot, job.fileName))).toEqual(validMp3)
+    expect(existsSync(path.join(tempRoot, `${job.id}.part`))).toBe(false)
+    expect(readdirSync(mediaRoot)).toEqual([job.fileName])
+    restarted.close()
+  })
+
+  it('rejects a corrupted media-local lyric stage during split recovery', async() => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-downloads-split-lyric-'))
+    roots.push(root)
+    const databaseRoot = path.join(root, 'config', 'database')
+    const mediaRoot = path.join(root, 'music')
+    const tempRoot = path.join(root, 'tmp')
+    for (const directory of [databaseRoot, mediaRoot, tempRoot]) mkdirSync(directory, { recursive: true })
+    if (initDatabase(databaseRoot) == null) throw new Error('Unable to initialize split fixture database')
+    const upstream = await startUpstream({ payload: validMp3 })
+    const rootsOption = { mode: 'split' as const, databaseRoot, mediaRoot, tempRoot }
+    const settings = () => ({ 'download.savePath': mediaRoot, 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting)
+    const first = new DownloadManager({
+      roots: rootsOption,
+      getSettings: settings,
+      resolve: async() => ({ url: upstream.url }),
+      metadata: async(_file, _record, _settings, _resources, lyricFilePath) => { writeFileSync(lyricFilePath, '[00:00.00]valid') },
+      finalizationCheckpoint: point => point === 'after-marker' ? 'simulate-crash' : undefined,
+    })
+    const job = await first.create({ musicInfo: fixtureTrack, quality: '128k' })
+    await first.waitForIdle()
+    const stored = JSON.parse((getDB().prepare('SELECT record FROM web_downloads WHERE id=?').get(job.id) as { record: string }).record) as {
+      publication: { stagedLyricRelativePath: string, lyricIntegrity: { size: number, sha256: string } }
+    }
+    expect(stored.publication.lyricIntegrity.sha256).toMatch(/^[a-f0-9]{64}$/)
+    writeFileSync(path.join(mediaRoot, stored.publication.stagedLyricRelativePath), 'corrupted')
+    first.close()
+
+    const restarted = new DownloadManager({ roots: rootsOption, autoStart: false, getSettings: settings, resolve: async() => ({ url: upstream.url }) })
+    expect(restarted.get(job.id)).toMatchObject({ status: 'error', error: expect.stringContaining('sidecar integrity mismatch') })
+    expect(existsSync(path.join(mediaRoot, job.fileName))).toBe(false)
+    expect(existsSync(path.join(mediaRoot, job.fileName.replace(/\.mp3$/, '.lrc')))).toBe(false)
+    restarted.close()
+  })
+
   it('honors explicit existing-file policy before the legacy setting', async() => {
     const root = createRoot()
     const existing = path.join(root, 'audio', 'ABSong.mp3')

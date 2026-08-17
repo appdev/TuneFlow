@@ -1,6 +1,6 @@
 {
   "name": "tuneflow-server-web",
-  "version": "2.13.0",
+  "version": "2.13.1",
   "description": "TuneFlow (音流) Web UI and Node.js Service",
   "scripts": {
     "build:theme": "node src/common/theme/createThemes.js",
@@ -14,6 +14,7 @@
     "build:service": "npm run build:web && npm run prepare:service",
     "dev:server": "npm run prepare:service && cross-env TUNEFLOW_SERVICE_NODE_MODULES=./dist/server/node_modules node dist/server/index.cjs",
     "start:server": "node dist/server/index.cjs",
+    "migrate:storage": "node dist/server/migrate-storage.cjs",
     "lint": "eslint --ext .ts,.js,.vue -f stylish src",
     "lint:fix": "eslint --ext .ts,.js,.vue -f stylish --fix src",
     "test": "npm run test:unit && npm run test:build-config",

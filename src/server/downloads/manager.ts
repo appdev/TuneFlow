@@ -1,5 +1,5 @@
-import { createWriteStream, existsSync, mkdirSync, openSync, closeSync, fsyncSync, readSync, readdirSync, realpathSync, renameSync, rmSync, statSync } from 'node:fs'
-import { createHash } from 'node:crypto'
+import { constants, copyFileSync, createWriteStream, existsSync, mkdirSync, openSync, closeSync, fsyncSync, readSync, readdirSync, realpathSync, renameSync, rmSync, statSync } from 'node:fs'
+import { createHash, randomUUID } from 'node:crypto'
 import path from 'node:path'
 import Database from 'better-sqlite3'
 import { getDB } from '../db/core/db'
@@ -18,8 +18,16 @@ import { ApiError } from '../errors'
 import { ReplacementPublisher } from './replacementPublisher'
 import { normalizeMusicInfo } from '../sources/musicInfo'
 
+export interface DownloadRoots {
+  mode: 'split' | 'legacy'
+  databaseRoot: string
+  mediaRoot: string
+  tempRoot: string
+}
+
 interface DownloadManagerOptions {
-  storageRoot: string
+  roots?: DownloadRoots
+  storageRoot?: string
   getSettings: () => TuneFlow.AppSetting
   resolve: (job: DownloadJobRecord, signal: AbortSignal) => Promise<ResolvedDownload>
   findExistingFile?: (musicInfo: TuneFlow.Music.MusicInfoOnline) => Promise<string | undefined>
@@ -63,21 +71,32 @@ export class DownloadManager {
   private readonly db: Database.Database
   private readonly ownsDb: boolean
   private readonly audioRoot: string
+  private readonly tempRoot: string
+  private readonly roots: DownloadRoots
   private readonly mediaClient: MediaClient
   private readonly replacementPublisher = new ReplacementPublisher()
   private closed = false
 
   constructor(private readonly options: DownloadManagerOptions) {
+    if (options.roots == null && options.storageRoot == null) throw new Error('Download storage roots are required')
+    const legacyRoot = options.storageRoot == null ? undefined : path.resolve(options.storageRoot)
+    this.roots = options.roots ?? {
+      mode: 'legacy',
+      databaseRoot: legacyRoot!,
+      mediaRoot: getAudioRoot(legacyRoot!),
+      tempRoot: path.join(legacyRoot!, 'tmp'),
+    }
     this.mediaClient = options.mediaClient ?? new MediaClient({ allowPrivateNetwork: process.env.NODE_ENV === 'test' })
-    this.audioRoot = getAudioRoot(options.storageRoot)
+    this.audioRoot = this.roots.mediaRoot
+    this.tempRoot = this.roots.tempRoot
     mkdirSync(this.audioRoot, { recursive: true })
-    if (!isPathInside(options.storageRoot, this.audioRoot)) throw new Error('Service audio root escaped storage root')
-    mkdirSync(path.join(options.storageRoot, 'tmp'), { recursive: true })
+    mkdirSync(this.tempRoot, { recursive: true })
+    if (!isPathInside(this.audioRoot, this.audioRoot)) throw new Error('Service audio root is unavailable')
     try {
       this.db = getDB()
       this.ownsDb = false
     } catch {
-      this.db = new Database(migrateLegacyDatabaseFiles(options.storageRoot))
+      this.db = new Database(migrateLegacyDatabaseFiles(this.roots.databaseRoot))
       this.db.pragma('journal_mode = WAL')
       this.ownsDb = true
     }
@@ -90,7 +109,7 @@ export class DownloadManager {
       normalizePersistedTrackId(record)
       this.normalizeFinalPath(record)
       const final = this.resolveFinal(record.finalRelativePath)
-      const part = this.resolveRelative(record.partRelativePath)
+      const part = this.resolveTemp(record.partRelativePath)
       let recoveredCompletion = record.metadataPatch != null && this.recoverMetadataPatch(record, final)
       if (record.status !== 'completed' && record.replacement != null && record.replacement.phase !== 'downloading' && this.recoverReplacement(record)) recoveredCompletion = true
       else if (record.status !== 'completed' && this.recoverPublication(record, final, part)) recoveredCompletion = true
@@ -115,6 +134,7 @@ export class DownloadManager {
       if (recoveredCompletion) recoveredCompletions.push(record)
     }
     this.cleanupOrphanParts()
+    this.cleanupOrphanMediaStages()
     this.publish()
     if (recoveredCompletions.length > 0) {
       queueMicrotask(() => {
@@ -185,7 +205,7 @@ export class DownloadManager {
     this.requireIntegrity(staged, input.replacementIntegrity, 'Metadata patch staging integrity mismatch')
     this.update(record, {
       metadataPatch: {
-        stagedRelativePath: this.relative(staged),
+        stagedRelativePath: this.mediaRelative(staged),
         originalIntegrity: input.originalIntegrity,
         replacementIntegrity: input.replacementIntegrity,
       },
@@ -269,7 +289,7 @@ export class DownloadManager {
       : ''
     const destination = path.join(saveRoot, listDirectory)
     mkdirSync(destination, { recursive: true })
-    if (!isPathInside(this.options.storageRoot, destination)) throw new Error('Download destination escaped storage root')
+    if (!isPathInside(this.audioRoot, destination)) throw new Error('Download destination escaped media root')
     const reserved = this.reservedFileNames(destination)
     const requested = makeFileName(settings['download.fileName'], input.musicInfo.name, input.musicInfo.singer, extension)
     const fileName = reserveFileName(destination, requested, reserved)
@@ -286,8 +306,8 @@ export class DownloadManager {
       qualityCandidates,
       extension,
       fileName,
-      finalRelativePath: this.relative(path.join(destination, fileName)),
-      partRelativePath: this.relative(path.join(this.options.storageRoot, 'tmp', `${id}.part`)),
+      finalRelativePath: this.mediaRelative(path.join(destination, fileName)),
+      partRelativePath: this.tempRelative(path.join(this.tempRoot, `${id}.part`)),
       downloaded: 0,
       total: 0,
       useDefaultDownloadSettings: useDefaultDownloadSettings || undefined,
@@ -332,7 +352,7 @@ export class DownloadManager {
     }
     this.active.get(id)?.controller.abort()
     if (record.status !== 'completed') {
-      const part = this.resolveRelative(record.partRelativePath)
+      const part = this.resolveTemp(record.partRelativePath)
       rmSync(part, { force: true })
       rmSync(part + '.lrc', { force: true })
     }
@@ -350,7 +370,7 @@ export class DownloadManager {
 
     for (const record of history) {
       if (record.status !== 'error') continue
-      const part = this.resolveRelative(record.partRelativePath)
+      const part = this.resolveTemp(record.partRelativePath)
       rmSync(part, { force: true })
       rmSync(part + '.lrc', { force: true })
     }
@@ -451,7 +471,7 @@ export class DownloadManager {
               if (controller.signal.aborted || record.status === 'paused') return
               if (error instanceof SourceServiceError && error.origin !== 'service-network') throw error
               candidateError = error
-              rmSync(this.resolveRelative(record.partRelativePath), { force: true })
+              rmSync(this.resolveTemp(record.partRelativePath), { force: true })
               this.update(record, { downloaded: 0, total: 0, etag: undefined, lastModified: undefined })
             }
           }
@@ -462,7 +482,7 @@ export class DownloadManager {
         } catch (error) {
           if (controller.signal.aborted || record.status === 'paused') return
           lastError = error
-          rmSync(this.resolveRelative(record.partRelativePath), { force: true })
+          rmSync(this.resolveTemp(record.partRelativePath), { force: true })
           this.update(record, { downloaded: 0, total: 0, etag: undefined, lastModified: undefined })
         }
       }
@@ -480,7 +500,7 @@ export class DownloadManager {
   }
 
   private async transfer(record: DownloadJobRecord, resolved: ResolvedDownload, signal: AbortSignal, allowResume: boolean): Promise<void> {
-    const part = this.resolveRelative(record.partRelativePath)
+    const part = this.resolveTemp(record.partRelativePath)
     const existing = existsSync(part) ? statSync(part).size : 0
     const resume = allowResume && existing > 0 && (record.etag != null || record.lastModified != null)
     const response = await this.mediaClient.open({ url: resolved.url, headers: resolved.headers }, {
@@ -541,7 +561,7 @@ export class DownloadManager {
 
   private async requireParseableAudio(record: DownloadJobRecord): Promise<void> {
     try {
-      const metadata = await parseFile(this.resolveRelative(record.partRelativePath), { duration: false, skipCovers: true })
+      const metadata = await parseFile(this.resolveTemp(record.partRelativePath), { duration: false, skipCovers: true })
       if (metadata.format.container == null || metadata.format.container === '' || metadata.format.codec == null || metadata.format.codec === '') {
         throw new Error('Audio container or codec is missing')
       }
@@ -552,7 +572,7 @@ export class DownloadManager {
 
   private checkedSaveRoot(): string {
     mkdirSync(this.audioRoot, { recursive: true })
-    if (!isPathInside(this.options.storageRoot, this.audioRoot)) throw new Error('Service audio root escaped storage root')
+    if (!isPathInside(this.audioRoot, this.audioRoot)) throw new Error('Service audio root is unavailable')
     return this.audioRoot
   }
 
@@ -583,7 +603,7 @@ export class DownloadManager {
         qualityCandidates,
         extension,
         fileName: path.basename(resolved),
-        finalRelativePath: this.relative(resolved),
+        finalRelativePath: this.mediaRelative(resolved),
         downloaded: size,
         total: size,
         finalIntegrity,
@@ -607,8 +627,8 @@ export class DownloadManager {
       qualityCandidates,
       extension,
       fileName: path.basename(resolved),
-      finalRelativePath: this.relative(resolved),
-      partRelativePath: this.relative(path.join(this.options.storageRoot, 'tmp', `${id}.part`)),
+      finalRelativePath: this.mediaRelative(resolved),
+      partRelativePath: this.tempRelative(path.join(this.tempRoot, `${id}.part`)),
       downloaded: size,
       total: size,
       finalIntegrity,
@@ -636,7 +656,7 @@ export class DownloadManager {
     const originalSize = statSync(original).size
     const currentIntegrity = { size: originalSize, sha256: sha256File(original) }
     const active = [...this.records.values()].find(record => record.replacement != null && record.status !== 'completed' && record.status !== 'error' &&
-      this.resolveRelative(record.replacement.originalRelativePath) === original && isSameMusic(record.musicInfo, input.musicInfo))
+      this.resolveMedia(record.replacement.originalRelativePath) === original && isSameMusic(record.musicInfo, input.musicInfo))
     if (active != null) {
       if (active.replacement!.originalIntegrity.size === currentIntegrity.size && active.replacement!.originalIntegrity.sha256 === currentIntegrity.sha256) return this.get(active.id)!
       this.active.get(active.id)?.controller.abort()
@@ -663,12 +683,12 @@ export class DownloadManager {
       qualityCandidates,
       extension,
       fileName,
-      finalRelativePath: this.relative(path.join(directory, fileName)),
-      partRelativePath: this.relative(path.join(this.options.storageRoot, 'tmp', `${id}.part`)),
+      finalRelativePath: this.mediaRelative(path.join(directory, fileName)),
+      partRelativePath: this.tempRelative(path.join(this.tempRoot, `${id}.part`)),
       downloaded: 0,
       total: 0,
       replacement: {
-        originalRelativePath: this.relative(original),
+        originalRelativePath: this.mediaRelative(original),
         originalIntegrity: currentIntegrity,
         previousDownloadIds: [...this.records.values()]
           .filter(value => value.status === 'completed' && this.resolveFinal(value.finalRelativePath) === original)
@@ -692,9 +712,9 @@ export class DownloadManager {
     const extension = getExt(quality)
     const directory = record.replacement == null
       ? path.dirname(this.resolveFinal(record.finalRelativePath))
-      : path.dirname(this.resolveRelative(record.replacement.originalRelativePath))
+      : path.dirname(this.resolveMedia(record.replacement.originalRelativePath))
     const requested = makeFileName(this.effectiveSettings(record.useDefaultDownloadSettings === true)['download.fileName'], record.musicInfo.name, record.musicInfo.singer, extension)
-    const original = record.replacement == null ? undefined : this.resolveRelative(record.replacement.originalRelativePath)
+    const original = record.replacement == null ? undefined : this.resolveMedia(record.replacement.originalRelativePath)
     const fileName = original != null && path.extname(original).slice(1).toLowerCase() === extension
       ? path.basename(original)
       : reserveFileName(directory, requested, this.reservedFileNames(directory, record.id))
@@ -702,7 +722,7 @@ export class DownloadManager {
       quality,
       extension,
       fileName,
-      finalRelativePath: this.relative(path.join(directory, fileName)),
+      finalRelativePath: this.mediaRelative(path.join(directory, fileName)),
     })
   }
 
@@ -727,11 +747,20 @@ export class DownloadManager {
       sha256File(filePath) !== expected.sha256) throw new Error(message)
   }
 
+  private stageMediaFile(source: string, final: string, expected?: DownloadFileIntegrity): string {
+    const staged = path.join(path.dirname(final), `.${path.basename(final)}.${randomUUID()}.tuneflowtmp`)
+    copyFileSync(source, staged, constants.COPYFILE_EXCL)
+    const descriptor = openSync(staged, 'r')
+    try { fsyncSync(descriptor) } finally { closeSync(descriptor) }
+    if (expected != null) this.requireIntegrity(staged, expected, 'Media publication staging integrity mismatch')
+    return staged
+  }
+
   private recoverMetadataPatch(record: DownloadJobRecord, final: string): boolean {
     const marker = record.metadataPatch
     if (marker == null) return false
     try {
-      const staged = this.resolveRelative(marker.stagedRelativePath)
+      const staged = this.resolveMedia(marker.stagedRelativePath)
       if (!isPathInside(this.audioRoot, staged) || path.dirname(staged) !== path.dirname(final) ||
         !path.basename(staged).endsWith('.tuneflowtmp')) throw new Error('Metadata patch marker path is invalid')
       const finalMatchesReplacement = (() => {
@@ -774,30 +803,42 @@ export class DownloadManager {
       return false
     }
     try {
+      const stagedMedia = marker.stagedMediaRelativePath == null ? part : this.resolveMedia(marker.stagedMediaRelativePath)
+      if (marker.stagedMediaRelativePath != null &&
+        (path.dirname(stagedMedia) !== path.dirname(final) || !path.basename(stagedMedia).endsWith('.tuneflowtmp'))) {
+        throw new Error('Download media publication marker is invalid')
+      }
       if (marker.phase === 'published') {
         if (!existsSync(final) || !statSync(final).isFile() || statSync(final).size !== marker.size || sha256File(final) !== marker.sha256) {
           throw new Error('Published download file integrity mismatch')
         }
         this.recoverPublicationSidecar(record)
+        if (marker.stagedMediaRelativePath != null) {
+          rmSync(stagedMedia, { force: true })
+          try { this.removeRejectedPart(part) } catch {}
+        }
         this.completeRecovered(record, final)
         return true
       }
       if (existsSync(final) && statSync(final).isFile() && statSync(final).size === marker.size && sha256File(final) === marker.sha256) {
+        if (stagedMedia !== part) rmSync(stagedMedia, { force: true })
         try { this.removeRejectedPart(part) } catch {}
         this.recoverPublicationSidecar(record)
         this.completeRecovered(record, final)
         return true
       }
-      if (existsSync(part) && statSync(part).isFile() && statSync(part).size === marker.size && sha256File(part) === marker.sha256) {
+      if (existsSync(stagedMedia) && statSync(stagedMedia).isFile() && statSync(stagedMedia).size === marker.size && sha256File(stagedMedia) === marker.sha256) {
         this.ensureAvailableDestination(record)
         const recoveredFinal = this.resolveFinal(record.finalRelativePath)
         if (marker.stagedLyricRelativePath != null) {
-          marker.finalLyricRelativePath = this.relative(recoveredFinal.slice(0, -path.extname(recoveredFinal).length) + '.lrc')
+          marker.finalLyricRelativePath = this.mediaRelative(recoveredFinal.slice(0, -path.extname(recoveredFinal).length) + '.lrc')
           this.persist(record)
         }
-        renameSync(part, recoveredFinal)
+        this.validatePublicationSidecar(record)
+        renameSync(stagedMedia, recoveredFinal)
         this.recoverPublicationSidecar(record)
         fsyncDirectory(path.dirname(recoveredFinal))
+        if (stagedMedia !== part) this.removeRejectedPart(part)
         this.completeRecovered(record, recoveredFinal)
         return true
       }
@@ -810,6 +851,7 @@ export class DownloadManager {
   }
 
   private rejectPublication(record: DownloadJobRecord, part: string, error: string): void {
+    const stagedMediaRelative = record.publication?.stagedMediaRelativePath
     const stagedLyricRelative = record.publication?.stagedLyricRelativePath
     record.publication = undefined
     record.partCleanupPending = true
@@ -823,7 +865,11 @@ export class DownloadManager {
     this.persist(record)
     try {
       this.removeRejectedPart(part)
-      if (stagedLyricRelative != null) rmSync(this.resolveRelative(stagedLyricRelative), { force: true })
+      if (stagedMediaRelative != null) rmSync(this.resolveMedia(stagedMediaRelative), { force: true })
+      if (stagedLyricRelative != null) {
+        const stagedLyric = stagedMediaRelative == null ? this.resolveTemp(stagedLyricRelative) : this.resolveMedia(stagedLyricRelative)
+        rmSync(stagedLyric, { force: true })
+      }
       record.partCleanupPending = undefined
       record.updatedAt = this.now()
       this.persist(record)
@@ -835,30 +881,40 @@ export class DownloadManager {
   }
 
   private recoverPublicationSidecar(record: DownloadJobRecord): void {
+    const state = this.validatePublicationSidecar(record)
+    if (state == null || state.finalExists) return
+    renameSync(state.staged, state.final)
+    fsyncDirectory(path.dirname(state.final))
+  }
+
+  private validatePublicationSidecar(record: DownloadJobRecord): { staged: string, final: string, finalExists: boolean } | undefined {
     const marker = record.publication
-    if (marker == null) return
+    if (marker == null) return undefined
     const stagedRelative = marker.stagedLyricRelativePath
     const finalRelative = marker.finalLyricRelativePath
-    if (stagedRelative == null && finalRelative == null) return
+    if (stagedRelative == null && finalRelative == null) return undefined
     if (typeof stagedRelative !== 'string' || stagedRelative.length === 0 || typeof finalRelative !== 'string' || finalRelative.length === 0) {
       throw new Error('Download sidecar publication marker is invalid')
     }
-    const staged = this.resolveRelative(stagedRelative)
-    const final = this.resolveRelative(finalRelative)
+    const staged = marker.stagedMediaRelativePath == null ? this.resolveTemp(stagedRelative) : this.resolveMedia(stagedRelative)
+    const final = this.resolveMedia(finalRelative)
     const stagedExists = existsSync(staged) && statSync(staged).isFile()
     const finalExists = existsSync(final) && statSync(final).isFile()
     if (stagedExists && finalExists) throw new Error('Download sidecar publication conflict')
     if (finalExists) {
-      return
+      if (marker.lyricIntegrity == null) throw new Error('Download sidecar publication marker has no integrity')
+      this.requireIntegrity(final, marker.lyricIntegrity, 'Published download sidecar integrity mismatch')
+      return { staged, final, finalExists: true }
     }
     if (!stagedExists) throw new Error('Prepared download sidecar could not be recovered')
-    renameSync(staged, final)
-    fsyncDirectory(path.dirname(final))
+    if (marker.lyricIntegrity == null) throw new Error('Download sidecar publication marker has no integrity')
+    this.requireIntegrity(staged, marker.lyricIntegrity, 'Prepared download sidecar integrity mismatch')
+    return { staged, final, finalExists: false }
   }
 
   private retryPartCleanup(record: DownloadJobRecord): boolean {
     try {
-      this.removeRejectedPart(this.resolveRelative(record.partRelativePath))
+      this.removeRejectedPart(this.resolveTemp(record.partRelativePath))
       this.update(record, { partCleanupPending: undefined })
       return true
     } catch (error) {
@@ -873,7 +929,7 @@ export class DownloadManager {
   }
 
   private removeRejectedPart(part: string): void {
-    const tempRoot = path.resolve(this.options.storageRoot, 'tmp')
+    const tempRoot = this.tempRoot
     const resolved = path.resolve(part)
     if (path.dirname(resolved) !== tempRoot || !path.basename(resolved).endsWith('.part')) {
       throw new Error('Rejected part cleanup path escaped the Service temp root')
@@ -894,7 +950,7 @@ export class DownloadManager {
   }
 
   private async finalizeCompletePart(record: DownloadJobRecord): Promise<boolean> {
-    const part = this.resolveRelative(record.partRelativePath)
+    const part = this.resolveTemp(record.partRelativePath)
     if (!existsSync(part) || record.total <= 0 || record.downloaded !== record.total || statSync(part).size !== record.total) return false
     this.update(record, { status: 'running', error: undefined })
     await this.finalize(record)
@@ -903,7 +959,7 @@ export class DownloadManager {
 
   private async finalize(record: DownloadJobRecord): Promise<void> {
     if (record.replacement != null) return this.finalizeReplacement(record)
-    const part = this.resolveRelative(record.partRelativePath)
+    const part = this.resolveTemp(record.partRelativePath)
     const descriptor = openSync(part, 'r')
     try { fsyncSync(descriptor) } finally { closeSync(descriptor) }
     const stagedLyric = part + '.lrc'
@@ -948,14 +1004,26 @@ export class DownloadManager {
       throw new Error('Download sidecar destination already exists')
     }
     const partSize = stagedSize
+    const partIntegrity = { size: partSize, sha256: sha256File(part) }
+    const lyricIntegrity = existsSync(stagedLyric)
+      ? { size: statSync(stagedLyric).size, sha256: sha256File(stagedLyric) }
+      : undefined
+    let mediaStage: string | undefined
+    let mediaLyricStage: string | undefined
+    if (this.roots.mode === 'split') {
+      mediaStage = this.stageMediaFile(part, final, partIntegrity)
+      if (lyricIntegrity != null) mediaLyricStage = this.stageMediaFile(stagedLyric, finalLyric, lyricIntegrity)
+    }
     this.update(record, {
       publication: {
         phase: 'prepared',
         size: partSize,
-        sha256: sha256File(part),
+        sha256: partIntegrity.sha256,
+        ...(mediaStage == null ? {} : { stagedMediaRelativePath: this.mediaRelative(mediaStage) }),
         ...(existsSync(stagedLyric) ? {
-          stagedLyricRelativePath: this.relative(stagedLyric),
-          finalLyricRelativePath: this.relative(finalLyric),
+          stagedLyricRelativePath: mediaLyricStage == null ? this.tempRelative(stagedLyric) : this.mediaRelative(mediaLyricStage),
+          finalLyricRelativePath: this.mediaRelative(finalLyric),
+          lyricIntegrity,
         } : {}),
       },
     })
@@ -964,15 +1032,19 @@ export class DownloadManager {
     const publishedFinal = this.resolveFinal(record.finalRelativePath)
     if (record.publication?.stagedLyricRelativePath != null) {
       const publishedLyric = publishedFinal.slice(0, -path.extname(publishedFinal).length) + '.lrc'
-      this.update(record, { publication: { ...record.publication, finalLyricRelativePath: this.relative(publishedLyric) } })
+      this.update(record, { publication: { ...record.publication, finalLyricRelativePath: this.mediaRelative(publishedLyric) } })
     }
-    renameSync(part, publishedFinal)
+    renameSync(mediaStage ?? part, publishedFinal)
     if (await this.options.finalizationCheckpoint?.('after-rename', record) === 'simulate-crash') return
-    if (existsSync(stagedLyric)) {
+    if (existsSync(mediaLyricStage ?? stagedLyric)) {
       const publishedLyric = publishedFinal.slice(0, -path.extname(publishedFinal).length) + '.lrc'
-      renameSync(stagedLyric, publishedLyric)
+      renameSync(mediaLyricStage ?? stagedLyric, publishedLyric)
     }
     fsyncDirectory(path.dirname(publishedFinal))
+    if (mediaStage != null) {
+      rmSync(part, { force: true })
+      rmSync(stagedLyric, { force: true })
+    }
     this.update(record, { publication: { ...record.publication!, phase: 'published' } })
     if (await this.options.finalizationCheckpoint?.('after-publication', record) === 'simulate-crash') return
     let warning = record.warning
@@ -997,7 +1069,7 @@ export class DownloadManager {
   }
 
   private async finalizeReplacement(record: DownloadJobRecord): Promise<void> {
-    const part = this.resolveRelative(record.partRelativePath)
+    const part = this.resolveTemp(record.partRelativePath)
     const descriptor = openSync(part, 'r')
     try { fsyncSync(descriptor) } finally { closeSync(descriptor) }
     const final = this.resolveFinal(record.finalRelativePath)
@@ -1024,17 +1096,32 @@ export class DownloadManager {
     }
     const size = statSync(part).size
     const replacementIntegrity = { size, sha256: sha256File(part) }
+    const lyricIntegrity = existsSync(stagedLyric)
+      ? { size: statSync(stagedLyric).size, sha256: sha256File(stagedLyric) }
+      : undefined
+    const mediaStage = this.roots.mode === 'split' ? this.stageMediaFile(part, final, replacementIntegrity) : undefined
+    const mediaLyricStage = this.roots.mode === 'split' && existsSync(stagedLyric)
+      ? this.stageMediaFile(stagedLyric, finalLyric, lyricIntegrity)
+      : undefined
     this.update(record, {
       replacement: {
         ...record.replacement!,
         phase: 'prepared',
         replacementIntegrity,
-        stagedLyricRelativePath: existsSync(stagedLyric) ? this.relative(stagedLyric) : undefined,
-        finalLyricRelativePath: existsSync(stagedLyric) ? this.relative(finalLyric) : undefined,
+        stagedMediaRelativePath: mediaStage == null ? undefined : this.mediaRelative(mediaStage),
+        stagedLyricRelativePath: existsSync(stagedLyric)
+          ? mediaLyricStage == null ? this.tempRelative(stagedLyric) : this.mediaRelative(mediaLyricStage)
+          : undefined,
+        finalLyricRelativePath: existsSync(stagedLyric) ? this.mediaRelative(finalLyric) : undefined,
+        lyricIntegrity,
       },
       warning: this.formatMetadataWarnings(metadataResult),
     })
     this.publishReplacement(record)
+    if (mediaStage != null) {
+      rmSync(part, { force: true })
+      rmSync(stagedLyric, { force: true })
+    }
     let warning = record.warning
     try { await this.options.materializeResources?.(final) } catch { warning = warning == null ? 'Resources: unavailable' : `${warning}; Resources: unavailable` }
     const finalSize = statSync(final).size
@@ -1053,14 +1140,21 @@ export class DownloadManager {
   private publishReplacement(record: DownloadJobRecord): void {
     const replacement = record.replacement!
     if (replacement.replacementIntegrity == null) throw new Error('DOWNLOAD_REPLACEMENT_FAILED: missing staged integrity')
+    this.validateReplacementLyric(record)
     this.replacementPublisher.publish({
-      originalPath: this.resolveRelative(replacement.originalRelativePath),
-      stagedPath: this.resolveRelative(record.partRelativePath),
+      originalPath: this.resolveMedia(replacement.originalRelativePath),
+      stagedPath: replacement.stagedMediaRelativePath == null
+        ? this.resolveTemp(record.partRelativePath)
+        : this.resolveMedia(replacement.stagedMediaRelativePath),
       finalPath: this.resolveFinal(record.finalRelativePath),
       originalIntegrity: replacement.originalIntegrity,
       replacementIntegrity: replacement.replacementIntegrity,
-      stagedLyricPath: replacement.stagedLyricRelativePath == null ? undefined : this.resolveRelative(replacement.stagedLyricRelativePath),
-      finalLyricPath: replacement.finalLyricRelativePath == null ? undefined : this.resolveRelative(replacement.finalLyricRelativePath),
+      stagedLyricPath: replacement.stagedLyricRelativePath == null
+        ? undefined
+        : replacement.stagedMediaRelativePath == null
+          ? this.resolveTemp(replacement.stagedLyricRelativePath)
+          : this.resolveMedia(replacement.stagedLyricRelativePath),
+      finalLyricPath: replacement.finalLyricRelativePath == null ? undefined : this.resolveMedia(replacement.finalLyricRelativePath),
       phase: replacement.phase,
       onPhase: phase => { this.update(record, { replacement: { ...record.replacement!, phase } }) },
     })
@@ -1071,17 +1165,28 @@ export class DownloadManager {
     try {
       const replacement = record.replacement!
       if (replacement.replacementIntegrity == null) throw new Error('DOWNLOAD_REPLACEMENT_FAILED: missing staged integrity')
+      this.validateReplacementLyric(record)
       this.replacementPublisher.recover({
-        originalPath: this.resolveRelative(replacement.originalRelativePath),
-        stagedPath: this.resolveRelative(record.partRelativePath),
+        originalPath: this.resolveMedia(replacement.originalRelativePath),
+        stagedPath: replacement.stagedMediaRelativePath == null
+          ? this.resolveTemp(record.partRelativePath)
+          : this.resolveMedia(replacement.stagedMediaRelativePath),
         finalPath: this.resolveFinal(record.finalRelativePath),
         originalIntegrity: replacement.originalIntegrity,
         replacementIntegrity: replacement.replacementIntegrity,
-        stagedLyricPath: replacement.stagedLyricRelativePath == null ? undefined : this.resolveRelative(replacement.stagedLyricRelativePath),
-        finalLyricPath: replacement.finalLyricRelativePath == null ? undefined : this.resolveRelative(replacement.finalLyricRelativePath),
+        stagedLyricPath: replacement.stagedLyricRelativePath == null
+          ? undefined
+          : replacement.stagedMediaRelativePath == null
+            ? this.resolveTemp(replacement.stagedLyricRelativePath)
+            : this.resolveMedia(replacement.stagedLyricRelativePath),
+        finalLyricPath: replacement.finalLyricRelativePath == null ? undefined : this.resolveMedia(replacement.finalLyricRelativePath),
         phase: replacement.phase,
         onPhase: phase => { record.replacement = { ...record.replacement!, phase }; this.persist(record) },
       })
+      if (replacement.stagedMediaRelativePath != null) {
+        rmSync(this.resolveTemp(record.partRelativePath), { force: true })
+        rmSync(this.resolveTemp(record.partRelativePath) + '.lrc', { force: true })
+      }
       this.retirePreviousRecords(record)
       this.completeRecovered(record, this.resolveFinal(record.finalRelativePath))
       return true
@@ -1090,6 +1195,25 @@ export class DownloadManager {
       record.error = error instanceof Error ? error.message : String(error)
       this.persist(record)
       return false
+    }
+  }
+
+  private validateReplacementLyric(record: DownloadJobRecord): void {
+    const replacement = record.replacement!
+    if (replacement.stagedLyricRelativePath == null && replacement.finalLyricRelativePath == null) return
+    if (replacement.lyricIntegrity == null) throw new Error('DOWNLOAD_REPLACEMENT_FAILED: missing sidecar integrity')
+    const staged = replacement.stagedLyricRelativePath == null
+      ? undefined
+      : replacement.stagedMediaRelativePath == null
+        ? this.resolveTemp(replacement.stagedLyricRelativePath)
+        : this.resolveMedia(replacement.stagedLyricRelativePath)
+    const final = replacement.finalLyricRelativePath == null ? undefined : this.resolveMedia(replacement.finalLyricRelativePath)
+    if (staged != null && existsSync(staged)) {
+      this.requireIntegrity(staged, replacement.lyricIntegrity, 'DOWNLOAD_REPLACEMENT_FAILED: sidecar integrity mismatch')
+    } else if (final != null && existsSync(final)) {
+      this.requireIntegrity(final, replacement.lyricIntegrity, 'DOWNLOAD_REPLACEMENT_FAILED: published sidecar integrity mismatch')
+    } else {
+      throw new Error('DOWNLOAD_REPLACEMENT_FAILED: sidecar is missing')
     }
   }
 
@@ -1110,7 +1234,7 @@ export class DownloadManager {
     if (!existsSync(current) && !reserved.has(record.fileName)) return
     const fileName = reserveFileName(directory, record.fileName, reserved)
     record.fileName = fileName
-    record.finalRelativePath = this.relative(path.join(directory, fileName))
+    record.finalRelativePath = this.mediaRelative(path.join(directory, fileName))
     record.updatedAt = this.now()
     this.persist(record)
     this.publish()
@@ -1142,40 +1266,82 @@ export class DownloadManager {
       .map(record => record.fileName))
   }
 
-  private relative(filePath: string): string {
-    if (!isPathInside(this.options.storageRoot, filePath)) throw new Error('Path escaped storage root')
-    return path.relative(this.options.storageRoot, filePath).split(path.sep).join('/')
+  private mediaRelative(filePath: string): string {
+    if (!isPathInside(this.audioRoot, filePath)) throw new Error('Path escaped media root')
+    const base = this.roots.mode === 'legacy' ? this.roots.databaseRoot : this.audioRoot
+    return path.relative(base, filePath).split(path.sep).join('/')
   }
 
-  private resolveRelative(relative: string): string {
-    const resolved = path.resolve(this.options.storageRoot, relative)
-    if (!isPathInside(this.options.storageRoot, resolved)) throw new Error('Stored path escaped storage root')
+  private tempRelative(filePath: string): string {
+    if (!isPathInside(this.tempRoot, filePath)) throw new Error('Path escaped temp root')
+    const base = this.roots.mode === 'legacy' ? this.roots.databaseRoot : this.tempRoot
+    return path.relative(base, filePath).split(path.sep).join('/')
+  }
+
+  private resolveMedia(relative: string): string {
+    const base = this.roots.mode === 'legacy' ? this.roots.databaseRoot : this.audioRoot
+    const resolved = path.resolve(base, relative)
+    if (!isPathInside(this.audioRoot, resolved)) throw new Error('Stored path escaped media root')
+    return resolved
+  }
+
+  private resolveTemp(relative: string): string {
+    const base = this.roots.mode === 'legacy' ? this.roots.databaseRoot : this.tempRoot
+    const resolved = path.resolve(base, relative)
+    if (!isPathInside(this.tempRoot, resolved)) throw new Error('Stored path escaped temp root')
     return resolved
   }
 
   private resolveFinal(relative: string): string {
-    const resolved = this.resolveRelative(relative)
-    if (!isPathInside(this.audioRoot, resolved)) throw new Error('Stored download path escaped the Service audio root')
-    return resolved
+    return this.resolveMedia(relative)
   }
 
   private normalizeFinalPath(record: DownloadJobRecord): void {
-    const resolved = path.resolve(this.options.storageRoot, record.finalRelativePath)
+    const base = this.roots.mode === 'legacy' ? this.roots.databaseRoot : this.audioRoot
+    const resolved = path.resolve(base, record.finalRelativePath)
     if (isPathInside(this.audioRoot, resolved)) return
     record.fileName = path.basename(record.fileName)
-    record.finalRelativePath = this.relative(path.join(this.audioRoot, record.fileName))
+    record.finalRelativePath = this.mediaRelative(path.join(this.audioRoot, record.fileName))
   }
 
   private cleanupOrphanParts(): void {
     const referenced = new Set([...this.records.values()].map(record => path.basename(record.partRelativePath)))
-    for (const name of readdirSync(path.join(this.options.storageRoot, 'tmp'))) {
+    for (const name of readdirSync(this.tempRoot)) {
       if (name.endsWith('.part')) {
         if (referenced.has(name)) continue
-        try { this.removeRejectedPart(path.join(this.options.storageRoot, 'tmp', name)) } catch {}
+        try { this.removeRejectedPart(path.join(this.tempRoot, name)) } catch {}
       } else if (name.endsWith('.part.lrc') && !referenced.has(name.slice(0, -4))) {
-        rmSync(path.join(this.options.storageRoot, 'tmp', name), { force: true })
+        rmSync(path.join(this.tempRoot, name), { force: true })
       }
     }
+  }
+
+  private cleanupOrphanMediaStages(): void {
+    const referenced = new Set<string>()
+    const remember = (relative: string | undefined): void => {
+      if (relative == null) return
+      try { referenced.add(path.resolve(this.resolveMedia(relative))) } catch {}
+    }
+    for (const record of this.records.values()) {
+      remember(record.publication?.stagedMediaRelativePath)
+      if (record.publication?.stagedMediaRelativePath != null) remember(record.publication.stagedLyricRelativePath)
+      remember(record.replacement?.stagedMediaRelativePath)
+      if (record.replacement?.stagedMediaRelativePath != null) remember(record.replacement.stagedLyricRelativePath)
+      remember(record.metadataPatch?.stagedRelativePath)
+    }
+    const generatedName = /\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\.rollback)?\.tuneflowtmp$/
+    const visit = (directory: string): void => {
+      for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        if (entry.isSymbolicLink()) continue
+        const candidate = path.join(directory, entry.name)
+        if (entry.isDirectory()) {
+          visit(candidate)
+        } else if (entry.isFile() && generatedName.test(entry.name) && !referenced.has(path.resolve(candidate))) {
+          rmSync(candidate, { force: true })
+        }
+      }
+    }
+    visit(this.audioRoot)
   }
 
   private required(id: string): DownloadJobRecord {

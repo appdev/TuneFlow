@@ -153,7 +153,9 @@ test('Service build and runtime target Node 24 with TagLib-Wasm packaged', () =>
 
   assert.equal(pkg.engines.node, '>= 24')
   assert.equal(pkg.dependencies['taglib-wasm'], '^2.0.0')
-  assert.equal([...buildConfig.matchAll(/target:\s*'node24'/g)].length, 3)
+  assert.equal([...buildConfig.matchAll(/target:\s*'node24'/g)].length, 4)
+  assert.match(buildConfig, /migrateLegacyStorageCli\.ts/)
+  assert.equal(pkg.scripts['migrate:storage'], 'node dist/server/migrate-storage.cjs')
   assert.match(buildConfig, /'taglib-wasm':\s*'\^2\.0\.0'/)
   assert.match(prepareConfig, /rmSync\(path\.join\(serverRoot, 'node_modules'\), \{ recursive: true, force: true \}\)/)
   assert.match(workflow, /node-version:\s*24/)
@@ -165,6 +167,24 @@ test('Service build packages the source ZIP runtime dependency', () => {
 
   assert.equal(pkg.dependencies.archiver, '8.0.0')
   assert.match(buildConfig, /archiver:\s*'8\.0\.0'/)
+})
+
+test('Docker storage defaults separate user media from internal state', () => {
+  const dockerfile = readFileSync(join(root, 'Dockerfile'), 'utf8')
+  const compose = readFileSync(join(root, 'compose.yaml'), 'utf8')
+  const workflow = readFileSync(join(root, '.github/workflows/docker-build.yml'), 'utf8')
+
+  assert.match(dockerfile, /TUNEFLOW_CONFIG_ROOT=\/config/)
+  assert.match(dockerfile, /TUNEFLOW_MEDIA_ROOT=\/music/)
+  assert.match(dockerfile, /TUNEFLOW_CACHE_ROOT=\/cache/)
+  assert.match(dockerfile, /TUNEFLOW_TEMP_ROOT=\/tmp\/tuneflow/)
+  assert.doesNotMatch(dockerfile, /TUNEFLOW_STORAGE_ROOT=\/data/)
+  assert.match(compose, /\$\{TUNEFLOW_MUSIC_DIR:-\.\/music\}:\/music/)
+  assert.match(compose, /tuneflow-config:\/config/)
+  assert.doesNotMatch(compose, /:\/data/)
+  assert.match(workflow, /CI_CONFIG_VOLUME/)
+  assert.match(workflow, /CI_MUSIC_VOLUME/)
+  assert.doesNotMatch(workflow, /CI_VOLUME:/)
 })
 
 test('supported Web and Service files do not import or invoke Electron', () => {

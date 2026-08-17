@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, unlinkSync } from 'node:fs'
 import { constants, generateKeyPairSync, publicEncrypt } from 'node:crypto'
 import http from 'node:http'
 import os from 'node:os'
@@ -221,6 +221,18 @@ setTimeout(() => { throw new Error('post-init timer failed') }, 10)`)
     const first = await repository.installSource(fixtureScript)
     await expect(repository.installSource(fixtureScript)).rejects.toMatchObject({ code: 'SOURCE_DUPLICATE' })
     expect(repository.listSources()).toEqual([first])
+  })
+
+  it('fails startup when an installed content-addressed source script is missing', async() => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-source-missing-'))
+    roots.push(root)
+    mkdirSync(path.join(root, 'sources'))
+    initDatabase(root)
+    const repository = new SourceRepository(root)
+    const installed = await repository.installSource(fixtureScript)
+    unlinkSync(repository.getSource(installed.id).scriptPath)
+
+    expect(() => new SourceRepository(root)).toThrow('Installed source script is missing')
   })
 
   it('migrates the legacy active source into the ordered enabled selection', async() => {

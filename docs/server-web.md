@@ -10,7 +10,7 @@ storage or desktop-only IPC.
 
 ## Local build and start
 
-Install Node.js 22 or newer, then run:
+Install Node.js 24 or newer, then run:
 
 ```sh
 npm ci
@@ -29,6 +29,10 @@ Configuration is supplied with environment variables:
 | `TUNEFLOW_HOST` | `127.0.0.1` | HTTP listen address |
 | `TUNEFLOW_PORT` | `3124` | HTTP listen port |
 | `TUNEFLOW_STORAGE_ROOT` | `./data` | Service-owned durable data root |
+| `TUNEFLOW_CONFIG_ROOT` | none | Split durable internal-state root; requires all split variables |
+| `TUNEFLOW_MEDIA_ROOT` | none | Split user-media root |
+| `TUNEFLOW_CACHE_ROOT` | none | Split rebuildable-cache root |
+| `TUNEFLOW_TEMP_ROOT` | none | Split ephemeral-work root |
 | `TUNEFLOW_WEB_ROOT` | `./dist/web` | Prepared browser assets |
 | `TUNEFLOW_SERVICE_NODE_MODULES` | `./dist/server/node_modules` when prepared | Service native/runtime dependencies |
 
@@ -39,29 +43,33 @@ do not expose this iteration directly to the Internet.
 
 ## Storage, backup, and restore
 
-The storage root contains:
+Docker uses four explicit roots:
 
-- `tuneflow.data.db`, plus `tuneflow.data.db-wal` and `tuneflow.data.db-shm` while SQLite is live;
-- `audio/` for downloaded and scanned audio;
-- `sources/`, `tmp/`, `logs/`, and `backups/` for Service-owned support data.
+- `/config/database`, `/config/sources`, and `/config/backups` are durable
+  internal state in the `tuneflow-config` named volume;
+- `/music` contains user-visible audio and requested `.lrc` sidecars;
+- `/cache/library` contains rebuildable cover, lyric, and index data;
+- `/tmp/tuneflow` contains resumable parts and general temporary data.
 
-The media path is fixed at `${TUNEFLOW_STORAGE_ROOT}/audio` (and `/data/audio` in the
-Docker image). It cannot be selected or changed through the Web UI or Service
-API; attempts to patch `download.savePath` are rejected with
-`IMMUTABLE_SETTING`.
+Logs stay on stdout/stderr. `/cache`, `/tmp/tuneflow`, and logs are not backup
+inputs. The media path cannot be changed through the Web UI or API; attempts to
+patch `download.savePath` are rejected with `IMMUTABLE_SETTING`.
 
-Back up the complete storage root, not only the database. Stop the Service
-first (or use SQLite's consistent backup facility), archive the directory, and
-restore it at the same path while the Service is stopped. Restoring only
-`tuneflow.data.db` can leave lists/download records inconsistent with media files.
+A complete backup has two coordinated parts: the stopped `tuneflow-config`
+volume and the stopped `/music` host directory. Restore both together while the
+Service is stopped. Source execution remains compatible with the combined
+`TUNEFLOW_STORAGE_ROOT=./data` layout; do not combine that variable with any
+split-root variable.
 
 ## Docker
 
 The image uses Node 24 slim, compiles the Linux `better-sqlite3` binding in the
-builder, copies the prepared production artifact, runs as the image's non-root
-`node` user, and stores all durable data in `/data`. It does not install FFmpeg.
+builder, copies the prepared production artifact, and runs as the image's
+non-root UID/GID 1000 `node` user. It does not install FFmpeg.
 
 ```sh
+mkdir -p ./music
+sudo chown -R 1000:1000 ./music
 docker compose build
 docker compose up -d
 docker compose ps
@@ -70,17 +78,10 @@ docker compose logs -f tuneflow-web
 docker compose down
 ```
 
-The default named volume is `tuneflow-data` (Compose prefixes it with the
-project name). `docker compose down` preserves it; do not add `-v` unless the
-data is intentionally being deleted. For a host bind mount, make the directory
-writable by UID/GID 1000 before first start, for example
-`chown -R 1000:1000 /srv/tuneflow-data`, then replace the named-volume mapping
-with `/srv/tuneflow-data:/data`.
-
-When upgrading a deployment that used a differently named volume, stop both
-stacks and copy the complete `/data` tree into the new `tuneflow-data` volume
-before starting TuneFlow. Within one storage root, TuneFlow automatically
-renames the previous database file and migrates branded settings keys.
+Compose bind-mounts `${TUNEFLOW_MUSIC_DIR:-./music}` at `/music` and mounts the
+`tuneflow-config` named volume at `/config`. `docker compose down` preserves
+both; do not add `-v` unless internal state is intentionally being deleted.
+`/cache` and `/tmp/tuneflow` are container-local and rebuildable.
 
 The default `3124:3124` mapping publishes the Service on all host interfaces.
 On the deployment host, open <http://127.0.0.1:3124>; from another device on a
@@ -89,9 +90,62 @@ the mapping to `127.0.0.1:3124:3124`. Publishing the port does not add
 authentication; restrict access with the host firewall or a reverse proxy and
 do not expose the Service directly to the Internet.
 
-To back up the named volume, stop the stack and archive the full `/data`
-contents from a temporary container. Restore into an empty named volume while
-the application container is stopped, retaining file ownership for UID 1000.
+To back up, stop the stack, archive the entire `tuneflow-config` volume, and
+archive the entire host music directory in the same maintenance window. Restore
+both into empty targets, retaining write ownership for UID/GID 1000.
+
+```sh
+mkdir -p ./backup
+docker compose stop
+docker compose run --rm --no-deps \
+  -v "$PWD/backup:/backup" \
+  --entrypoint sh tuneflow-web -c \
+  'tar -C /config -czf /backup/tuneflow-config.tgz . && tar -C /music -czf /backup/tuneflow-music.tgz .'
+```
+
+To restore, keep the stack stopped, verify that `/config` and the configured
+host music directory are empty, then extract both archives and restore
+ownership before starting the Service:
+
+```sh
+docker compose run --rm --no-deps \
+  -v "$PWD/backup:/backup:ro" \
+  --entrypoint sh tuneflow-web -c \
+  'tar -C /config -xzf /backup/tuneflow-config.tgz && tar -C /music -xzf /backup/tuneflow-music.tgz'
+sudo chown -R 1000:1000 "${TUNEFLOW_MUSIC_DIR:-./music}"
+docker compose up -d
+```
+
+<a id="legacy-docker-migration"></a>
+
+### Migrating a legacy Docker `/data` volume
+
+Stop the old container first. Set `OLD_VOLUME` to its actual volume name, then
+run the copy-only migration against empty targets:
+
+```sh
+docker stop tuneflow-server
+mkdir -p ./music
+sudo chown -R 1000:1000 ./music
+docker volume create tuneflow-config
+docker run --rm \
+  -v "$OLD_VOLUME:/legacy:ro" \
+  -v tuneflow-config:/config \
+  -v "$PWD/music:/music" \
+  apkdv/tuneflow-server:latest \
+  node dist/server/migrate-storage.cjs \
+    --from /legacy --config-root /config --media-root /music
+```
+
+The command requires empty config and media targets, verifies copied bytes and
+SQLite state, and writes `storage-layout.json` only after publication succeeds.
+It does not copy derived `cover/`, `lyrics/`, `library-resource-index/`, `tmp/`,
+or `logs/` data. It never modifies the read-only old volume.
+
+After success, start the new Compose definition and verify health and media.
+For rollback, stop the new container and run the prior image/Compose definition
+with the untouched old volume mounted at `/data`. Do not run both layouts
+against the same database at the same time.
 
 ## Downloads and local media
 

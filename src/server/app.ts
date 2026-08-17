@@ -4,7 +4,7 @@ import Fastify, { type FastifyInstance } from 'fastify'
 import { type TypeBoxTypeProvider } from '@fastify/type-provider-typebox'
 import fastifyStatic from '@fastify/static'
 import { close as closeDatabase, init as initDatabase } from './db/core/db'
-import { getAudioRoot, normalizeServerOptions, type ServerOptions } from './config'
+import { normalizeServerOptions, type ServerOptionsInput } from './config'
 import { AppDataRepository } from './db/appDataRepository'
 import { SettingsRepository } from './db/settingsRepository'
 import { ApiError, type ApiErrorBody } from './errors'
@@ -39,20 +39,21 @@ import { TrackResourceService } from './resources/trackResources'
 import { LibraryMetadataEnricher } from './library/metadataEnricher'
 import { TrackResourceCoordinator } from './resources/trackResourceCoordinator'
 
-export type { ServerOptions } from './config'
+export type { ServerOptions, ServerOptionsInput } from './config'
 
-export const createServer = async(options: ServerOptions): Promise<FastifyInstance> => {
+export const createServer = async(options: ServerOptionsInput): Promise<FastifyInstance> => {
   const serverOptions = normalizeServerOptions(options)
-  if (initDatabase(serverOptions.storageRoot) == null) throw new Error('Unable to initialize TuneFlow database')
+  const { storage } = serverOptions
+  if (initDatabase(storage.databaseRoot) == null) throw new Error('Unable to initialize TuneFlow database')
 
   const app = Fastify({ ajv: { customOptions: { removeAdditional: false } } }).withTypeProvider<TypeBoxTypeProvider>()
   await registerOpenApi(app)
-  const settings = new SettingsRepository(serverOptions.storageRoot)
+  const settings = new SettingsRepository(storage.mediaRoot)
   setRendererUtilsLanguage(settings.getSettings()['common.langId'])
   const appData = new AppDataRepository()
   const playbackHistory = new PlaybackHistoryRepository()
   const events = new ServiceEvents()
-  const sources = new SourcesService(new SourceRepository(serverOptions.storageRoot), alert => {
+  const sources = new SourcesService(new SourceRepository({ sourceRoot: storage.sourceRoot }), alert => {
     events.publish('sources.update-available', alert)
   }, {
     // Test fixtures are local by design; production never relaxes the source-import SSRF boundary.
@@ -60,13 +61,18 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
   })
   let integrityLookup: (filePath: string) => DownloadFileIntegrity | undefined = () => undefined
   let downloadedAtLookup: (filePath: string) => number | undefined = () => undefined
-  const libraryResources = new LibraryResourceStore(serverOptions.storageRoot)
+  const libraryResources = new LibraryResourceStore({
+    mediaRoot: storage.mediaRoot,
+    ...storage.libraryResources,
+    tempRoot: storage.tempRoot,
+  })
   const library = new LibraryScanner(
-    serverOptions.storageRoot,
-    () => [getAudioRoot(serverOptions.storageRoot)],
+    storage.mediaRoot,
+    () => [storage.mediaRoot],
     filePath => integrityLookup(filePath),
     libraryResources,
     filePath => downloadedAtLookup(filePath),
+    storage.mediaIdentityPrefix,
   )
   await library.refresh()
   const allowPrivatePlaybackTargets = process.env.NODE_ENV === 'test' && process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS === '1'
@@ -116,7 +122,12 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
   })
   const downloads = new DownloadManager({
     mediaClient,
-    storageRoot: serverOptions.storageRoot,
+    roots: {
+      mode: storage.mode,
+      databaseRoot: storage.databaseRoot,
+      mediaRoot: storage.mediaRoot,
+      tempRoot: storage.tempRoot,
+    },
     getSettings: () => settings.getSettings(),
     findExistingFile: async musicInfo => (await library.findMatchingFile(musicInfo))?.filePath,
     resolveListName: listId => ({
@@ -176,7 +187,7 @@ export const createServer = async(options: ServerOptions): Promise<FastifyInstan
       else await resourceCoordinator.onDownloadCompleted(filePath, job)
     },
   })
-  const metadataEnricher = new LibraryMetadataEnricher(getAudioRoot(serverOptions.storageRoot), {
+  const metadataEnricher = new LibraryMetadataEnricher(storage.mediaRoot, {
     publish: input => downloads.publishMetadataPatch(input),
   })
   resourceCoordinator = new TrackResourceCoordinator({

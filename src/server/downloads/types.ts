@@ -24,8 +24,10 @@ export interface DownloadReplacementState {
   previousDownloadIds: string[]
   phase: 'downloading' | 'prepared' | 'published' | 'retired'
   replacementIntegrity?: DownloadFileIntegrity
+  stagedMediaRelativePath?: string
   stagedLyricRelativePath?: string
   finalLyricRelativePath?: string
+  lyricIntegrity?: DownloadFileIntegrity
 }
 
 export interface DownloadMetadataPatchState {
@@ -52,8 +54,10 @@ export interface DownloadJobRecord {
     phase: 'prepared' | 'published'
     sha256: string
     size: number
+    stagedMediaRelativePath?: string
     stagedLyricRelativePath?: string
     finalLyricRelativePath?: string
+    lyricIntegrity?: DownloadFileIntegrity
   }
   finalIntegrity?: DownloadFileIntegrity
   metadataPatch?: DownloadMetadataPatchState

@@ -198,6 +198,26 @@ describe('LibraryResourceStore', () => {
     expect(statSync(cached.lyrics!.filePath).mtimeMs).toBe(cachedMtime)
   })
 
+  it('regenerates a marker whose nested resource metadata is malformed', async() => {
+    const root = createRoot()
+    const audio = path.join(root, 'audio', 'malformed.mp3')
+    writeFileSync(audio, 'audio')
+    let parseCalls = 0
+    const parser = async() => {
+      parseCalls++
+      return { common: { picture: [{ format: 'image/jpeg', data: jpeg }] }, format: {}, native: {}, quality: { warnings: [] } } as never
+    }
+    await new LibraryResourceStore(root, { parseFile: parser }).ensure(audio)
+    const markerName = readdirSync(path.join(root, 'library-resource-index')).find(name => name.endsWith('.json'))!
+    const markerPath = path.join(root, 'library-resource-index', markerName)
+    const marker = JSON.parse(readFileSync(markerPath, 'utf8')) as Record<string, unknown>
+    marker.picture = { relativePath: 7, mimeType: 'image/jpeg', byteLength: -1, etag: 'bad' }
+    writeFileSync(markerPath, JSON.stringify(marker))
+
+    await expect(new LibraryResourceStore(root, { parseFile: parser }).ensure(audio)).resolves.toBeDefined()
+    expect(parseCalls).toBe(2)
+  })
+
   it('refreshes a derived sidecar lyric when the sidecar signature changes', async() => {
     const root = createRoot()
     const audio = path.join(root, 'audio', 'sidecar.mp3')

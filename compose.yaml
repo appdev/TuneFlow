@@ -5,7 +5,8 @@ services:
     ports:
       - "3124:3124"
     volumes:
-      - tuneflow-data:/data
+      - ${TUNEFLOW_MUSIC_DIR:-./music}:/music
+      - tuneflow-config:/config
     init: true
     restart: unless-stopped
     healthcheck:
@@ -16,4 +17,4 @@ services:
       retries: 3
 
 volumes:
-  tuneflow-data:
+  tuneflow-config:

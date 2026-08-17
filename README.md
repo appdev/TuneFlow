@@ -26,7 +26,7 @@ TuneFlow（音流）将音乐搜索、播放、列表、下载与本地媒体库
 
 所用技术栈：
 
-- Node.js 22+
+- Node.js 24+
 - Vue 3
 
 本仓库只构建 Node.js Service 与 Web UI，不再生成桌面安装包。未来原生客户端通过 Service API 接入。
@@ -51,19 +51,22 @@ Web UI 支持导航、搜索、列表、播放、Service 下载与本地媒体�
 
 ### Docker 部署（推荐）
 
-公开镜像发布在 Docker Hub：`apkdv/tuneflow-server`。默认将服务发布到宿主机的 `3124` 端口，并使用 Docker 卷持久化数据库、下载内容和自定义源。
+公开镜像发布在 Docker Hub：`apkdv/tuneflow-server`。默认将服务发布到宿主机的 `3124` 端口。音乐文件放在宿主机的 `./music`，数据库、自定义源和备份放在 Docker 管理的 `tuneflow-config` 卷中。
 
 #### 使用 docker run
 
 ```sh
 docker pull apkdv/tuneflow-server:latest
-docker volume create tuneflow-data
+mkdir -p ./music
+sudo chown -R 1000:1000 ./music
+docker volume create tuneflow-config
 docker run -d \
   --name tuneflow-server \
   --init \
   --restart unless-stopped \
   -p 3124:3124 \
-  -v tuneflow-data:/data \
+  -v "$PWD/music:/music" \
+  -v tuneflow-config:/config \
   apkdv/tuneflow-server:latest
 ```
 
@@ -75,7 +78,7 @@ docker logs -f tuneflow-server
 curl --fail http://127.0.0.1:3124/api/v1/health
 ```
 
-更新到最新镜像时，删除并重建容器即可；命名卷 `tuneflow-data` 不会随容器删除：
+更新到最新镜像时，删除并重建容器即可；音乐目录和命名卷不会随容器删除：
 
 ```sh
 docker pull apkdv/tuneflow-server:latest
@@ -86,7 +89,8 @@ docker run -d \
   --init \
   --restart unless-stopped \
   -p 3124:3124 \
-  -v tuneflow-data:/data \
+  -v "$PWD/music:/music" \
+  -v tuneflow-config:/config \
   apkdv/tuneflow-server:latest
 ```
 
@@ -102,17 +106,20 @@ services:
     ports:
       - "3124:3124"
     volumes:
-      - tuneflow-data:/data
+      - ${TUNEFLOW_MUSIC_DIR:-./music}:/music
+      - tuneflow-config:/config
     init: true
     restart: unless-stopped
 
 volumes:
-  tuneflow-data:
+  tuneflow-config:
 ```
 
-然后运行：
+先创建宿主机音乐目录并赋予容器用户 UID/GID 1000 写权限，然后运行：
 
 ```sh
+mkdir -p ./music
+sudo chown -R 1000:1000 ./music
 docker compose pull
 docker compose up -d
 docker compose ps
@@ -127,7 +134,7 @@ curl --fail http://127.0.0.1:3124/api/v1/health
 
 ### 源码构建与启动
 
-安装 Node.js 22 或更高版本，然后运行：
+安装 Node.js 24 或更高版本，然后运行：
 
 ```sh
 npm ci
@@ -141,15 +148,17 @@ npm run start:server
 
 ### 数据存储目录
 
-Service 独占所有持久化数据。数据根目录由 `TUNEFLOW_STORAGE_ROOT` 指定，默认是当前工作目录下的 `./data`。其中包括：
+Docker 默认将数据按用途拆分：
 
-- `tuneflow.data.db`，以及 Service 运行时可能存在的 WAL/SHM 文件；
-- 固定下载与本地媒体目录 `${TUNEFLOW_STORAGE_ROOT}/audio`；
-- `sources/`、`tmp/`、`logs/` 与 `backups/` 支持目录。
+- `/music`：用户可直接管理和备份的音频与请求生成的 `.lrc`；
+- `/config/database`、`/config/sources`、`/config/backups`：Docker 命名卷中的内部持久状态；
+- `/cache/library`：可重建缓存，不需要备份；
+- `/tmp/tuneflow`：下载分片和临时数据，不需要备份；
+- 日志写入 stdout/stderr，通过 `docker logs` 查看。
 
-浏览器和 API 都不能选择或修改宿主机下载路径。Docker 中 `TUNEFLOW_STORAGE_ROOT=/data`，因此媒体固定存放在 `/data/audio`。备份时应先停止 Service 并备份完整数据根目录，而不是只复制数据库文件。
+浏览器和 API 都不能选择或修改宿主机下载路径。完整备份由停止服务后取得的 `tuneflow-config` 卷和 `./music` 目录两部分组成。
 
-从旧版本升级时，Service 会在同一数据根目录内自动迁移旧数据库文件和旧设置键。Docker 服务名与数据卷已改为 TuneFlow 命名；使用旧命名卷的部署需先将完整 `/data` 内容复制到 `tuneflow-data` 卷，再启动新容器。
+源码运行仍兼容 `TUNEFLOW_STORAGE_ROOT=./data` 旧布局。已有 Docker `/data` 卷不会被自动移动；请按照 [Server + Web 文档](./docs/server-web.md#legacy-docker-migration) 在停止旧容器后执行只复制迁移。迁移不会修改旧卷，回滚时可继续把旧卷挂载到旧镜像的 `/data`。
 
 构建、启动、环境变量、Docker、数据备份、媒体目录、功能边界与安全注意事项请参阅 [Server + Web 文档](./docs/server-web.md)。
 

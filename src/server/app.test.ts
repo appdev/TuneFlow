@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer as createHttpServer } from 'node:http'
 import { once } from 'node:events'
 import type { AddressInfo } from 'node:net'
@@ -9,6 +9,7 @@ import defaultSetting from '../common/defaultSetting'
 import { getDB } from './db/core/db'
 import { createServer } from './app'
 import { dateFormat2 } from './tuneFlowSdk/rendererUtilsShim'
+import { resolveStorageLayout } from './config'
 
 process.env.TUNEFLOW_SERVICE_NODE_MODULES = path.join(process.cwd(), 'dist/server/node_modules')
 
@@ -38,6 +39,28 @@ afterEach(async() => {
 })
 
 describe('TuneFlow service', () => {
+  it('keeps split durable state out of the user media root', async() => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-service-split-'))
+    roots.push(root)
+    const webRoot = path.join(root, 'web')
+    mkdirSync(webRoot)
+    writeFileSync(path.join(webRoot, 'index.html'), '<!doctype html>')
+    const storage = resolveStorageLayout({
+      TUNEFLOW_CONFIG_ROOT: path.join(root, 'config'),
+      TUNEFLOW_MEDIA_ROOT: path.join(root, 'music'),
+      TUNEFLOW_CACHE_ROOT: path.join(root, 'cache'),
+      TUNEFLOW_TEMP_ROOT: path.join(root, 'tmp'),
+    })
+
+    const app = await createServer({ storage, webRoot, host: '127.0.0.1', port: 0 })
+    apps.push(app)
+
+    expect(existsSync(path.join(storage.databaseRoot, 'tuneflow.data.db'))).toBe(true)
+    expect((await app.inject({ method: 'GET', url: '/api/v1/settings' })).json().data['download.savePath']).toBe(storage.mediaRoot)
+    expect(readdirSync(storage.mediaRoot)).toEqual([])
+    expect(existsSync(path.join(storage.mediaRoot, 'sources'))).toBe(false)
+  })
+
   it('exposes health, capabilities, and server-safe default settings', async() => {
     const { app, storageRoot } = await createTestServer()
 

@@ -15,13 +15,7 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 import { parseFile, type IAudioMetadata } from 'music-metadata'
-import {
-  getAudioRoot,
-  getCoverRoot,
-  getLibraryResourceIndexRoot,
-  getLyricsRoot,
-  isPathInside,
-} from '../config'
+import { getAudioRoot, getCoverRoot, getLibraryResourceIndexRoot, getLyricsRoot, isPathInside } from '../config'
 
 const maxPictureBytes = 20 * 1024 * 1024
 const resourceDerivationRevision = '2'
@@ -62,6 +56,14 @@ interface ResourceDependencies {
   parseFile?: typeof parseFile
 }
 
+export interface LibraryResourcePaths {
+  mediaRoot: string
+  coverRoot: string
+  lyricsRoot: string
+  indexRoot: string
+  tempRoot: string
+}
+
 const sha256 = (value: string | Uint8Array): string => createHash('sha256').update(value).digest('hex')
 
 const normalizedRelative = (value: string): string => value.split(path.sep).join('/')
@@ -94,12 +96,21 @@ export class LibraryResourceStore {
   private readonly parse: typeof parseFile
   private readonly pending = new Map<string, Promise<LibraryDerivedResources>>()
 
-  constructor(private readonly storageRoot: string, dependencies: ResourceDependencies = {}) {
-    this.audioRoot = getAudioRoot(storageRoot)
-    this.coverRoot = getCoverRoot(storageRoot)
-    this.lyricsRoot = getLyricsRoot(storageRoot)
-    this.indexRoot = getLibraryResourceIndexRoot(storageRoot)
-    this.tmpRoot = path.join(storageRoot, 'tmp')
+  constructor(paths: string | LibraryResourcePaths, dependencies: ResourceDependencies = {}) {
+    const resolvedPaths = typeof paths === 'string'
+      ? {
+          mediaRoot: getAudioRoot(paths),
+          coverRoot: getCoverRoot(paths),
+          lyricsRoot: getLyricsRoot(paths),
+          indexRoot: getLibraryResourceIndexRoot(paths),
+          tempRoot: path.join(paths, 'tmp'),
+        }
+      : paths
+    this.audioRoot = resolvedPaths.mediaRoot
+    this.coverRoot = resolvedPaths.coverRoot
+    this.lyricsRoot = resolvedPaths.lyricsRoot
+    this.indexRoot = resolvedPaths.indexRoot
+    this.tmpRoot = resolvedPaths.tempRoot
     this.parse = dependencies.parseFile ?? parseFile
     for (const directory of [this.audioRoot, this.coverRoot, this.lyricsRoot, this.indexRoot, this.tmpRoot]) {
       mkdirSync(directory, { recursive: true })
@@ -272,6 +283,11 @@ export class LibraryResourceStore {
       const value = JSON.parse(readFileSync(markerPath, 'utf8')) as Partial<ResourceMarker>
       if (typeof value.audioRelativePath !== 'string' || typeof value.signature !== 'string' ||
         typeof value.pictureMissing !== 'boolean' || typeof value.lyricsMissing !== 'boolean') return undefined
+      if (value.picture != null && (typeof value.picture !== 'object' ||
+        typeof value.picture.relativePath !== 'string' || typeof value.picture.mimeType !== 'string' ||
+        !Number.isSafeInteger(value.picture.byteLength) || value.picture.byteLength < 0 ||
+        typeof value.picture.etag !== 'string' || !/^[a-f0-9]{64}$/.test(value.picture.etag))) return undefined
+      if (value.lyrics != null && (typeof value.lyrics !== 'object' || typeof value.lyrics.relativePath !== 'string')) return undefined
       return value as ResourceMarker
     } catch {
       return undefined
@@ -298,14 +314,16 @@ export class LibraryResourceStore {
   }
 
   private resolveStoredPath(relativePath: string, expectedRoot: string): string {
-    const resolved = path.resolve(this.storageRoot, relativePath)
+    const [prefix, ...segments] = relativePath.split('/')
+    if (prefix !== path.basename(expectedRoot) || segments.length === 0) throw new Error('Library resource path escaped its root')
+    const resolved = path.resolve(expectedRoot, ...segments)
     if (!isPathInside(expectedRoot, resolved)) throw new Error('Library resource path escaped its root')
     return resolved
   }
 
   private atomicWrite(target: string, content: string | Uint8Array): void {
     mkdirSync(path.dirname(target), { recursive: true })
-    const temporary = path.join(this.tmpRoot, `library-resource-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.tmp`)
+    const temporary = path.join(path.dirname(target), `.${path.basename(target)}.${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.tuneflowtmp`)
     writeFileSync(temporary, content)
     const descriptor = openSync(temporary, 'r')
     try { fsyncSync(descriptor) } finally { closeSync(descriptor) }
