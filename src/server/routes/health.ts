@@ -18,15 +18,33 @@ const ServiceCapabilitiesSchema = Type.Object({
   }, { additionalProperties: false }),
 }, { additionalProperties: false })
 
-export const registerHealthRoutes = (app: ApiFastifyInstance): void => {
+const ServiceHealthSchema = Type.Object({
+  status: Type.Literal('ok'),
+  lanOrigin: Type.String(),
+  externalOrigin: Type.String(),
+}, { additionalProperties: false })
+
+export const registerHealthRoutes = (
+  app: ApiFastifyInstance,
+  readSettings: () => TuneFlow.AppSetting,
+): void => {
   app.get('/api/v1/health', {
     schema: {
       operationId: 'getHealth',
       tags: ['System'],
       summary: 'Get Service health',
-      response: { 200: ApiSuccess(Type.Object({ status: Type.Literal('ok') }, { additionalProperties: false })) },
+      response: { 200: ApiSuccess(ServiceHealthSchema) },
     },
-  }, async() => ({ data: { status: 'ok' as const } }))
+  }, async() => {
+    const settings = readSettings()
+    return {
+      data: {
+        status: 'ok' as const,
+        lanOrigin: settings['service.lanOrigin'],
+        externalOrigin: settings['service.externalOrigin'],
+      },
+    }
+  })
   app.get('/api/v1/capabilities', {
     schema: {
       operationId: 'getCapabilities',

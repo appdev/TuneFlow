@@ -47,12 +47,78 @@ describe('catalog routes', () => {
     const response = await app.inject({ method: 'GET', url: '/api/v1/catalog/capabilities' })
 
     expect(response.statusCode).toBe(200)
-    const providers = response.json().data.sources as Array<{ id: string, searchKinds: string[], leaderboards: boolean, playlistDiscovery?: { tags: boolean, browse: boolean, detail: boolean } }>
-    expect(providers.find(provider => provider.id === 'kw')?.searchKinds).toEqual(expect.arrayContaining(['track', 'playlist']))
-    expect(providers.find(provider => provider.id === 'kw')?.searchKinds).not.toContain('album')
-    expect(providers.find(provider => provider.id === 'wy')?.searchKinds).toEqual(expect.arrayContaining(['track', 'playlist', 'album']))
+    const providers = response.json().data.sources as Array<{ id: string, searchKinds: string[], leaderboards: boolean, albumDetail: boolean, playlistDiscovery?: { tags: boolean, browse: boolean, detail: boolean } }>
+    for (const source of ['kw', 'kg', 'tx', 'wy', 'mg']) {
+      expect(providers.find(provider => provider.id === source)?.searchKinds).toEqual(expect.arrayContaining(['track', 'playlist', 'album']))
+      expect(providers.find(provider => provider.id === source)?.albumDetail).toBe(true)
+    }
     expect(providers.find(provider => provider.id === 'wy')?.leaderboards).toBe(true)
     expect(providers.find(provider => provider.id === 'kw')?.playlistDiscovery).toEqual({ tags: true, browse: true, detail: true })
+    await app.close()
+  })
+
+  it('returns normalized album detail envelopes', async() => {
+    vi.spyOn(musicSdk.kw.album, 'getAlbumDetail').mockResolvedValue({
+      list: [{ songmid: 'track-1', name: 'Fixture', singer: 'Artist', interval: '03:00', source: 'kw' }],
+      total: 1,
+      limit: 30,
+      page: 1,
+      source: 'kw',
+      info: { name: 'Fixture album', author: 'Artist' },
+    })
+    const app = appWithProductionErrors()
+    registerCatalogRoutes(app as never)
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/catalog/albums/detail',
+      payload: { source: 'kw', albumId: '87758985', page: 1 },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json().data).toMatchObject({
+      source: 'kw',
+      page: 1,
+      total: 1,
+      hasMore: false,
+      album: { id: '87758985', kind: 'album', name: 'Fixture album' },
+      tracks: [{ id: 'track-1' }],
+    })
+    await app.close()
+  })
+
+  it('rejects unsafe album identifiers before provider invocation', async() => {
+    const detail = vi.spyOn(musicSdk.kw.album, 'getAlbumDetail')
+    const app = appWithProductionErrors()
+    registerCatalogRoutes(app as never)
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/catalog/albums/detail',
+      payload: { source: 'kw', albumId: 'http://127.0.0.1/private', page: 1 },
+    })
+
+    expect(response.statusCode).toBe(400)
+    expect(response.json().error.code).toBe('INVALID_ALBUM_ID')
+    expect(detail).not.toHaveBeenCalled()
+    await app.close()
+  })
+
+  it('maps malformed album metadata to a provider protocol error', async() => {
+    vi.spyOn(musicSdk.kw.album, 'getAlbumDetail').mockResolvedValue({
+      list: [], total: 0, limit: 30, page: 1, source: 'kw', info: {},
+    })
+    const app = appWithProductionErrors()
+    registerCatalogRoutes(app as never)
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/catalog/albums/detail',
+      payload: { source: 'kw', albumId: '87758985', page: 1 },
+    })
+
+    expect(response.statusCode).toBe(502)
+    expect(response.json().error.code).toBe('SOURCE_PROTOCOL_ERROR')
     await app.close()
   })
 

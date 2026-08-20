@@ -1,7 +1,7 @@
 import musicSdk from '../../renderer/utils/musicSdk'
 import { SourceWorkerHost } from '../sources/worker-host'
 import { toSourceMusicInfo } from '../sources/musicInfo'
-import type { CatalogCollection, CatalogSearchKind, CollectionSearchResult, SearchRequest, SearchResult } from '../sources/types'
+import type { AlbumDetailResult, CatalogCollection, CatalogSearchKind, CollectionSearchResult, SearchRequest, SearchResult } from '../sources/types'
 
 interface PlaylistProvider {
   search?: (text: string, page: number, limit: number) => Promise<unknown>
@@ -15,6 +15,7 @@ interface Provider {
   musicSearch?: { search: (text: string, page: number, limit: number) => Promise<unknown> }
   songList?: PlaylistProvider
   albumSearch?: { search: (text: string, page: number, limit: number) => Promise<unknown> }
+  album?: { getAlbumDetail: (albumId: string, page: number) => Promise<unknown> }
   getLyric?: (musicInfo: unknown) => { promise: Promise<unknown> }
   getPic?: (musicInfo: unknown) => unknown
   leaderboard?: {
@@ -28,6 +29,7 @@ interface ProviderSummary {
   name: string
   searchKinds: CatalogSearchKind[]
   leaderboards: boolean
+  albumDetail: boolean
   playlistDiscovery?: { tags: boolean, browse: boolean, detail: boolean }
 }
 
@@ -101,14 +103,14 @@ const normalizeTag = (value: unknown): PlaylistTag => {
   return { id, name }
 }
 
-const normalizeCollection = (value: unknown, source: string): CatalogCollection => {
-  const item = asRecord(value, 'playlist')
+const normalizeCollection = (value: unknown, source: string, kind: 'playlist' | 'album' = 'playlist'): CatalogCollection => {
+  const item = asRecord(value, kind)
   const id = String(item.id ?? '')
-  if (id.length === 0) throw protocolError('Playlist is missing an id')
+  if (id.length === 0) throw protocolError(`${kind === 'playlist' ? 'Playlist' : 'Album'} is missing an id`)
   return {
     ...item,
     id,
-    kind: 'playlist',
+    kind,
     name: String(item.name ?? ''),
     source: typeof item.source === 'string' ? item.source : source,
     ...(typeof item.author === 'string' ? { author: item.author } : {}),
@@ -152,6 +154,27 @@ export const validatePlaylistId = (source: string, playlistId: string): string =
     !(playlistIdPatterns[source]?.test(playlistId) ?? false)
   if (invalid) throw Object.assign(new Error('Invalid playlist identifier'), { code: 'INVALID_PLAYLIST_ID' })
   return playlistId
+}
+
+const albumIdPatterns: Record<string, RegExp> = {
+  wy: /^\d+$/,
+  kw: /^\d+$/,
+  kg: /^\d+$/,
+  tx: /^[A-Za-z0-9]+$/,
+  mg: /^\d+$/,
+}
+
+export const validateAlbumId = (source: string, albumId: string): string => {
+  const points = Array.from(albumId)
+  const hasControlCharacter = points.some(point => {
+    const codePoint = point.codePointAt(0)!
+    return codePoint <= 0x1f || codePoint === 0x7f
+  })
+  const invalid = points.length === 0 || points.length > 128 || hasControlCharacter ||
+    albumId.includes('://') || albumId.startsWith('//') || albumId.includes('###') ||
+    !(albumIdPatterns[source]?.test(albumId) ?? false)
+  if (invalid) throw Object.assign(new Error('Invalid album identifier'), { code: 'INVALID_ALBUM_ID' })
+  return albumId
 }
 
 const playlistQueues = new Map<string, Promise<void>>()
@@ -207,6 +230,7 @@ export const catalogCapabilities = (): ProviderSummary[] => providers.sources.ma
       ...(provider?.albumSearch == null ? [] : ['album'] as const),
     ],
     leaderboards: provider?.leaderboard != null,
+    albumDetail: provider?.album?.getAlbumDetail != null,
     ...(playlistDiscovery == null ? {} : { playlistDiscovery }),
   }
 }).filter(provider => provider.searchKinds.length > 0)
@@ -307,6 +331,26 @@ export const searchCollections = async(kind: 'playlist' | 'album', { source, tex
   const searcher = kind === 'playlist' ? provider?.songList : provider?.albumSearch
   if (searcher?.search == null) throw Object.assign(new Error(`${kind} search is not supported by source: ${source}`), { code: 'SOURCE_CAPABILITY_UNAVAILABLE' })
   return normalizeCollectionSearchResult(await searcher.search(text, page, limit), kind, page)
+}
+
+export const getAlbumDetail = async({ source, albumId, page }: { source: string, albumId: string, page: number }): Promise<AlbumDetailResult> => {
+  const validatedId = validateAlbumId(source, albumId)
+  const detail = providers[source]?.album?.getAlbumDetail
+  if (detail == null) throw Object.assign(new Error(`Album detail is not supported by source: ${source}`), { code: 'SOURCE_CAPABILITY_UNAVAILABLE' })
+  const result = asRecord(await detail.call(providers[source].album, validatedId, page), 'album detail')
+  if (!Array.isArray(result.list)) throw protocolError('Invalid album detail response')
+  const info = asRecord(result.info, 'album detail info')
+  if (typeof info.name !== 'string' || info.name.trim().length === 0) {
+    throw protocolError('Album detail is missing a name')
+  }
+  const normalizedTracks = SourceWorkerHost.normalizeSearchResult({ ...result, page: numberOrNull(result.page) ?? page })
+  const pagination = pageInfo(result, page, normalizedTracks.list.length)
+  return {
+    source,
+    ...pagination,
+    album: normalizeCollection({ ...info, id: validatedId, source, total: pagination.total }, source, 'album'),
+    tracks: normalizedTracks.list,
+  }
 }
 
 export const getLyric = async(source: string, musicInfo: unknown): Promise<TuneFlow.Music.LyricInfo> => {

@@ -13,6 +13,30 @@ afterEach(async() => {
 })
 
 describe('Service OpenAPI contract', () => {
+  it('documents health endpoint origins', async() => {
+    const storageRoot = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-openapi-health-'))
+    const webRoot = path.join(storageRoot, 'web')
+    mkdirSync(webRoot)
+    writeFileSync(path.join(webRoot, 'index.html'), '<!doctype html><title>TuneFlow · 音流</title>')
+    roots.push(storageRoot)
+    const app = await createServer({ storageRoot, webRoot, host: '127.0.0.1', port: 0 })
+    apps.push(app)
+
+    const document = (await app.inject({ method: 'GET', url: '/openapi.json' })).json()
+    const health = document.paths['/api/v1/health'].get.responses['200']
+      .content['application/json'].schema.properties.data
+    expect(health).toMatchObject({
+      type: 'object',
+      required: ['status', 'lanOrigin', 'externalOrigin'],
+      additionalProperties: false,
+      properties: {
+        status: { type: 'string' },
+        lanOrigin: { type: 'string' },
+        externalOrigin: { type: 'string' },
+      },
+    })
+  })
+
   it('documents the complete API with stable, unique operation ids', async() => {
     const storageRoot = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-openapi-'))
     const webRoot = path.join(storageRoot, 'web')
@@ -35,7 +59,7 @@ describe('Service OpenAPI contract', () => {
       '/api/v1/sources', '/api/v1/sources/import', '/api/v1/sources/export', '/api/v1/sources/active', '/api/v1/sources/enabled', '/api/v1/sources/{id}', '/api/v1/catalog/capabilities', '/api/v1/catalog/tracks/search',
       '/api/v1/catalog/leaderboards', '/api/v1/catalog/leaderboards/tracks',
       '/api/v1/catalog/playlists/tags', '/api/v1/catalog/playlists/browse', '/api/v1/catalog/playlists/detail',
-      '/api/v1/catalog/playlists/search', '/api/v1/catalog/albums/search', '/api/v1/catalog/tracks/lyrics',
+      '/api/v1/catalog/playlists/search', '/api/v1/catalog/albums/search', '/api/v1/catalog/albums/detail', '/api/v1/catalog/tracks/lyrics',
       '/api/v1/catalog/tracks/picture', '/api/v1/playback/tracks/resolve', '/api/v1/playback/resources/{token}/picture', '/api/v1/playback/history', '/api/v1/playback/history/{id}', '/api/v1/streams/{token}', '/api/v1/downloads',
       '/api/v1/downloads/history/records', '/api/v1/downloads/{id}/start', '/api/v1/downloads/{id}/resume', '/api/v1/downloads/{id}/pause', '/api/v1/downloads/{id}',
       '/api/v1/library/tracks', '/api/v1/library/scan', '/api/v1/library/tracks/{id}', '/api/v1/library/tracks/{id}/stream',
@@ -44,6 +68,16 @@ describe('Service OpenAPI contract', () => {
     expect(Object.keys(document.paths).sort()).toEqual(expectedPaths.sort())
     expect(JSON.stringify(document.paths)).not.toMatch(/\/api\/v1\/(?:lists|search|lyrics|stream\/|playback\/resolve|library\{)/)
     const successDataSchema = (pathName: string, method = 'post') => document.paths[pathName][method].responses['200'].content['application/json'].schema.properties.data
+    expect(successDataSchema('/api/v1/health', 'get')).toMatchObject({
+      type: 'object',
+      required: ['status', 'lanOrigin', 'externalOrigin'],
+      additionalProperties: false,
+      properties: {
+        status: { type: 'string' },
+        lanOrigin: { type: 'string' },
+        externalOrigin: { type: 'string' },
+      },
+    })
     const sourceListSchema = successDataSchema('/api/v1/sources', 'get')
     expect(sourceListSchema.items.required).toEqual(expect.arrayContaining(['active', 'enabled', 'priority']))
     expect(document.paths['/api/v1/sources/enabled'].put.operationId).toBe('configureEnabledSources')

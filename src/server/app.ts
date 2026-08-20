@@ -238,7 +238,7 @@ export const createServer = async(options: ServerOptionsInput): Promise<FastifyI
     closeDatabase()
   })
 
-  registerHealthRoutes(app)
+  registerHealthRoutes(app, () => settings.getSettings())
   registerSettingsRoutes(app, settings, events)
   registerRuntimeRoutes(app, appData)
   registerListRoutes(app, events)

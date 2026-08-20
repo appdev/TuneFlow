@@ -1,6 +1,7 @@
 import defaultSetting from '../../common/defaultSetting'
 import { getDB } from './core/db'
 import { ApiError } from '../errors'
+import { normalizeConfiguredServiceOrigin } from '../serviceOrigins'
 
 const serviceDefaults: Partial<TuneFlow.AppSetting> = {
   'common.transparentWindow': false,
@@ -58,6 +59,12 @@ export class SettingsRepository {
       throw new ApiError(400, 'IMMUTABLE_SETTING', 'Download path is managed by the Service')
     }
     const allowedKeys = new Set(Object.keys(defaultSetting))
+    const normalized = { ...values }
+    for (const key of ['service.lanOrigin', 'service.externalOrigin'] as const) {
+      if (Object.prototype.hasOwnProperty.call(normalized, key)) {
+        normalized[key] = normalizeConfiguredServiceOrigin(normalized[key])
+      }
+    }
     const upsert = getDB().prepare('INSERT INTO web_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value')
     const db = getDB()
     db.transaction((patch: Record<string, unknown>) => {
@@ -71,7 +78,7 @@ export class SettingsRepository {
         }
         upsert.run(key, JSON.stringify(value))
       }
-    })(values)
+    })(normalized)
     return this.getSettings()
   }
 }

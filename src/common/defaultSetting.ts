@@ -136,6 +136,9 @@ const defaultSetting: TuneFlow.AppSetting = {
   'network.proxy.host': '',
   'network.proxy.port': '',
 
+  'service.lanOrigin': '',
+  'service.externalOrigin': '',
+
   'tray.enable': false,
   // 'tray.isToTray': false,
   'tray.themeId': 0,

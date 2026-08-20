@@ -77,6 +77,16 @@ export interface CollectionSearchResult {
   source: string
 }
 
+export interface AlbumDetailResult {
+  source: string
+  page: number
+  limit: number
+  total: number | null
+  hasMore: boolean
+  album: CatalogCollection
+  tracks: Array<Record<string, unknown>>
+}
+
 export type SourceFailureOrigin = 'service-network' | 'worker-timeout' | 'caller' | 'script' | 'protocol' | 'safety'
 
 export class SourceServiceError extends Error {

@@ -42,6 +42,72 @@ const createWave = (): Buffer => {
   return wave
 }
 
+test('persists Service access origins', async({ page }) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-service-origins-ui-'))
+  let service: ChildProcess | undefined
+
+  try {
+    const portServer = net.createServer()
+    const port = await listen(portServer)
+    await close(portServer)
+    const origin = `http://127.0.0.1:${port}`
+    service = spawn(process.execPath, ['dist/server/index.cjs'], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        TUNEFLOW_HOST: '127.0.0.1',
+        TUNEFLOW_PORT: String(port),
+        TUNEFLOW_STORAGE_ROOT: path.join(root, 'storage'),
+        TUNEFLOW_WEB_ROOT: path.join(process.cwd(), 'dist/web'),
+        TUNEFLOW_SERVICE_NODE_MODULES: path.join(process.cwd(), 'dist/server/node_modules'),
+      },
+      stdio: 'ignore',
+    })
+    await expect.poll(async() => {
+      try { return (await fetch(`${origin}/api/v1/health`)).status } catch { return 0 }
+    }, { timeout: 15_000 }).toBe(200)
+    expect((await fetch(`${origin}/api/v1/settings`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        'common.isAgreePact': true,
+        'common.langId': 'en-us',
+        'common.isShowAnimation': false,
+      }),
+    })).status).toBe(200)
+
+    await page.goto(`${origin}/`, { waitUntil: 'domcontentloaded' })
+    await waitForApp(page)
+    await page.getByRole('tab', { name: 'Settings' }).click()
+    await page.getByTestId('settings-tab-SettingNetwork').click()
+    const lan = page.getByTestId('settings-service-lan-origin')
+    const external = page.getByTestId('settings-service-external-origin')
+    await expect(page.getByText('LAN access address', { exact: true })).toBeVisible()
+    await expect(page.getByText('External access address', { exact: true })).toBeVisible()
+    await expect(page.getByText('Preferred on Wi-Fi or Ethernet. Leave empty to disable this candidate.', { exact: true })).toBeVisible()
+    await expect(page.getByText('Preferred outside the LAN. Leave empty to disable this candidate.', { exact: true })).toBeVisible()
+    await expect(lan).toBeVisible()
+    await expect(external).toBeVisible()
+    await lan.fill('http://192.168.1.20:3124/')
+    await external.fill('https://music.example.com/')
+
+    await expect.poll(async() => {
+      const response = await fetch(`${origin}/api/v1/settings`)
+      const body = await response.json() as { data: Record<string, unknown> }
+      return {
+        lan: body.data['service.lanOrigin'],
+        external: body.data['service.externalOrigin'],
+      }
+    }).toEqual({
+      lan: 'http://192.168.1.20:3124',
+      external: 'https://music.example.com',
+    })
+  } finally {
+    await stopService(service)
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test('production Web gates desktop features and retains a built-in theme at all required viewports', async({ browser }) => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-task7-ui-'))
   let service: ChildProcess | undefined

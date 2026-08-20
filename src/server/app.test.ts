@@ -64,7 +64,9 @@ describe('TuneFlow service', () => {
   it('exposes health, capabilities, and server-safe default settings', async() => {
     const { app, storageRoot } = await createTestServer()
 
-    expect((await app.inject({ method: 'GET', url: '/api/v1/health' })).json()).toEqual({ data: { status: 'ok' } })
+    expect((await app.inject({ method: 'GET', url: '/api/v1/health' })).json()).toEqual({
+      data: { status: 'ok', lanOrigin: '', externalOrigin: '' },
+    })
     expect((await app.inject({ method: 'GET', url: '/api/v1/capabilities' })).json()).toMatchObject({
       data: { runtime: 'service', apiVersion: 'v1', features: { settings: true, playback: true, library: true } },
     })
@@ -72,6 +74,8 @@ describe('TuneFlow service', () => {
     expect(settings.data['theme.id']).toBe(defaultSetting['theme.id'])
     expect(settings.data['download.savePath']).toBe(path.join(realpathSync(storageRoot), 'audio'))
     expect(settings.data).toMatchObject({
+      'service.lanOrigin': '',
+      'service.externalOrigin': '',
       'download.enable': true,
       'download.fileName': '歌名 - 歌手',
       'download.isUseOtherSource': true,
@@ -101,6 +105,63 @@ describe('TuneFlow service', () => {
     apps.push(restarted)
     expect((await restarted.inject({ method: 'GET', url: '/api/v1/settings' })).json().data['player.volume']).toBe(0.35)
     expect((await restarted.inject({ method: 'GET', url: '/api/v1/settings' })).json().data['player.autoDownloadOnPlay']).toBe(true)
+  })
+
+  it('normalizes and persists Service access origins', async() => {
+    const { app, storageRoot, webRoot } = await createTestServer()
+    const patched = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/settings',
+      payload: {
+        'service.lanOrigin': 'http://192.168.1.20:3124/',
+        'service.externalOrigin': 'https://music.example.com/',
+      },
+    })
+    expect(patched.statusCode).toBe(200)
+    expect(patched.json().data).toMatchObject({
+      'service.lanOrigin': 'http://192.168.1.20:3124',
+      'service.externalOrigin': 'https://music.example.com',
+    })
+    expect((await app.inject({ method: 'GET', url: '/api/v1/health' })).json()).toEqual({
+      data: {
+        status: 'ok',
+        lanOrigin: 'http://192.168.1.20:3124',
+        externalOrigin: 'https://music.example.com',
+      },
+    })
+    await app.close()
+    apps.splice(apps.indexOf(app), 1)
+
+    const restarted = await createServer({ storageRoot, webRoot, host: '127.0.0.1', port: 0 })
+    apps.push(restarted)
+    expect((await restarted.inject({ method: 'GET', url: '/api/v1/settings' })).json().data).toMatchObject({
+      'service.lanOrigin': 'http://192.168.1.20:3124',
+      'service.externalOrigin': 'https://music.example.com',
+    })
+  })
+
+  it('rejects invalid Service access origins atomically', async() => {
+    const { app } = await createTestServer()
+    for (const value of [
+      'ftp://192.168.1.20',
+      'http://user:pass@192.168.1.20',
+      'http://192.168.1.20/base',
+      'http://192.168.1.20?mode=lan',
+    ]) {
+      const rejected = await app.inject({
+        method: 'PATCH',
+        url: '/api/v1/settings',
+        payload: {
+          'player.volume': 0.35,
+          'service.lanOrigin': value,
+        },
+      })
+      expect(rejected.statusCode).toBe(400)
+      expect((await app.inject({ method: 'GET', url: '/api/v1/settings' })).json().data).toMatchObject({
+        'player.volume': 1,
+        'service.lanOrigin': '',
+      })
+    }
   })
 
   it('preserves persisted disabled download settings when defaults are enabled', async() => {

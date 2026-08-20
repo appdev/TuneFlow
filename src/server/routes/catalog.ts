@@ -4,7 +4,7 @@ import type { ApiFastifyInstance } from '../api/types'
 import { ApiSuccess, ErrorResponses } from '../api/schemas/common'
 import { CatalogCollection, CatalogLyrics, CatalogTrack } from '../api/schemas/domain'
 import { ApiError } from '../errors'
-import { browsePlaylists, catalogCapabilities, getLeaderboardTracks, getLeaderboards, getLyric, getPicture, getPlaylistDetail, getPlaylistTags, search, searchCollections } from '../tuneFlowSdk'
+import { browsePlaylists, catalogCapabilities, getAlbumDetail, getLeaderboardTracks, getLeaderboards, getLyric, getPicture, getPlaylistDetail, getPlaylistTags, search, searchCollections } from '../tuneFlowSdk'
 import type { SourcesService } from './sources'
 import { SourceServiceError } from '../sources/types'
 import { MediaClient } from '../playback/mediaClient'
@@ -64,6 +64,12 @@ const PlaylistDetailInput = Type.Object({
   page: Type.Integer({ minimum: 1 }),
 }, { additionalProperties: false })
 
+const AlbumDetailInput = Type.Object({
+  source: Type.String({ minLength: 1 }),
+  albumId: Type.String({ minLength: 1, maxLength: 128 }),
+  page: Type.Integer({ minimum: 1 }),
+}, { additionalProperties: false })
+
 const searchResult = (item: typeof CatalogTrack | typeof CatalogCollection) => Type.Object({
   list: Type.Array(item),
   total: Type.Number(),
@@ -78,6 +84,7 @@ const CatalogCapabilities = Type.Object({
     name: Type.String(),
     searchKinds: Type.Array(Type.Union([Type.Literal('track'), Type.Literal('playlist'), Type.Literal('album')])),
     leaderboards: Type.Boolean(),
+    albumDetail: Type.Boolean(),
     playlistDiscovery: Type.Optional(Type.Object({
       tags: Type.Boolean(),
       browse: Type.Boolean(),
@@ -122,6 +129,12 @@ const PlaylistDetailPage = Type.Object({
   tracks: Type.Array(CatalogTrack),
 }, { additionalProperties: false })
 
+const AlbumDetailPage = Type.Object({
+  ...PlaylistPageFields,
+  album: CatalogCollection,
+  tracks: Type.Array(CatalogTrack),
+}, { additionalProperties: false })
+
 const LeaderboardPage = Type.Object({
   list: Type.Array(Type.Object({
     id: Type.String({ minLength: 1 }),
@@ -135,7 +148,7 @@ const LeaderboardPage = Type.Object({
 const sourceFailure = (error: unknown, message: string): never => {
   if (error instanceof ApiError) throw error
   const code = typeof error === 'object' && error != null && 'code' in error && typeof error.code === 'string' ? error.code : 'SOURCE_PROTOCOL_ERROR'
-  if (code === 'INVALID_PLAYLIST_ID') throw new ApiError(400, code, message)
+  if (code === 'INVALID_PLAYLIST_ID' || code === 'INVALID_ALBUM_ID') throw new ApiError(400, code, message)
   throw new ApiError(502, code, message)
 }
 
@@ -279,6 +292,18 @@ export const registerCatalogRoutes = (app: ApiFastifyInstance, sources?: Sources
       try { return { data: await searchCollections(singular, { source, text, page, limit: pageSize }) } } catch (error) { return sourceFailure(error, `${singular} search failed`) }
     })
   }
+
+  app.post('/api/v1/catalog/albums/detail', {
+    schema: {
+      operationId: 'getCatalogAlbumDetail',
+      tags: ['Catalog'],
+      summary: 'Get a native album and its tracks from a built-in provider',
+      body: AlbumDetailInput,
+      response: { 200: ApiSuccess(AlbumDetailPage), ...ErrorResponses },
+    },
+  }, async(request) => {
+    try { return { data: await getAlbumDetail(request.body) } } catch (error) { return sourceFailure(error, 'Album detail lookup failed') }
+  })
 
   app.post('/api/v1/catalog/tracks/lyrics', {
     schema: {

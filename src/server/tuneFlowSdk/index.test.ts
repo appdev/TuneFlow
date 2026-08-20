@@ -1,6 +1,6 @@
 import http from 'node:http'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { browsePlaylists, getPlaylistDetail, getPlaylistTags, search, searchCollections, validatePlaylistId } from './index'
+import { browsePlaylists, getAlbumDetail, getPlaylistDetail, getPlaylistTags, search, searchCollections, validateAlbumId, validatePlaylistId } from './index'
 import { proxy } from './rendererStoreShim'
 import { decodeLyric } from '../../renderer/utils/musicSdk/kw/util'
 import musicSdk from '../../renderer/utils/musicSdk'
@@ -250,5 +250,89 @@ describe('playlist discovery', () => {
     expect(maxActive).toBe(2)
     release()
     await calls
+  })
+})
+
+describe('album detail', () => {
+  it.each([
+    ['wy', '32311'],
+    ['kw', '87758985'],
+    ['kg', '960399'],
+    ['tx', '0024bjiL2aocxT'],
+    ['mg', '600927015009000944'],
+  ])('accepts a native %s album id', (source, albumId) => {
+    expect(validateAlbumId(source, albumId)).toBe(albumId)
+  })
+
+  it.each([
+    ['wy', 'abc'],
+    ['kw', 'https://example.test/album/1'],
+    ['kg', '1###secret'],
+    ['tx', 'mid_with_punctuation'],
+    ['mg', 'line\nbreak'],
+    ['wy', '1'.repeat(129)],
+  ])('rejects unsafe %s album id %j before provider invocation', async(source, albumId) => {
+    const detail = vi.spyOn(musicSdk[source as 'wy'].album, 'getAlbumDetail')
+    await expect(getAlbumDetail({ source, albumId, page: 1 }))
+      .rejects.toMatchObject({ code: 'INVALID_ALBUM_ID' })
+    expect(detail).not.toHaveBeenCalled()
+  })
+
+  it('normalizes album metadata, tracks, and pagination', async() => {
+    vi.spyOn(musicSdk.kw.album, 'getAlbumDetail').mockResolvedValue({
+      list: [{ songmid: 'track-1', name: 'Fixture track', singer: 'Fixture artist', interval: 180, source: 'kw' }],
+      page: 1,
+      limit: 30,
+      total: 31,
+      source: 'kw',
+      info: {
+        name: 'Fixture album',
+        author: 'Fixture artist',
+        img: null,
+        desc: 'Fixture description',
+        play_count: '1.2万',
+      },
+    })
+
+    await expect(getAlbumDetail({ source: 'kw', albumId: '87758985', page: 1 })).resolves.toMatchObject({
+      source: 'kw',
+      page: 1,
+      limit: 30,
+      total: 31,
+      hasMore: true,
+      album: {
+        id: '87758985',
+        kind: 'album',
+        name: 'Fixture album',
+        source: 'kw',
+        author: 'Fixture artist',
+        total: 31,
+        img: null,
+        description: 'Fixture description',
+        playCount: '1.2万',
+      },
+      tracks: [{
+        id: 'track-1',
+        songmid: 'track-1',
+        name: 'Fixture track',
+        singer: 'Fixture artist',
+        interval: '03:00',
+        source: 'kw',
+      }],
+    })
+  })
+
+  it('rejects album details with missing required metadata', async() => {
+    vi.spyOn(musicSdk.kw.album, 'getAlbumDetail').mockResolvedValue({
+      list: [],
+      page: 1,
+      limit: 30,
+      total: 0,
+      source: 'kw',
+      info: {},
+    })
+
+    await expect(getAlbumDetail({ source: 'kw', albumId: '87758985', page: 1 }))
+      .rejects.toMatchObject({ code: 'SOURCE_PROTOCOL_ERROR' })
   })
 })

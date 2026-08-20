@@ -631,6 +631,16 @@ declare global {
       'network.proxy.port': string
 
       /**
+       * Service 局域网访问地址
+       */
+      'service.lanOrigin': string
+
+      /**
+       * Service 外网访问地址
+       */
+      'service.externalOrigin': string
+
+      /**
        * 是否启用托盘
        */
       'tray.enable': boolean

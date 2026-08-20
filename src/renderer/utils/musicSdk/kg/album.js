@@ -7,7 +7,7 @@ export default {
    * @param {*} id
    */
   async getAlbumInfo(id) {
-    const albumInfoRequest = await createHttpFetch('http://kmrserviceretry.kugou.com/container/v1/album?dfid=1tT5He3kxrNC4D29ad1MMb6F&mid=22945702112173152889429073101964063697&userid=0&appid=1005&clientver=11589', {
+    const albumInfoRequest = await createHttpFetch('https://kmrserviceretry.kugou.com/container/v1/album?dfid=1tT5He3kxrNC4D29ad1MMb6F&mid=22945702112173152889429073101964063697&userid=0&appid=1005&clientver=11589', {
       method: 'POST',
       body: {
         appid: 1005,
@@ -38,7 +38,7 @@ export default {
    * @param {*} page
    */
   async getAlbumDetail(id, page = 1, limit = 200) {
-    const albumList = await createHttpFetch(`http://mobiles.kugou.com/api/v3/album/song?version=9108&albumid=${id}&plat=0&pagesize=${limit}&area_code=0&page=${page}&with_res_tag=0`)
+    const albumList = await createHttpFetch(`https://mobiles.kugou.com/api/v3/album/song?version=9108&albumid=${id}&plat=0&pagesize=${limit}&area_code=0&page=${page}&with_res_tag=0`)
     if (!albumList.info) return Promise.reject(new Error('Get album list failed.'))
 
     let result = await getMusicInfosByList(albumList.info)

@@ -7,6 +7,7 @@ import albumSearch from './albumSearch'
 import songList from './songList'
 import hotSearch from './hotSearch'
 import comment from './comment'
+import album from './album'
 // import tipSearch from './tipSearch'
 
 const wy = {
@@ -17,6 +18,7 @@ const wy = {
   songList,
   hotSearch,
   comment,
+  album,
   getMusicUrl(songInfo, type) {
     return apis('wy').getMusicUrl(songInfo, type)
   },
