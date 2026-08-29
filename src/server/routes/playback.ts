@@ -18,6 +18,7 @@ interface PlaybackRouteOptions extends PlaybackProxyOptions {
   findLocalTrack?: (musicInfo: unknown) => Promise<string | undefined> | string | undefined
   resourceStore?: PlaybackResourceStore
   bundleResolver?: PlaybackBundleResolver
+  onRecommendationResolve?: (event: { recommendationItemId: string, outcome: 'resolved' | 'unplayable' }) => void
 }
 
 export const registerPlaybackRoutes = (app: ApiFastifyInstance, options: PlaybackRouteOptions = {}): void => {
@@ -46,6 +47,7 @@ export const registerPlaybackRoutes = (app: ApiFastifyInstance, options: Playbac
         info: Type.Unknown(),
         quality: Type.String({ minLength: 1 }),
         preferLocal: Type.Optional(Type.Boolean()),
+        recommendationItemId: Type.Optional(Type.String({ minLength: 1 })),
       }, { additionalProperties: false }),
       response: {
         200: ApiSuccess(Type.Object({
@@ -60,12 +62,16 @@ export const registerPlaybackRoutes = (app: ApiFastifyInstance, options: Playbac
       },
     },
   }, async(request) => {
-    const input = request.body as Partial<ResolveTrackInput> | null
+    const input = request.body as (Partial<ResolveTrackInput> & { recommendationItemId?: string }) | null
     if (input == null || typeof input.source !== 'string' || input.source.length === 0 || input.info == null || typeof input.quality !== 'string') throw new ApiError(400, 'SOURCE_PROTOCOL_ERROR', 'Invalid playback resolve request')
     if (resolver == null) throw new ApiError(503, 'PLAYBACK_UNAVAILABLE', 'Playback resolver unavailable')
     try {
-      return { data: await resolver(input as ResolveTrackInput) }
+      const { recommendationItemId, ...resolveInput } = input
+      const resolved = await resolver(resolveInput as ResolveTrackInput)
+      if (recommendationItemId != null) options.onRecommendationResolve?.({ recommendationItemId, outcome: 'resolved' })
+      return { data: resolved }
     } catch (error) {
+      if (input.recommendationItemId != null) options.onRecommendationResolve?.({ recommendationItemId: input.recommendationItemId, outcome: 'unplayable' })
       if (error instanceof ApiError) throw error
       if (error instanceof SourceServiceError) throw new ApiError(502, error.code, 'Playback source request failed')
       throw error

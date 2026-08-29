@@ -48,6 +48,8 @@ test('production Web removes desktop file actions while retaining network, play,
       cwd: process.cwd(),
       env: {
         ...process.env,
+        NODE_ENV: 'test',
+        TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS: '1',
         TUNEFLOW_HOST: '127.0.0.1',
         TUNEFLOW_PORT: String(servicePort),
         TUNEFLOW_STORAGE_ROOT: storageRoot,

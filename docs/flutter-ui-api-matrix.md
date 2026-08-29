@@ -13,7 +13,10 @@ This document is the implementation contract for the accepted Open Design client
 | Downloads | Download list and per-task mutation routes plus SSE | Derive transfer speed from byte deltas; use `queuePosition` and timestamps for stable presentation. |
 | Local library | Library list, scan, and stream routes | Sum `size` for totals and copy selected media into the Flutter cache while Service is reachable. |
 | Offline playback | No live Service call | Play only media already stored in the Flutter cache; cached metadata alone is not playable. |
-| Recent playback | Versioned `client-data` key `flutter.playback-history.v1` | Persist a bounded list containing track identity, last position, and last-played timestamp. |
+| Recent playback | `GET/POST /api/v1/playback/history`, `PATCH /api/v1/playback/history/{id}` | Report actual start and one terminal event; read the Service-owned 30-day session list. |
+| Daily recommendations | Daily, refresh, status, feedback, and profile routes plus `recommendations.updated` SSE; optional `recommendationItemId` on resolve/history start | Cache the last complete snapshot for offline display, preserve per-item attribution in the playback queue, and never generate a local replacement or mutate Service exposure history while offline. |
 | Theme, language, lyric preferences | Flutter-local preferences | No Service dependency. |
 
 The Service does not provide compatibility aliases for superseded contracts. Any intentional breaking API change must pass the Service contract tests and the existing Web client build/test gates before it is accepted.
+
+Recommendation UI implementation belongs to `/Volumes/ext/MusicFree/flutter-client` and starts only after the Service/OpenAPI contract above passes and is frozen.

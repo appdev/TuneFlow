@@ -64,13 +64,13 @@ const diffCurrentMusicInfo = (curMusicInfo: TuneFlow.Music.MusicInfo | TuneFlow.
 }
 
 let cancelDelayRetry: (() => void) | null = null
-const delayRetry = async(musicInfo: TuneFlow.Music.MusicInfo | TuneFlow.Download.ListItem, isRefresh = false): Promise<string | null> => {
+const delayRetry = async(musicInfo: TuneFlow.Music.MusicInfo | TuneFlow.Download.ListItem, isRefresh = false, playbackContext?: TuneFlow.Player.PlaybackContext): Promise<string | null> => {
   // if (cancelDelayRetry) cancelDelayRetry()
   return new Promise<string | null>((resolve, reject) => {
     const time = getRandom(2, 6)
     setAllStatus(window.i18n.t('player__getting_url_delay_retry', { time }))
     const tiemout = setTimeout(() => {
-      getMusicPlayUrl(musicInfo, isRefresh, true).then((result) => {
+      getMusicPlayUrl(musicInfo, isRefresh, true, playbackContext).then((result) => {
         cancelDelayRetry = null
         resolve(result)
       }).catch(async(err: any) => {
@@ -85,7 +85,7 @@ const delayRetry = async(musicInfo: TuneFlow.Music.MusicInfo | TuneFlow.Download
     }
   })
 }
-const getMusicPlayUrl = async(musicInfo: TuneFlow.Music.MusicInfo | TuneFlow.Download.ListItem, isRefresh = false, isRetryed = false): Promise<string | null> => {
+const getMusicPlayUrl = async(musicInfo: TuneFlow.Music.MusicInfo | TuneFlow.Download.ListItem, isRefresh = false, isRetryed = false, playbackContext?: TuneFlow.Player.PlaybackContext): Promise<string | null> => {
   // this.musicInfo.url = await getMusicPlayUrl(targetSong, type)
   setAllStatus(window.i18n.t('player__getting_url'))
   if (appSetting['player.autoSkipOnError']) addLoadTimeout()
@@ -97,6 +97,7 @@ const getMusicPlayUrl = async(musicInfo: TuneFlow.Music.MusicInfo | TuneFlow.Dow
     musicInfo: toggleMusicInfo,
     isRefresh,
     allowToggleSource: false,
+    playbackContext,
   }) : Promise.reject(new Error('not found'))).catch(async() => {
     return getMusicUrl({
       musicInfo,
@@ -105,6 +106,7 @@ const getMusicPlayUrl = async(musicInfo: TuneFlow.Music.MusicInfo | TuneFlow.Dow
         if (diffCurrentMusicInfo(musicInfo)) return
         setAllStatus(window.i18n.t('toggle_source_try'))
       },
+      playbackContext,
     })
   }).then(url => {
     if (window.tuneflow.isPlayedStop || diffCurrentMusicInfo(musicInfo)) return null
@@ -117,9 +119,9 @@ const getMusicPlayUrl = async(musicInfo: TuneFlow.Music.MusicInfo | TuneFlow.Dow
       diffCurrentMusicInfo(musicInfo) ||
       err.message == requestMsg.cancelRequest) return null
 
-    if (err.message == requestMsg.tooManyRequests) return delayRetry(musicInfo, isRefresh)
+    if (err.message == requestMsg.tooManyRequests) return delayRetry(musicInfo, isRefresh, playbackContext)
 
-    if (!isRetryed) return getMusicPlayUrl(musicInfo, isRefresh, true)
+    if (!isRetryed) return getMusicPlayUrl(musicInfo, isRefresh, true, playbackContext)
 
     throw err
   })
@@ -130,7 +132,8 @@ export const setMusicUrl = (musicInfo: TuneFlow.Music.MusicInfo | TuneFlow.Downl
   if (!diffCurrentMusicInfo(musicInfo)) return
   if (cancelDelayRetry) cancelDelayRetry()
   gettingUrlId = createGettingUrlId(musicInfo)
-  void getMusicPlayUrl(musicInfo, isRefresh).then((url) => {
+  const playbackContext = playMusicInfo.playbackContext
+  void getMusicPlayUrl(musicInfo, isRefresh, false, playbackContext).then((url) => {
     if (!url) return
     setResource(url)
   }).catch((err: any) => {
@@ -366,7 +369,7 @@ export const getNextPlayMusicInfo = async(): Promise<TuneFlow.Player.PlayMusicIn
 
 const handlePlayNext = (playMusicInfo: TuneFlow.Player.PlayMusicInfo) => {
   // pause()
-  setPlayMusicInfo(playMusicInfo.listId, playMusicInfo.musicInfo, playMusicInfo.isTempPlay)
+  setPlayMusicInfo(playMusicInfo.listId, playMusicInfo.musicInfo, playMusicInfo.isTempPlay, playMusicInfo.playbackContext)
   handlePlay()
 }
 /**

@@ -18,11 +18,11 @@ import { fetchServiceLyric, fetchServicePicture } from '../../../web-runtime/lyr
 
 const isServiceWeb = (): boolean => usesServicePlayback()
 
-const resolveServiceTrack = async(musicInfo: TuneFlow.Music.MusicInfoOnline, quality: TuneFlow.Quality): Promise<string> => {
+const resolveServiceTrack = async(musicInfo: TuneFlow.Music.MusicInfoOnline, quality: TuneFlow.Quality, playbackContext?: TuneFlow.Player.PlaybackContext): Promise<string> => {
   const response = await fetch('/api/v1/playback/tracks/resolve', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ source: musicInfo.source, quality, preferLocal: true, info: { type: quality, musicInfo } }),
+    body: JSON.stringify({ source: musicInfo.source, quality, preferLocal: true, info: { type: quality, musicInfo }, ...playbackContext }),
   })
   const body = await response.json() as { data?: { url?: unknown }, error?: { message?: unknown } }
   if (!response.ok || typeof body.data?.url !== 'string' || !/^\/api\/v1\/(?:streams\/|library\/tracks\/[a-f\d]{64}\/stream$)/.test(body.data.url)) {
@@ -55,12 +55,13 @@ export const setPic = (datas: {
  */
 
 
-export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSource = true, onToggleSource = () => {} }: {
+export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSource = true, onToggleSource = () => {}, playbackContext }: {
   musicInfo: TuneFlow.Music.MusicInfoOnline
   quality?: TuneFlow.Quality
   isRefresh: boolean
   allowToggleSource?: boolean
   onToggleSource?: (musicInfo?: TuneFlow.Music.MusicInfoOnline) => void
+  playbackContext?: TuneFlow.Player.PlaybackContext
 }): Promise<string> => {
   // if (!musicInfo._types[type]) {
   //   // 兼容旧版酷我源搜索列表过滤128k音质的bug
@@ -69,7 +70,7 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
   //   // return Promise.reject(new Error('该歌曲没有可播放的音频'))
   // }
   const targetQuality = quality ?? getPlayQuality(appSetting['player.playQuality'], musicInfo)
-  if (isServiceWeb()) return resolveServiceTrack(musicInfo, targetQuality)
+  if (isServiceWeb()) return resolveServiceTrack(musicInfo, targetQuality, playbackContext)
   const cachedUrl = await getStoreMusicUrl(musicInfo, targetQuality)
   if (cachedUrl && !isRefresh) return cachedUrl
 

@@ -173,12 +173,13 @@ const setPlayerMusicInfo = (musicInfo: TuneFlow.Music.MusicInfo | TuneFlow.Downl
  * @param musicInfo 歌曲信息
  * @param isTempPlay 是否临时播放
  */
-export const setPlayMusicInfo = (listId: string | null, musicInfo: TuneFlow.Download.ListItem | TuneFlow.Music.MusicInfo | null, isTempPlay: boolean = false) => {
+export const setPlayMusicInfo = (listId: string | null, musicInfo: TuneFlow.Download.ListItem | TuneFlow.Music.MusicInfo | null, isTempPlay: boolean = false, playbackContext?: TuneFlow.Player.PlaybackContext) => {
   musicInfo = toRaw(musicInfo)
 
   playMusicInfo.listId = listId
   playMusicInfo.musicInfo = musicInfo
   playMusicInfo.isTempPlay = isTempPlay
+  playMusicInfo.playbackContext = playbackContext
 
   setPlayerMusicInfo(musicInfo)
 
@@ -233,8 +234,8 @@ export const addTempPlayList = (list: TuneFlow.Player.TempPlayListItem[]) => {
     }
     return true
   })
-  if (topList.length) arrUnshift(tempPlayList, topList.map(({ musicInfo, listId }) => ({ musicInfo, listId, isTempPlay: true })))
-  if (bottomList.length) arrPush(tempPlayList, bottomList.map(({ musicInfo, listId }) => ({ musicInfo, listId, isTempPlay: true })))
+  if (topList.length) arrUnshift(tempPlayList, topList.map(({ musicInfo, listId, playbackContext }) => ({ musicInfo, listId, isTempPlay: true, playbackContext })))
+  if (bottomList.length) arrPush(tempPlayList, bottomList.map(({ musicInfo, listId, playbackContext }) => ({ musicInfo, listId, isTempPlay: true, playbackContext })))
 
   if (!playMusicInfo.musicInfo) void playNext()
 }

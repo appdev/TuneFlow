@@ -53,10 +53,12 @@ export const playMusicInfo = shallowReactive<{
    * 是否属于 “稍后播放”
    */
   isTempPlay: boolean
+  playbackContext?: TuneFlow.Player.PlaybackContext
 }>({
   listId: null,
   musicInfo: null,
   isTempPlay: false,
+  playbackContext: undefined,
 })
 export const playInfo = shallowReactive<TuneFlow.Player.PlayInfo>({
   playIndex: -1,

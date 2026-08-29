@@ -7,6 +7,11 @@ export interface PlaybackSessionStart {
   playbackId: string
 }
 
+export interface PlaybackSessionInput {
+  track: PlaybackTrack
+  recommendationItemId?: string
+}
+
 export interface PlaybackProgress {
   position: number
   duration: number
@@ -19,7 +24,7 @@ interface PlaybackTerminal {
 }
 
 interface PlaybackSessionDependencies {
-  start: (track: PlaybackTrack) => Promise<PlaybackSessionStart>
+  start: (input: PlaybackSessionInput) => Promise<PlaybackSessionStart>
   end: (playbackId: string, terminal: PlaybackTerminal, keepalive: boolean) => Promise<void>
   log?: (error: unknown) => void
 }
@@ -30,7 +35,7 @@ interface ActivePlayback {
 }
 
 export interface PlaybackSessionManager {
-  started: (track: PlaybackTrack) => Promise<void>
+  started: (input: PlaybackSessionInput) => Promise<void>
   completed: (progress: PlaybackProgress) => Promise<void>
   interrupted: (progress: PlaybackProgress) => Promise<void>
   dispose: (progress: PlaybackProgress) => void
@@ -64,12 +69,12 @@ export const createPlaybackSessionManager = (dependencies: PlaybackSessionDepend
   }
 
   return {
-    async started(track) {
+    async started(input) {
       if (active != null) return
       const entry: ActivePlayback = { playbackId: null, terminal: null }
       active = entry
       try {
-        const created = await dependencies.start(track)
+        const created = await dependencies.start(input)
         entry.playbackId = created.playbackId
         if (entry.terminal != null) await reportEnd(entry, false)
       } catch (error) {
@@ -98,11 +103,11 @@ const responseError = async(response: Response): Promise<Error> => {
 }
 
 export const createServicePlaybackSessionManager = (): PlaybackSessionManager => createPlaybackSessionManager({
-  start: async track => {
+  start: async({ track, recommendationItemId }) => {
     const response = await fetch('/api/v1/playback/history', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ track, platform: 'web' }),
+      body: JSON.stringify({ track, platform: 'web', ...(recommendationItemId == null ? {} : { recommendationItemId }) }),
     })
     if (!response.ok) throw await responseError(response)
     const body = await response.json() as { data?: { playbackId?: unknown } }

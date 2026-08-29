@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
   testDir: './tests',
-  testMatch: ['e2e/play-search-download.spec.ts', 'e2e/settings-theme.spec.ts', 'web-only-ui.spec.ts'],
+  testMatch: ['e2e/play-search-download.spec.ts', 'e2e/settings-theme.spec.ts', 'e2e/recommendations.spec.ts', 'web-only-ui.spec.ts'],
   fullyParallel: false,
   workers: 1,
   timeout: 120_000,

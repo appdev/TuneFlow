@@ -1,6 +1,10 @@
 
 declare namespace TuneFlow {
   namespace Player {
+    interface PlaybackContext {
+      recommendationItemId?: string
+    }
+
     interface PlayMusicInfo {
       /**
        * 当前播放歌曲的列表 id
@@ -14,6 +18,7 @@ declare namespace TuneFlow {
         * 是否属于 “稍后播放”
         */
       isTempPlay: boolean
+      playbackContext?: PlaybackContext
     }
 
     interface PlayInfo {
@@ -44,6 +49,7 @@ declare namespace TuneFlow {
        * 是否添加到列表顶部
        */
       isTop?: boolean
+      playbackContext?: PlaybackContext
     }
 
     interface SavedPlayInfo {

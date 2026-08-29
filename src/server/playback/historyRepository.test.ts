@@ -77,6 +77,47 @@ describe('PlaybackHistoryRepository', () => {
     expect(new PlaybackHistoryRepository({ now: () => 1_235 }).list()).toEqual([stored])
   })
 
+  it('adds recommendation attribution to the production schema without deleting sessions', () => {
+    getDB().exec(`
+      CREATE TABLE web_playback_history (
+        sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+        playback_id TEXT NOT NULL UNIQUE,
+        source TEXT NOT NULL,
+        track_id TEXT NOT NULL,
+        track_json TEXT NOT NULL,
+        platform TEXT NOT NULL,
+        started_at INTEGER NOT NULL,
+        ended_at INTEGER,
+        completed INTEGER NOT NULL DEFAULT 0,
+        last_position_seconds REAL,
+        duration_seconds REAL
+      );
+      CREATE INDEX index_web_playback_history_order ON web_playback_history(started_at DESC, sequence DESC);
+      INSERT INTO web_playback_history(playback_id, source, track_id, track_json, platform, started_at, ended_at, completed, last_position_seconds, duration_seconds)
+      VALUES ('preserved', 'kw', 'song', '{"id":"song","source":"kw"}', 'web', 1000, 2000, 1, 180, 180);
+    `)
+
+    const history = new PlaybackHistoryRepository({ now: () => 2_001 })
+    expect(history.list()).toEqual([expect.objectContaining({ playbackId: 'preserved', completed: true, recommendationItemId: null })])
+  })
+
+  it('persists optional recommendation attribution without changing legacy callers', () => {
+    let id = 0
+    const history = new PlaybackHistoryRepository({ now: () => 1_234, createId: () => `play-${++id}` })
+    const attributed = history.start({ id: 'recommended', source: 'kw' }, 'web', 'recommendation-item-1')
+    const manual = history.start({ id: 'manual', source: 'kw' }, 'web')
+
+    expect(attributed.recommendationItemId).toBe('recommendation-item-1')
+    expect(manual.recommendationItemId).toBeNull()
+
+    close()
+    expect(init(storageRoot)).toBe(true)
+    expect(new PlaybackHistoryRepository({ now: () => 1_235 }).list()).toEqual([
+      expect.objectContaining({ playbackId: manual.playbackId, recommendationItemId: null }),
+      expect.objectContaining({ playbackId: attributed.playbackId, recommendationItemId: 'recommendation-item-1' }),
+    ])
+  })
+
   it('replaces the test-stage legacy table once', () => {
     getDB().exec(`
       CREATE TABLE web_playback_history (

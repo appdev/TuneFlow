@@ -25,19 +25,21 @@ export const getMusicUrl = async({
   isRefresh = false,
   onToggleSource,
   allowToggleSource,
+  playbackContext,
 }: {
   musicInfo: TuneFlow.Music.MusicInfo | TuneFlow.Download.ListItem
   isRefresh?: boolean
   quality?: TuneFlow.Quality
   onToggleSource?: (musicInfo?: TuneFlow.Music.MusicInfoOnline) => void
   allowToggleSource?: boolean
+  playbackContext?: TuneFlow.Player.PlaybackContext
 }): Promise<string> => {
   if ('progress' in musicInfo) {
     return getDownloadMusicUrl({ musicInfo, isRefresh, onToggleSource, allowToggleSource })
   } else if (musicInfo.source == 'local') {
     return getLocalMusicUrl({ musicInfo, isRefresh, onToggleSource, allowToggleSource })
   } else {
-    return getOnlineMusicUrl({ musicInfo, isRefresh, quality, onToggleSource, allowToggleSource })
+    return getOnlineMusicUrl({ musicInfo, isRefresh, quality, onToggleSource, allowToggleSource, playbackContext })
   }
 }
 

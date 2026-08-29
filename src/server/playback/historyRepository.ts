@@ -22,6 +22,7 @@ export interface PlaybackSession {
   completed: boolean
   lastPositionSeconds: number | null
   durationSeconds: number | null
+  recommendationItemId: string | null
 }
 
 interface PlaybackSessionRow {
@@ -33,6 +34,7 @@ interface PlaybackSessionRow {
   completed: number
   lastPositionSeconds: number | null
   durationSeconds: number | null
+  recommendationItemId: string | null
 }
 
 interface PlaybackHistoryRepositoryOptions {
@@ -53,6 +55,7 @@ const schemaColumns = [
   'completed',
   'last_position_seconds',
   'duration_seconds',
+  'recommendation_item_id',
 ]
 
 const createSchema = (): void => {
@@ -68,7 +71,8 @@ const createSchema = (): void => {
       ended_at INTEGER,
       completed INTEGER NOT NULL DEFAULT 0,
       last_position_seconds REAL,
-      duration_seconds REAL
+      duration_seconds REAL,
+      recommendation_item_id TEXT
     );
     CREATE INDEX index_web_playback_history_order
     ON web_playback_history(started_at DESC, sequence DESC);
@@ -83,10 +87,19 @@ const ensureSchema = (): void => {
     return
   }
   if (columns.join('\0') === schemaColumns.join('\0')) return
-  db.transaction(() => {
-    db.exec('DROP TABLE web_playback_history')
-    createSchema()
-  })()
+  const oldProductionColumns = schemaColumns.filter(column => column !== 'recommendation_item_id')
+  if (columns.join('\0') === oldProductionColumns.join('\0')) {
+    db.exec('ALTER TABLE web_playback_history ADD COLUMN recommendation_item_id TEXT')
+    return
+  }
+  if (columns.includes('played_at') && !columns.includes('playback_id')) {
+    db.transaction(() => {
+      db.exec('DROP TABLE web_playback_history')
+      createSchema()
+    })()
+    return
+  }
+  throw new Error(`Unsupported web_playback_history schema: ${columns.join(',')}`)
 }
 
 const rowToSession = (row: PlaybackSessionRow): PlaybackSession => ({
@@ -98,6 +111,7 @@ const rowToSession = (row: PlaybackSessionRow): PlaybackSession => ({
   completed: row.completed === 1,
   lastPositionSeconds: row.lastPositionSeconds,
   durationSeconds: row.durationSeconds,
+  recommendationItemId: row.recommendationItemId,
 })
 
 export class PlaybackHistoryRepository {
@@ -111,7 +125,7 @@ export class PlaybackHistoryRepository {
     this.cleanup()
   }
 
-  start(track: PlaybackHistoryTrack, platform: PlaybackPlatform): PlaybackSession {
+  start(track: PlaybackHistoryTrack, platform: PlaybackPlatform, recommendationItemId: string | null = null): PlaybackSession {
     const playbackId = this.createId()
     const startedAt = this.now()
     const safeTrack = sanitizePlaybackTrack(track)
@@ -119,9 +133,9 @@ export class PlaybackHistoryRepository {
       this.cleanup(startedAt)
       getDB().prepare(`
         INSERT INTO web_playback_history(
-          playback_id, source, track_id, track_json, platform, started_at
-        ) VALUES (?, ?, ?, ?, ?, ?)
-      `).run(playbackId, safeTrack.source, safeTrack.id, JSON.stringify(safeTrack), platform, startedAt)
+          playback_id, source, track_id, track_json, platform, started_at, recommendation_item_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(playbackId, safeTrack.source, safeTrack.id, JSON.stringify(safeTrack), platform, startedAt, recommendationItemId)
       return this.get(playbackId)!
     })()
   }
@@ -146,7 +160,8 @@ export class PlaybackHistoryRepository {
     const rows = getDB().prepare(`
       SELECT playback_id AS playbackId, track_json AS trackJson, platform,
         started_at AS startedAt, ended_at AS endedAt, completed,
-        last_position_seconds AS lastPositionSeconds, duration_seconds AS durationSeconds
+        last_position_seconds AS lastPositionSeconds, duration_seconds AS durationSeconds,
+        recommendation_item_id AS recommendationItemId
       FROM web_playback_history
       ORDER BY started_at DESC, sequence DESC
     `).all() as PlaybackSessionRow[]
@@ -157,7 +172,8 @@ export class PlaybackHistoryRepository {
     const row = getDB().prepare(`
       SELECT playback_id AS playbackId, track_json AS trackJson, platform,
         started_at AS startedAt, ended_at AS endedAt, completed,
-        last_position_seconds AS lastPositionSeconds, duration_seconds AS durationSeconds
+        last_position_seconds AS lastPositionSeconds, duration_seconds AS durationSeconds,
+        recommendation_item_id AS recommendationItemId
       FROM web_playback_history
       WHERE playback_id=?
     `).get(playbackId) as PlaybackSessionRow | undefined

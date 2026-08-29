@@ -252,6 +252,48 @@ same rule at file scope: a failed or unparseable candidate is discarded, the
 temporary file is cleared, and the next source restarts at byte zero before
 normal quality downgrade is considered.
 
+## Daily recommendations
+
+The Service builds a partial local catalog from bounded samples of public
+playlists and leaderboards exposed by the built-in providers. It canonicalizes
+track identity across providers, retains edition markers such as Live, Remix,
+Acoustic, Instrumental, and Cover, and derives normalized co-occurrence plus
+weak genre, mood, and scene evidence. A weak tag needs support from at least
+three independent sampled playlists. No catalog audio, resolved stream URL,
+request header, cookie, credential, or private host path is stored in the
+recommendation index.
+
+The daily API is Service-owned:
+
+- `GET /api/v1/recommendations/daily` returns the stable snapshot for the
+  Service-local date. Normal supply is 30 tracks: 21 system-unheard and 9
+  familiar tracks.
+- `POST /api/v1/recommendations/daily/refresh` starts one asynchronous full
+  replacement. The old snapshot remains readable while generation runs, and
+  every track exposed in an earlier version that day is excluded.
+- `GET /api/v1/recommendations/status` exposes bounded generation state and
+  error codes without returning the private taste profile.
+- `POST /api/v1/recommendations/feedback` records track/artist disinterest or
+  undoes a previous feedback item.
+- `DELETE /api/v1/recommendations/profile` clears taste aggregates, feedback,
+  exposures, and recommendation snapshots. It does not delete raw playback
+  history, playlists, downloads, media, or the public catalog index.
+
+Completed and interrupted playback sessions contribute idempotent implicit
+signals. Raw sessions retain the existing 30-day limit; long-term aggregates
+decay with a 30-day half-life. Explicit list, favorite, download, and dislike
+facts remain effective until the underlying fact is removed. Snapshot detail
+is retained for 90 days. `recommendation.timeZone` accepts `system` or an IANA
+time zone and controls the daily boundary.
+
+Generation and catalog sampling run in the background. During initial sampling
+the response is `warming`; partial provider failure can publish `degraded` with
+the successful source coverage. Failure never becomes a dislike signal and an
+incomplete generation never overwrites the last complete snapshot. Successful
+generation publishes `recommendations.updated` over the existing SSE channel.
+Clients may optionally attach `recommendationItemId` to playback resolve and
+history-start requests for attribution.
+
 ## Web feature boundary
 
 The Web build supports navigation, search, lists, player,

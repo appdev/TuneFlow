@@ -65,6 +65,17 @@ export class SettingsRepository {
         normalized[key] = normalizeConfiguredServiceOrigin(normalized[key])
       }
     }
+    if (Object.prototype.hasOwnProperty.call(normalized, 'recommendation.timeZone')) {
+      const value = normalized['recommendation.timeZone']
+      if (value !== 'system') {
+        if (typeof value !== 'string' || value === '') throw new ApiError(400, 'INVALID_SETTING', 'Recommendation time zone is invalid')
+        try {
+          new Intl.DateTimeFormat('en-US', { timeZone: value }).format(0)
+        } catch {
+          throw new ApiError(400, 'INVALID_SETTING', 'Recommendation time zone is invalid')
+        }
+      }
+    }
     const upsert = getDB().prepare('INSERT INTO web_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value')
     const db = getDB()
     db.transaction((patch: Record<string, unknown>) => {

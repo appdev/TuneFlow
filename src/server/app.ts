@@ -38,6 +38,14 @@ import { PlaybackBundleResolver } from './playback/bundleResolver'
 import { TrackResourceService } from './resources/trackResources'
 import { LibraryMetadataEnricher } from './library/metadataEnricher'
 import { TrackResourceCoordinator } from './resources/trackResourceCoordinator'
+import { CatalogRepository } from './recommendations/catalogRepository'
+import { RelationIndex } from './recommendations/relationIndex'
+import { CatalogSampler } from './recommendations/catalogSampler'
+import { TasteRepository } from './recommendations/tasteRepository'
+import { RecommendationRanker } from './recommendations/ranker'
+import { SnapshotRepository } from './recommendations/snapshotRepository'
+import { RecommendationService } from './recommendations/service'
+import { registerRecommendationRoutes } from './routes/recommendations'
 
 export type { ServerOptions, ServerOptionsInput } from './config'
 
@@ -58,6 +66,23 @@ export const createServer = async(options: ServerOptionsInput): Promise<FastifyI
   }, {
     // Test fixtures are local by design; production never relaxes the source-import SSRF boundary.
     allowPrivateNetwork: process.env.NODE_ENV === 'test' && process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_SOURCE_TARGETS === '1',
+  })
+  const catalogRepository = new CatalogRepository()
+  const relationIndex = new RelationIndex(catalogRepository)
+  const isPlayableProvider = (provider: string): boolean => sources.snapshot(provider, 'musicUrl').length > 0
+  const sourcePriority = (provider: string): number => sources.snapshot(provider, 'musicUrl')[0]?.priority ?? Number.MAX_SAFE_INTEGER
+  const catalogSampler = new CatalogSampler(catalogRepository, relationIndex, { isPlayableProvider })
+  const tasteRepository = new TasteRepository()
+  const snapshots = new SnapshotRepository()
+  const recommendations = new RecommendationService({
+    sampler: catalogSampler,
+    ranker: new RecommendationRanker(catalogRepository, tasteRepository),
+    snapshots,
+    taste: tasteRepository,
+    getTimeZone: () => settings.getSettings()['recommendation.timeZone'],
+    isPlayableProvider,
+    sourcePriority,
+    publish: response => { events.publishSnapshot('recommendations.updated', response) },
   })
   let integrityLookup: (filePath: string) => DownloadFileIntegrity | undefined = () => undefined
   let downloadedAtLookup: (filePath: string) => number | undefined = () => undefined
@@ -233,6 +258,7 @@ export const createServer = async(options: ServerOptionsInput): Promise<FastifyI
     resourceCoordinator?.close()
     await resourceCoordinator?.waitForIdle()
     downloads.close()
+    await recommendations.close()
     await sources.close()
     events.close()
     closeDatabase()
@@ -253,10 +279,12 @@ export const createServer = async(options: ServerOptionsInput): Promise<FastifyI
     resourceStore: playbackResources,
     // Test fixtures are local by design; production never relaxes the SSRF boundary.
     allowPrivateNetwork: allowPrivatePlaybackTargets,
+    onRecommendationResolve: event => { recommendations.recordResolveOutcome(event) },
   })
   registerPlaybackHistoryRoutes(app, {
     history: playbackHistory,
     onStarted: async session => {
+      recommendations.recordPlaybackStart(session)
       if (!settings.getSettings()['player.autoDownloadOnPlay'] || session.track.source === 'local') return
       const meta = typeof session.track.meta === 'object' && session.track.meta != null
         ? session.track.meta as Record<string, unknown>
@@ -277,12 +305,15 @@ export const createServer = async(options: ServerOptionsInput): Promise<FastifyI
       }
       await downloads.createForPlayback(musicInfo)
     },
+    onEnded: session => { recommendations.applyPlayback(session) },
   })
+  registerRecommendationRoutes(app, recommendations)
   registerDownloadRoutes(app, downloads)
   registerLibraryRoutes(app, library, {
     onDeleted: filePath => { downloads.removeCompletedForFile(filePath) },
     publish: tracks => { events.publishSnapshot('library.updated', tracks) },
   })
+  recommendations.start()
   app.all('/api/v1', { schema: { hide: true } }, async() => {
     throw new ApiError(404, 'NOT_FOUND', 'API route not found')
   })

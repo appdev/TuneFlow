@@ -15,6 +15,14 @@ const router = createRouter({
       },
     },
     {
+      path: '/recommendations',
+      name: 'Recommendations',
+      component: require('./views/Recommendations/index.vue').default,
+      meta: {
+        name: 'Recommendations',
+      },
+    },
+    {
       path: '/songList/list',
       name: 'SongList',
       component: require('./views/songList/List/index.vue').default,

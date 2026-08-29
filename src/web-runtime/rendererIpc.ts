@@ -30,6 +30,7 @@ const domainEvents = new Map<string, { type: string, select?: (data: unknown) =>
     type: 'sources.update-available',
   }],
   ['service_downloads', { type: 'downloads.updated' }],
+  ['service_recommendations', { type: 'recommendations.updated' }],
   [PLAYER_EVENT_NAME.list_add, { type: 'playlists.created' }],
   [PLAYER_EVENT_NAME.list_update, { type: 'playlists.updated' }],
   [PLAYER_EVENT_NAME.list_remove, { type: 'playlists.deleted' }],
@@ -97,7 +98,7 @@ classify({ kind: 'route' }, [
   DISLIKE_EVENT_NAME.overwrite_dislike_music_infos,
   DISLIKE_EVENT_NAME.clear_dislike_music_infos,
 ])
-classify({ kind: 'event' }, [WIN_MAIN_RENDERER_EVENT_NAME.on_config_change, WIN_MAIN_RENDERER_EVENT_NAME.user_api_status, WIN_MAIN_RENDERER_EVENT_NAME.user_api_show_update_alert, 'service_downloads'])
+classify({ kind: 'event' }, [WIN_MAIN_RENDERER_EVENT_NAME.on_config_change, WIN_MAIN_RENDERER_EVENT_NAME.user_api_status, WIN_MAIN_RENDERER_EVENT_NAME.user_api_show_update_alert, 'service_downloads', 'service_recommendations'])
 
 export const classifyIpcName = (name: string): IpcClassification | null => ipcClassifications.get(name) ?? null
 

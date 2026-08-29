@@ -24,11 +24,13 @@ const PlaybackSessionSchema = Type.Object({
   completed: Type.Boolean(),
   lastPositionSeconds: NullableNumber,
   durationSeconds: NullableNumber,
+  recommendationItemId: Type.Union([Identifier, Type.Null()]),
 }, { additionalProperties: false })
 
 interface PlaybackHistoryRouteOptions {
   history: PlaybackHistoryRepository
   onStarted?: (session: PlaybackSession) => void | Promise<void>
+  onEnded?: (session: PlaybackSession) => void | Promise<void>
 }
 
 export const registerPlaybackHistoryRoutes = (app: ApiFastifyInstance, options: PlaybackHistoryRouteOptions): void => {
@@ -49,11 +51,12 @@ export const registerPlaybackHistoryRoutes = (app: ApiFastifyInstance, options: 
       body: Type.Object({
         track: PlaybackHistoryTrack,
         platform: Type.Union(PLAYBACK_PLATFORMS.map(platform => Type.Literal(platform))),
+        recommendationItemId: Type.Optional(Identifier),
       }, { additionalProperties: false }),
       response: { 200: ApiSuccess(PlaybackSessionSchema), ...ErrorResponses },
     },
   }, async(request) => {
-    const session = options.history.start(request.body.track, request.body.platform)
+    const session = options.history.start(request.body.track, request.body.platform, request.body.recommendationItemId ?? null)
     if (options.onStarted != null) {
       void Promise.resolve(options.onStarted(session)).catch(error => {
         app.log.warn({ err: error, playbackId: session.playbackId }, 'Unable to apply playback-start side effects')
@@ -78,6 +81,11 @@ export const registerPlaybackHistoryRoutes = (app: ApiFastifyInstance, options: 
   }, async(request) => {
     const session = options.history.end(request.params.id, request.body)
     if (session == null) throw new ApiError(404, 'NOT_FOUND', 'Playback session not found')
+    if (options.onEnded != null) {
+      void Promise.resolve(options.onEnded(session)).catch(error => {
+        app.log.warn({ err: error, playbackId: session.playbackId }, 'Unable to apply playback-end side effects')
+      })
+    }
     return { data: session }
   })
 }

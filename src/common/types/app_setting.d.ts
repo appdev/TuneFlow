@@ -93,6 +93,9 @@ declare global {
        */
       'player.autoDownloadOnPlay': boolean
 
+      /** IANA time zone used to define the daily recommendation boundary. */
+      'recommendation.timeZone': string
+
       /**
        * 切歌模式
        */

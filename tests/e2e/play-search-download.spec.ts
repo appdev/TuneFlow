@@ -16,6 +16,7 @@ const RESTART_CONSOLE_ERRORS = new Set([
   'Failed to load resource: net::ERR_INCOMPLETE_CHUNKED_ENCODING',
 ])
 const RESTART_CONSOLE_ERROR_FIRST_LINES = new Set(['WebRuntimeError: Unable to reach TuneFlow Service'])
+const EXPECTED_FIXTURE_CONSOLE_ERRORS = new Set(['Failed to load resource: the server responded with a status of 502 (Bad Gateway)'])
 
 const createWave = (): Buffer => {
   const dataSize = DURATION_SECONDS * SAMPLE_RATE * CHANNELS * BYTES_PER_SAMPLE
@@ -199,7 +200,6 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
     const restartDiagnostics: string[] = []
     const diagnostics: string[] = []
     let restartingService = false
-    let simulatingFailedPlayback = false
     page.on('pageerror', error => {
       const diagnostic = `pageerror:${error.message}`
       diagnostics.push(diagnostic)
@@ -209,7 +209,7 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
       const diagnostic = `console:${message.text()}`
       const firstLine = message.text().split('\n', 1)[0]
       if (restartingService && (RESTART_CONSOLE_ERRORS.has(message.text()) || RESTART_CONSOLE_ERROR_FIRST_LINES.has(firstLine))) restartDiagnostics.push(`console:${firstLine}`)
-      else if (!simulatingFailedPlayback || message.text() !== 'Failed to load resource: the server responded with a status of 502 (Bad Gateway)') diagnostics.push(diagnostic)
+      else if (!EXPECTED_FIXTURE_CONSOLE_ERRORS.has(message.text())) diagnostics.push(diagnostic)
     })
     page.on('response', response => {
       const pathname = new URL(response.url()).pathname
@@ -332,11 +332,10 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
 
     await expect.poll(async() => {
       const body = await (await fetch(`${origin}/api/v1/library/tracks`)).json() as { data: Array<{ id: string, name: string, streamUrl: string }> }
-      return body.data.find(item => item.name === 'Task8 downloaded - Fixture artist') ?? null
+      return body.data.find(item => item.name === 'Task8 downloaded') ?? null
     }, { timeout: 20_000 }).not.toBeNull()
 
     let rejectNextOnlineStream = true
-    simulatingFailedPlayback = true
     await page.route(`${origin}/api/v1/streams/**`, async route => {
       if (!rejectNextOnlineStream) return route.continue()
       rejectNextOnlineStream = false
@@ -357,14 +356,16 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
       return session == null ? 'missing' : `${session.completed}:${session.endedAt == null ? 'active' : 'ended'}`
     }).toBe('false:ended')
     await page.unroute(`${origin}/api/v1/streams/**`)
-    simulatingFailedPlayback = false
 
     await page.reload({ waitUntil: 'networkidle' })
     await page.getByRole('tab', { name: 'Your Library' }).click()
     await page.getByLabel('Default', { exact: true }).click()
-    const localTrack = page.getByText('Task8 downloaded - Fixture artist', { exact: true })
+    const localTrack = page.locator('.list-item')
+      .filter({ has: page.getByText('Task8 downloaded', { exact: true }) })
+      .filter({ hasText: 'local' })
+      .first()
     await localTrack.waitFor({ state: 'visible' })
-    await localTrack.locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " list-item ")]').dblclick()
+    await localTrack.dblclick()
     await expect.poll(() => libraryResponses.some(item => item.status === 206)).toBe(true)
     await expect.poll(async() => (await audioState(page)).paused).toBe(false)
     await page.locator('#player').getByLabel('Next', { exact: true }).click()
@@ -393,9 +394,12 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
     await page.getByLabel('Task8 persisted list').waitFor({ state: 'visible' })
     await expect(page.locator('html')).toHaveAttribute('data-theme-id', 'black')
     await page.getByLabel('Default', { exact: true }).click()
-    const restartedLocalTrack = page.getByText('Task8 downloaded - Fixture artist', { exact: true })
+    const restartedLocalTrack = page.locator('.list-item')
+      .filter({ has: page.getByText('Task8 downloaded', { exact: true }) })
+      .filter({ hasText: 'local' })
+      .first()
     await restartedLocalTrack.waitFor({ state: 'visible' })
-    await restartedLocalTrack.locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " list-item ")]').dblclick()
+    await restartedLocalTrack.dblclick()
     await expect.poll(async() => (await audioState(page)).paused).toBe(false)
     await expect(page.locator('#player')).toContainText('Task8 downloaded - Fixture artist')
     await expect.poll(() => libraryResponses.slice(libraryResponseCountBeforeRestart).some(item => item.status === 206 && new URL(item.url).origin === origin)).toBe(true)

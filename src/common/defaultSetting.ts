@@ -139,6 +139,8 @@ const defaultSetting: TuneFlow.AppSetting = {
   'service.lanOrigin': '',
   'service.externalOrigin': '',
 
+  'recommendation.timeZone': 'system',
+
   'tray.enable': false,
   // 'tray.isToTray': false,
   'tray.themeId': 0,

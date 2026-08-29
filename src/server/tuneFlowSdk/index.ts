@@ -24,7 +24,7 @@ interface Provider {
   }
 }
 
-interface ProviderSummary {
+export interface ProviderSummary {
   id: string
   name: string
   searchKinds: CatalogSearchKind[]

@@ -1,8 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
-import { createPlaybackSessionManager, type PlaybackSessionStart } from './playbackSession'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createPlaybackSessionManager, createServicePlaybackSessionManager, type PlaybackSessionStart } from './playbackSession'
 
 const track = { id: 'song-1', source: 'kw', name: 'Song' }
 const session = (playbackId: string): PlaybackSessionStart => ({ playbackId })
+
+afterEach(() => { vi.unstubAllGlobals() })
 
 describe('createPlaybackSessionManager', () => {
   it('starts once for duplicate playing events and reports an interruption', async() => {
@@ -10,11 +12,12 @@ describe('createPlaybackSessionManager', () => {
     const end = vi.fn(async() => {})
     const manager = createPlaybackSessionManager({ start, end })
 
-    await manager.started(track)
-    await manager.started(track)
+    await manager.started({ track, recommendationItemId: 'recommendation-1' })
+    await manager.started({ track, recommendationItemId: 'recommendation-1' })
     await manager.interrupted({ position: 12, duration: 100 })
 
     expect(start).toHaveBeenCalledOnce()
+    expect(start).toHaveBeenCalledWith({ track, recommendationItemId: 'recommendation-1' })
     expect(end).toHaveBeenCalledWith('play-1', {
       completed: false,
       lastPositionSeconds: 12,
@@ -29,9 +32,9 @@ describe('createPlaybackSessionManager', () => {
     const end = vi.fn(async() => {})
     const manager = createPlaybackSessionManager({ start, end })
 
-    await manager.started(track)
+    await manager.started({ track })
     await manager.completed({ position: 100, duration: 100 })
-    await manager.started(track)
+    await manager.started({ track })
 
     expect(end).toHaveBeenCalledWith('play-1', {
       completed: true,
@@ -47,7 +50,7 @@ describe('createPlaybackSessionManager', () => {
     const end = vi.fn(async() => {})
     const manager = createPlaybackSessionManager({ start, end })
 
-    const pending = manager.started(track)
+    const pending = manager.started({ track })
     await manager.interrupted({ position: 2, duration: 100 })
     resolveStart(session('late-play'))
     await pending
@@ -66,15 +69,15 @@ describe('createPlaybackSessionManager', () => {
       log: () => {},
     })
 
-    await expect(manager.started(track)).resolves.toBeUndefined()
-    await expect(manager.started(track)).resolves.toBeUndefined()
+    await expect(manager.started({ track })).resolves.toBeUndefined()
+    await expect(manager.started({ track })).resolves.toBeUndefined()
     await expect(manager.completed({ position: 5, duration: 10 })).resolves.toBeUndefined()
   })
 
   it('uses keepalive when disposed with an active session', async() => {
     const end = vi.fn(async() => {})
     const manager = createPlaybackSessionManager({ start: async() => session('play-1'), end })
-    await manager.started(track)
+    await manager.started({ track })
 
     manager.dispose({ position: 8, duration: 30 })
     await vi.waitFor(() => {
@@ -84,5 +87,20 @@ describe('createPlaybackSessionManager', () => {
         durationSeconds: 30,
       }, true)
     })
+  })
+
+  it('sends optional recommendation attribution only with the active track', async() => {
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(new Response(JSON.stringify({ data: { playbackId: 'play-1' } }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }))
+    vi.stubGlobal('fetch', fetch)
+    const manager = createServicePlaybackSessionManager()
+
+    await manager.started({ track, recommendationItemId: 'recommendation-1' })
+
+    expect(fetch).toHaveBeenCalledWith('/api/v1/playback/history', expect.objectContaining({
+      body: JSON.stringify({ track, platform: 'web', recommendationItemId: 'recommendation-1' }),
+    }))
   })
 })

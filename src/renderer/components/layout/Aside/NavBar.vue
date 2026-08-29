@@ -38,6 +38,15 @@ export default {
           enable: true,
         },
         {
+          to: '/recommendations',
+          tips: t('recommendations'),
+          icon: '#icon-musicFile',
+          iconSize: '-61 0 512 512',
+          size,
+          name: 'Recommendations',
+          enable: true,
+        },
+        {
           to: '/songList/list',
           tips: t('song_list'),
           icon: '#icon-album',

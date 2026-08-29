@@ -1,12 +1,15 @@
 import { onBeforeUnmount } from '@common/utils/vueTools'
 import { getCurrentTime, getDuration } from '@renderer/plugins/player'
 import { playMusicInfo } from '@renderer/store/player/state'
-import { createServicePlaybackSessionManager, type PlaybackTrack } from './playbackSession'
+import { createServicePlaybackSessionManager, type PlaybackSessionInput } from './playbackSession'
 
-const currentTrack = (): PlaybackTrack | null => {
+const currentTrack = (): PlaybackSessionInput | null => {
   const value = playMusicInfo.musicInfo
   if (value == null) return null
-  return ('progress' in value ? value.metadata.musicInfo : value) as PlaybackTrack
+  return {
+    track: ('progress' in value ? value.metadata.musicInfo : value),
+    ...playMusicInfo.playbackContext,
+  }
 }
 
 const progress = () => ({ position: getCurrentTime(), duration: getDuration() })

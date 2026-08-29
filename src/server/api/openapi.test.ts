@@ -61,6 +61,7 @@ describe('Service OpenAPI contract', () => {
       '/api/v1/catalog/playlists/tags', '/api/v1/catalog/playlists/browse', '/api/v1/catalog/playlists/detail',
       '/api/v1/catalog/playlists/search', '/api/v1/catalog/albums/search', '/api/v1/catalog/albums/detail', '/api/v1/catalog/tracks/lyrics',
       '/api/v1/catalog/tracks/picture', '/api/v1/playback/tracks/resolve', '/api/v1/playback/resources/{token}/picture', '/api/v1/playback/history', '/api/v1/playback/history/{id}', '/api/v1/streams/{token}', '/api/v1/downloads',
+      '/api/v1/recommendations/daily', '/api/v1/recommendations/daily/refresh', '/api/v1/recommendations/status', '/api/v1/recommendations/feedback', '/api/v1/recommendations/profile',
       '/api/v1/downloads/history/records', '/api/v1/downloads/{id}/start', '/api/v1/downloads/{id}/resume', '/api/v1/downloads/{id}/pause', '/api/v1/downloads/{id}',
       '/api/v1/library/tracks', '/api/v1/library/scan', '/api/v1/library/tracks/{id}', '/api/v1/library/tracks/{id}/stream',
       '/api/v1/library/tracks/{id}/picture', '/api/v1/library/tracks/{id}/lyrics',
@@ -99,13 +100,20 @@ describe('Service OpenAPI contract', () => {
     expect(historyRequestTrack.required).toEqual(expect.arrayContaining(['id', 'source']))
     expect(historyRequestTrack.additionalProperties).toBe(true)
     expect(document.paths['/api/v1/playback/history'].post.requestBody.content['application/json'].schema.required).toEqual(['track', 'platform'])
+    expect(document.paths['/api/v1/playback/history'].post.requestBody.content['application/json'].schema.properties.recommendationItemId).toMatchObject({ type: 'string' })
+    expect(document.paths['/api/v1/playback/tracks/resolve'].post.requestBody.content['application/json'].schema.properties.recommendationItemId).toMatchObject({ type: 'string' })
     expect(document.paths['/api/v1/playback/history/{id}'].patch.requestBody.content['application/json'].schema.required)
       .toEqual(['completed', 'lastPositionSeconds', 'durationSeconds'])
     const historyItem = successDataSchema('/api/v1/playback/history', 'get').items
     expect(historyItem.required).toEqual(expect.arrayContaining([
       'playbackId', 'track', 'platform', 'startedAt', 'endedAt', 'completed', 'lastPositionSeconds', 'durationSeconds',
+      'recommendationItemId',
     ]))
     expect(historyItem.properties.track.required).toEqual(expect.arrayContaining(['id', 'source']))
+    const recommendationDaily = successDataSchema('/api/v1/recommendations/daily', 'get')
+    expect(recommendationDaily.required).toEqual(expect.arrayContaining(['status', 'localDate', 'version', 'generatedAt', 'sourceCoverage', 'items']))
+    expect(recommendationDaily.properties.items.items.required).toEqual(expect.arrayContaining(['recommendationItemId', 'canonicalTrackId', 'track', 'bucket', 'reason']))
+    expect(document.paths['/api/v1/recommendations/feedback'].post.requestBody.content['application/json'].schema.anyOf).toHaveLength(3)
     const downloadItem = successDataSchema('/api/v1/downloads', 'get').items
     expect(downloadItem.required).toEqual(expect.arrayContaining(['queuePosition', 'createdAt', 'updatedAt']))
     expect(document.paths['/api/v1/downloads'].post.requestBody.content['application/json'].schema.properties.existingFilePolicy.anyOf)
