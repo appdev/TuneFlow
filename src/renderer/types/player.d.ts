@@ -3,6 +3,7 @@ declare namespace TuneFlow {
   namespace Player {
     interface PlaybackContext {
       recommendationItemId?: string
+      radioSessionId?: string
     }
 
     interface PlayMusicInfo {

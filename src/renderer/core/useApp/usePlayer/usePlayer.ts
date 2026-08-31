@@ -37,6 +37,7 @@ import useSoundEffect from './useSoundEffect'
 import useMaxOutputChannelCount from './useMaxOutputChannelCount'
 import usePreloadNextMusic from './usePreloadNextMusic'
 import usePlaybackSession from './usePlaybackSession'
+import { continueRadioBeforeAutoAdvance } from '@renderer/views/Radio/player'
 
 
 export default () => {
@@ -78,7 +79,7 @@ export default () => {
       setPause()
     }
   }
-  const handleEnded = () => {
+  const handleEnded = async() => {
     // setTimeout(() => {
     setAllStatus(t('player__end'))
     if (window.tuneflow.isPlayedStop) {
@@ -87,7 +88,8 @@ export default () => {
     }
     // resetPlayerMusicInfo()
     // window.app_event.stop()
-    void playNext(true)
+    await continueRadioBeforeAutoAdvance()
+    await playNext(true)
     // })
   }
 

@@ -38,6 +38,27 @@ describe('recommendation routes', () => {
     expect(invalid.json().error.code).toBe('INVALID_SETTING')
   })
 
+  it('exposes the official MusicBrainz default and supports explicit disable', async() => {
+    const settings = (await app.inject({ method: 'GET', url: '/api/v1/settings' })).json().data
+    expect(settings['recommendation.musicBrainzBaseUrl']).toBe('https://musicbrainz.org/ws/2/')
+
+    const patched = await app.inject({ method: 'PATCH', url: '/api/v1/settings', payload: { 'recommendation.musicBrainzBaseUrl': '' } })
+    expect(patched.statusCode).toBe(200)
+    const daily = await app.inject({ method: 'GET', url: '/api/v1/recommendations/daily' })
+    expect(daily.json().data).toMatchObject({ status: 'disabled', snapshotLocalDate: null, version: null })
+    expect((await app.inject({ method: 'POST', url: '/api/v1/recommendations/daily/refresh' })).statusCode).toBe(409)
+  })
+
+  it('validates a draft MusicBrainz address without saving it', async() => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/recommendations/musicbrainz/test',
+      payload: { baseUrl: 'not a url' },
+    })
+    expect(response.statusCode).toBe(200)
+    expect(response.json().data).toEqual({ ok: false, normalizedBaseUrl: 'not a url', errorCode: 'invalid_url' })
+  })
+
   it('returns warming immediately and coalesces an asynchronous refresh', async() => {
     const daily = await app.inject({ method: 'GET', url: '/api/v1/recommendations/daily' })
     expect(daily.statusCode).toBe(200)
@@ -65,6 +86,17 @@ describe('recommendation routes', () => {
     const cleared = await app.inject({ method: 'DELETE', url: '/api/v1/recommendations/profile' })
     expect(cleared.statusCode).toBe(200)
     expect(cleared.json().data).toEqual({ profile: 0, feedback: 1, exposure: 0, snapshots: 0 })
+  })
+
+  it('accepts interested track feedback and lets the user undo it', async() => {
+    const input = { type: 'interested_track', track: { id: 'song', source: 'kw', name: 'Song', singer: 'Artist' } }
+    const interested = await app.inject({ method: 'POST', url: '/api/v1/recommendations/feedback', payload: input })
+    expect(interested.statusCode).toBe(200)
+    expect(interested.json().data).toMatchObject({ active: true, type: 'interested_track' })
+
+    const undo = await app.inject({ method: 'POST', url: '/api/v1/recommendations/feedback', payload: { type: 'undo', feedbackId: interested.json().data.feedbackId } })
+    expect(undo.statusCode).toBe(200)
+    expect(undo.json().data).toMatchObject({ active: false, type: 'undo' })
   })
 
   it('attributes playback start and terminal effects idempotently through the public history API', async() => {

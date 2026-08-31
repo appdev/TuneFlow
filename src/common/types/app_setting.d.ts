@@ -95,6 +95,10 @@ declare global {
 
       /** IANA time zone used to define the daily recommendation boundary. */
       'recommendation.timeZone': string
+      'recommendation.musicBrainzBaseUrl': string
+      'recommendation.ai.enabled': boolean
+      'recommendation.ai.baseUrl': string
+      'recommendation.ai.model': string
 
       /**
        * 切歌模式

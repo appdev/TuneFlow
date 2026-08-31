@@ -140,6 +140,10 @@ const defaultSetting: TuneFlow.AppSetting = {
   'service.externalOrigin': '',
 
   'recommendation.timeZone': 'system',
+  'recommendation.musicBrainzBaseUrl': 'https://musicbrainz.org/ws/2/',
+  'recommendation.ai.enabled': false,
+  'recommendation.ai.baseUrl': '',
+  'recommendation.ai.model': '',
 
   'tray.enable': false,
   // 'tray.isToTray': false,

@@ -8,6 +8,7 @@
     </button>
     <common-volume-btn />
     <common-toggle-play-mode-btn />
+    <radio-status />
     <common-list-add-modal v-model:show="isShowAddMusicTo" :music-info="playMusicInfo.musicInfo" />
   </div>
 </template>
@@ -15,8 +16,10 @@
 <script>
 import { ref } from '@common/utils/vueTools'
 import { musicInfo, playMusicInfo } from '@renderer/store/player/state'
+import RadioStatus from './RadioStatus.vue'
 
 export default {
+  components: { RadioStatus },
   setup() {
     const isShowAddMusicTo = ref(false)
     const addMusicTo = () => {

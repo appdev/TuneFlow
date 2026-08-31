@@ -78,10 +78,21 @@ export class SnapshotRepository {
     const row = getDB().prepare(`SELECT s.snapshot_id AS id, s.local_date AS localDate, s.version, s.status,
       s.generated_at AS generatedAt, s.source_coverage_json AS sourceCoverageJson FROM recommendation_current_snapshot c
       JOIN recommendation_snapshot s ON s.snapshot_id=c.snapshot_id WHERE c.local_date=?`).get(localDate) as SnapshotRow | undefined
-    if (row == null) return null
-    const items = getDB().prepare('SELECT item_json AS itemJson FROM recommendation_snapshot_item WHERE snapshot_id=? ORDER BY position')
-      .all(row.id) as Array<{ itemJson: string }>
-    return { status: row.status, localDate: row.localDate, version: row.version, generatedAt: row.generatedAt, sourceCoverage: JSON.parse(row.sourceCoverageJson) as string[], items: items.map(item => JSON.parse(item.itemJson) as RecommendationItem) }
+    return row == null ? null : this.toResponse(row)
+  }
+
+  latestComplete(): DailyRecommendationResponse | null {
+    const row = getDB().prepare(`SELECT snapshot_id AS id, local_date AS localDate, version, status,
+      generated_at AS generatedAt, source_coverage_json AS sourceCoverageJson FROM recommendation_snapshot
+      WHERE status IN ('ready','degraded') ORDER BY generated_at DESC, version DESC LIMIT 1`).get() as SnapshotRow | undefined
+    return row == null ? null : this.toResponse(row)
+  }
+
+  currentCanonicalIds(localDate: string): Set<string> {
+    const rows = getDB().prepare(`SELECT i.canonical_id AS canonicalId FROM recommendation_current_snapshot c
+      JOIN recommendation_snapshot_item i ON i.snapshot_id=c.snapshot_id WHERE c.local_date=? ORDER BY i.position`)
+      .all(localDate) as Array<{ canonicalId: string }>
+    return new Set(rows.map(row => row.canonicalId))
   }
 
   publish(localDate: string, status: Extract<RecommendationStatus, 'ready' | 'degraded'>, coverage: string[], ranked: RankedRecommendation[]): DailyRecommendationResponse {
@@ -102,7 +113,7 @@ export class SnapshotRepository {
       })
       getDB().prepare(`INSERT INTO recommendation_current_snapshot(local_date, snapshot_id) VALUES (?, ?)
         ON CONFLICT(local_date) DO UPDATE SET snapshot_id=excluded.snapshot_id`).run(localDate, snapshotId)
-      return { status, localDate, version, generatedAt: now, sourceCoverage: coverage, items }
+      return { status, localDate, snapshotLocalDate: localDate, version, generatedAt: now, lastErrorCode: null, sourceCoverage: coverage, items }
     })()
   }
 
@@ -201,6 +212,21 @@ export class SnapshotRepository {
     ] as const
     for (const [name, definition] of additions) {
       if (!columns.has(name)) getDB().exec(`ALTER TABLE recommendation_snapshot_item ADD COLUMN ${name} ${definition}`)
+    }
+  }
+
+  private toResponse(row: SnapshotRow): DailyRecommendationResponse {
+    const items = getDB().prepare('SELECT item_json AS itemJson FROM recommendation_snapshot_item WHERE snapshot_id=? ORDER BY position')
+      .all(row.id) as Array<{ itemJson: string }>
+    return {
+      status: row.status,
+      localDate: row.localDate,
+      snapshotLocalDate: row.localDate,
+      version: row.version,
+      generatedAt: row.generatedAt,
+      lastErrorCode: null,
+      sourceCoverage: JSON.parse(row.sourceCoverageJson) as string[],
+      items: items.map(item => JSON.parse(item.itemJson) as RecommendationItem),
     }
   }
 }

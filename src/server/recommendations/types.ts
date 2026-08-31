@@ -1,4 +1,4 @@
-export type RecommendationStatus = 'warming' | 'generating' | 'ready' | 'degraded'
+export type RecommendationStatus = 'warming' | 'generating' | 'ready' | 'degraded' | 'stale' | 'disabled'
 export type RecommendationBucket = 'new' | 'familiar'
 export type RecommendationTagKind = 'genre' | 'mood' | 'scene'
 
@@ -32,19 +32,27 @@ export interface RecommendationReason {
   labels: string[]
 }
 
+export interface RecommendationItemFeedback {
+  interested: boolean
+  interestedFeedbackId: string | null
+}
+
 export interface RecommendationItem {
   recommendationItemId: string
   canonicalTrackId: string
   track: RecommendationTrack
   bucket: RecommendationBucket
   reason: RecommendationReason
+  feedback?: RecommendationItemFeedback
 }
 
 export interface DailyRecommendationResponse {
   status: RecommendationStatus
   localDate: string
+  snapshotLocalDate: string | null
   version: number | null
   generatedAt: number | null
+  lastErrorCode: string | null
   sourceCoverage: string[]
   items: RecommendationItem[]
 }
@@ -52,6 +60,7 @@ export interface DailyRecommendationResponse {
 export interface RecommendationStatusResponse {
   status: RecommendationStatus
   localDate: string
+  snapshotLocalDate: string | null
   version: number | null
   generationId: string | null
   generatedAt: number | null
@@ -59,7 +68,30 @@ export interface RecommendationStatusResponse {
   lastErrorCode: string | null
 }
 
+export interface MusicBrainzConnectionTestResult {
+  ok: boolean
+  normalizedBaseUrl: string
+  errorCode: string | null
+}
+
+export interface MusicBrainzRecording {
+  recordingMbid: string
+  title: string
+  artists: string[]
+  durationMs: number | null
+  releaseGroupMbids: string[]
+  workMbids: string[]
+  firstReleaseDate: string | null
+}
+
+export interface MusicBrainzRecordingMatch {
+  recording: MusicBrainzRecording
+  method: 'isrc' | 'search'
+  confidence: number
+}
+
 export type RecommendationFeedbackInput =
+  | { type: 'interested_track', track: RecommendationTrack }
   | { type: 'not_interested_track', track: RecommendationTrack }
   | { type: 'not_interested_artist', artist: string }
   | { type: 'undo', feedbackId: string }

@@ -3,9 +3,12 @@ import { normalizeLabel } from './identity'
 import { recommendationPolicy, recommendationWeights } from './policy'
 import { toTasteTrackPattern, type TasteRepository } from './tasteRepository'
 import type { RankedRecommendation, RecommendationReason, TrackVariant } from './types'
+import type { MusicBrainzCandidateEvidence } from './musicBrainzEnricher'
 
 export interface RankRecommendationsInput {
-  exposedToday: ReadonlySet<string>
+  exposedToday?: ReadonlySet<string>
+  excludedCanonicalIds?: ReadonlySet<string>
+  musicBrainzEvidence?: ReadonlyMap<string, MusicBrainzCandidateEvidence>
   isPlayableProvider: (source: string) => boolean
   sourcePriority: (source: string) => number
   now: number
@@ -22,42 +25,50 @@ const albumName = (variant: TrackVariant): string => {
 export class RecommendationRanker {
   constructor(private readonly catalog: CatalogRepository, private readonly taste: TasteRepository) {}
 
+  catalogCandidates(now?: number) { return this.catalog.candidates(now) }
+
   rank(input: RankRecommendationsInput): RankedRecommendation[] {
+    const candidates = this.rankCandidates(input)
+    const fresh = candidates.filter(item => item.bucket === 'new')
+    const familiar = candidates.filter(item => item.bucket === 'familiar')
+    const freshTarget = Math.min(recommendationPolicy.newTarget + Math.max(0, recommendationPolicy.familiarTarget - familiar.length), fresh.length)
+    return this.diversify(this.reserveExploration(fresh, freshTarget), familiar)
+  }
+
+  rankCandidates(input: RankRecommendationsInput): RankedRecommendation[] {
     const facts = this.taste.facts()
     const artistScores = this.taste.artistScores()
     const exclusions = this.taste.exclusions()
-    const seeds = [...facts.values()].filter(fact => fact.score > 0).sort((a, b) => b.score - a.score).slice(0, 50)
+    const seeds = this.taste.seeds(50)
     const catalogCandidates = this.catalog.candidates(input.now)
     const catalogById = new Map(catalogCandidates.map(candidate => [candidate.canonical.canonicalTrackId, candidate]))
-    const albumScores = new Map<string, number>()
+    const albumScores = this.taste.albumScores()
     const tagScores = new Map<string, number>()
     for (const seed of seeds) {
       const candidate = catalogById.get(seed.canonicalTrackId)
       if (candidate == null) continue
       const seedWeight = Math.max(0, seed.score)
-      if (candidate.canonical.normalizedAlbum !== '') {
-        albumScores.set(candidate.canonical.normalizedAlbum, (albumScores.get(candidate.canonical.normalizedAlbum) ?? 0) + seedWeight)
-      }
-      for (const artist of candidate.canonical.normalizedArtists) {
-        artistScores.set(artist, Math.max(artistScores.get(artist) ?? 0, seedWeight))
-      }
       for (const tag of candidate.tags) {
         const key = `${tag.kind}:${tag.value}`
         tagScores.set(key, (tagScores.get(key) ?? 0) + seedWeight * tag.confidence)
       }
     }
     const neighbors = this.catalog.neighbors(seeds.map(seed => seed.canonicalTrackId))
-    const relationScores = new Map<string, number>()
+    const relationContributions = new Map<string, number[]>()
     for (const seed of seeds) {
       const seedWeight = Math.max(0, seed.score)
       for (const neighbor of neighbors.get(seed.canonicalTrackId) ?? []) {
-        relationScores.set(neighbor.candidateId, Math.max(relationScores.get(neighbor.candidateId) ?? 0, neighbor.similarity * seedWeight))
+        relationContributions.set(neighbor.candidateId, [
+          ...(relationContributions.get(neighbor.candidateId) ?? []),
+          neighbor.similarity * seedWeight,
+        ])
       }
     }
     const candidates: RankedRecommendation[] = []
     for (const candidate of catalogCandidates) {
       const id = candidate.canonical.canonicalTrackId
-      if (input.exposedToday.has(id) || exclusions.tracks.has(id) || exclusions.titles.has(candidate.canonical.normalizedTitle)) continue
+      const excludedCanonicalIds = input.excludedCanonicalIds ?? input.exposedToday ?? new Set<string>()
+      if (excludedCanonicalIds.has(id) || exclusions.tracks.has(id) || exclusions.titles.has(candidate.canonical.normalizedTitle)) continue
       if (candidate.canonical.normalizedArtists.some(artist => exclusions.artists.has(artist))) continue
       if (exclusions.trackPatterns.has(toTasteTrackPattern(candidate.canonical.normalizedTitle, candidate.canonical.normalizedArtists))) continue
       const variants = candidate.variants.filter(variant => input.isPlayableProvider(variant.source))
@@ -67,7 +78,10 @@ export class RecommendationRanker {
       const fact = facts.get(id)
       const familiar = fact != null
       if (familiar && ((fact.lastPlayedAt != null && input.now - fact.lastPlayedAt < 86_400_000) || fact.earlySkipCount > fact.completedCount + 1)) continue
-      const relation = Math.min(1, relationScores.get(id) ?? 0)
+      const relationValues = relationContributions.get(id) ?? []
+      const localRelation = 1 - Math.exp(-relationValues.reduce((sum, value) => sum + Math.max(0, value), 0))
+      const musicBrainz = input.musicBrainzEvidence?.get(id)
+      const relation = 1 - Math.exp(-(localRelation + Math.max(0, musicBrainz?.score ?? 0)))
       const artistAffinity = Math.min(1, candidate.canonical.normalizedArtists.reduce((sum, artist) => sum + Math.max(0, artistScores.get(artist) ?? 0), 0) / 5)
       const albumAffinity = Math.min(1, Math.max(0, albumScores.get(candidate.canonical.normalizedAlbum) ?? 0) / 5)
       const tagAffinity = Math.min(1, candidate.tags.reduce((sum, tag) => sum + tag.confidence * Math.max(0, tagScores.get(`${tag.kind}:${tag.value}`) ?? 0), 0) / 5)
@@ -77,17 +91,17 @@ export class RecommendationRanker {
         : recommendationWeights.relation * relation + recommendationWeights.artistAlbum * Math.max(artistAffinity, albumAffinity) + recommendationWeights.tag * tagAffinity + recommendationWeights.exploration * exploration + recommendationWeights.variant * variant.metadataQuality
       const reason: RecommendationReason = familiar
         ? { type: 'familiar_replay', labels: [] }
-        : relation > 0 ? { type: 'playlist_cooccurrence', labels: [] }
-          : artistAffinity > 0 ? { type: 'artist_affinity', labels: candidate.canonical.normalizedArtists.slice(0, 2) }
-            : albumAffinity > 0 ? { type: 'album_affinity', labels: [candidate.canonical.normalizedAlbum] }
-              : tagAffinity > 0 ? { type: 'tag_affinity', labels: candidate.tags.filter(tag => (tagScores.get(`${tag.kind}:${tag.value}`) ?? 0) > 0).slice(0, 2).map(tag => tag.value) }
-                : { type: 'exploration', labels: [] }
+        : musicBrainz != null && musicBrainz.score >= localRelation ? musicBrainz.reason
+          : relation > 0 ? { type: 'playlist_cooccurrence', labels: [] }
+            : artistAffinity > 0 ? { type: 'artist_affinity', labels: candidate.canonical.normalizedArtists.slice(0, 2) }
+              : albumAffinity > 0 ? { type: 'album_affinity', labels: [candidate.canonical.normalizedAlbum] }
+                : tagAffinity > 0 ? { type: 'tag_affinity', labels: candidate.tags.filter(tag => (tagScores.get(`${tag.kind}:${tag.value}`) ?? 0) > 0).slice(0, 2).map(tag => tag.value) }
+                  : { type: 'exploration', labels: [] }
       candidates.push({ canonicalTrackId: id, variant, bucket: familiar ? 'familiar' : 'new', reason, score })
     }
     const fresh = candidates.filter(item => item.bucket === 'new').sort((a, b) => b.score - a.score || a.canonicalTrackId.localeCompare(b.canonicalTrackId))
     const familiar = candidates.filter(item => item.bucket === 'familiar').sort((a, b) => b.score - a.score || a.canonicalTrackId.localeCompare(b.canonicalTrackId))
-    const freshTarget = Math.min(recommendationPolicy.newTarget + Math.max(0, recommendationPolicy.familiarTarget - familiar.length), fresh.length)
-    return this.diversify(this.reserveExploration(fresh, freshTarget), familiar)
+    return [...fresh, ...familiar]
   }
 
   private reserveExploration(fresh: RankedRecommendation[], target: number): RankedRecommendation[] {

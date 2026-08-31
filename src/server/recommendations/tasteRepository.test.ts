@@ -46,6 +46,7 @@ describe('TasteRepository', () => {
     expect(taste.applyPlayback(completed)).toBe(false)
     const initial = taste.facts().get(canonicalizeTrack(completed.track)!.canonicalTrackId)!
     expect(initial).toMatchObject({ playCount: 1, completedCount: 1, earlySkipCount: 0 })
+    expect(taste.seeds()[0].track).toMatchObject({ id: 'one', name: 'Song one' })
 
     now += 30 * DAY
     expect(taste.facts().get(initial.canonicalTrackId)?.score).toBeCloseTo(initial.score / 2)
@@ -60,6 +61,7 @@ describe('TasteRepository', () => {
     taste.syncExplicitFacts()
     const canonicalId = canonicalizeTrack({ id: 'love-song', source: 'kw', name: 'Loved Song', singer: 'Loved Artist' })!.canonicalTrackId
     expect(taste.facts().get(canonicalId)?.score).toBe(4)
+    expect(taste.artistScores().get('loved artist')).toBe(4)
 
     now += 365 * DAY
     expect(taste.facts().get(canonicalId)?.score).toBe(4)
@@ -67,6 +69,19 @@ describe('TasteRepository', () => {
     getDB().prepare('DELETE FROM my_list_music_info WHERE id=? AND listId=?').run('love-song', LIST_IDS.LOVE)
     taste.syncExplicitFacts()
     expect(taste.facts().has(canonicalId)).toBe(false)
+  })
+
+  it('migrates legacy taste rows with nullable track metadata', () => {
+    getDB().exec(`
+      CREATE TABLE recommendation_taste_track (
+        canonical_id TEXT PRIMARY KEY, score REAL NOT NULL, play_count INTEGER NOT NULL,
+        completed_count INTEGER NOT NULL, early_skip_count INTEGER NOT NULL,
+        last_played_at INTEGER, updated_at INTEGER NOT NULL
+      );
+      INSERT INTO recommendation_taste_track VALUES ('legacy', 2, 1, 1, 0, 100, 100);
+    `)
+    const taste = new TasteRepository(() => BASE_NOW)
+    expect(taste.seeds()[0]).toMatchObject({ canonicalTrackId: 'legacy', track: null })
   })
 
   it('persists explicit exclusions until an explicit undo', () => {
@@ -79,6 +94,28 @@ describe('TasteRepository', () => {
     expect(taste.recordFeedback({ type: 'not_interested_track', track: track('blocked') })).toEqual(feedback)
     expect(taste.recordFeedback({ type: 'undo', feedbackId: feedback.feedbackId })).toMatchObject({ active: false, type: 'undo' })
     expect(taste.exclusions().tracks).not.toContain(canonicalId)
+  })
+
+  it('scores interested tracks at +3 and keeps positive and negative track feedback mutually exclusive', () => {
+    let id = 0
+    const taste = new TasteRepository(() => BASE_NOW, () => `feedback-${++id}`)
+    const candidate = track('interested')
+    const canonicalId = canonicalizeTrack(candidate)!.canonicalTrackId
+
+    const interested = taste.recordFeedback({ type: 'interested_track', track: candidate })
+    expect(taste.interestedFeedback().get(canonicalId)).toBe(interested.feedbackId)
+    expect(taste.facts().get(canonicalId)?.score).toBe(3)
+    expect(taste.seeds()[0]).toMatchObject({ canonicalTrackId: canonicalId, track: { id: 'interested' } })
+    expect(taste.artistScores().get('artist interested')).toBe(3)
+
+    const rejected = taste.recordFeedback({ type: 'not_interested_track', track: candidate })
+    expect(taste.interestedFeedback().has(canonicalId)).toBe(false)
+    expect(taste.facts().has(canonicalId)).toBe(false)
+    expect(taste.exclusions().tracks).toContain(canonicalId)
+
+    taste.recordFeedback({ type: 'interested_track', track: candidate })
+    expect(taste.exclusions().tracks).not.toContain(canonicalId)
+    expect(taste.recordFeedback({ type: 'undo', feedbackId: rejected.feedbackId })).toMatchObject({ active: false, type: 'undo' })
   })
 
   it('uses the frozen playback weights and requires both a short position and low ratio for an early skip', () => {
@@ -108,6 +145,17 @@ describe('TasteRepository', () => {
     for (let index = 0; index < 20; index += 1) taste.applyPlayback(session(`repeat-${index}`, 'repeat'))
     const canonicalId = canonicalizeTrack(track('repeat'))!.canonicalTrackId
     expect(taste.facts().get(canonicalId)!.score).toBeLessThan(10)
+  })
+
+  it('returns a bounded deterministic snapshot for AI analysis', () => {
+    const taste = new TasteRepository(() => BASE_NOW)
+    taste.applyPlayback(session('play-b', 'b'))
+    taste.applyPlayback(session('play-a', 'a', { completed: false, lastPositionSeconds: 20, durationSeconds: 200 }))
+    const snapshot = taste.snapshot(1)
+    expect(snapshot.tracks).toHaveLength(1)
+    expect(snapshot.tracks[0]).toMatchObject({ playCount: 1, completionCount: 1, earlySkipCount: 0 })
+    expect(snapshot.artists).toHaveLength(1)
+    expect(snapshot.tags).toEqual([])
   })
 
   it('does not promote audition, temporary, download, or local pseudo-lists to explicit preferences', () => {

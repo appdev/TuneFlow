@@ -46,6 +46,17 @@ import { RecommendationRanker } from './recommendations/ranker'
 import { SnapshotRepository } from './recommendations/snapshotRepository'
 import { RecommendationService } from './recommendations/service'
 import { registerRecommendationRoutes } from './routes/recommendations'
+import { SqliteMusicBrainzRepository } from './recommendations/musicBrainzRepository'
+import { MusicBrainzEnricher } from './recommendations/musicBrainzEnricher'
+import { RadioCandidateGenerator } from './radio/candidateGenerator'
+import { AIProfileRepository } from './radio/aiProfileRepository'
+import { OpenAICompatibleAIClient } from './radio/aiClient'
+import { AIProfileAnalyzer } from './radio/aiProfileAnalyzer'
+import { AICandidateReranker } from './radio/aiReranker'
+import { buildAIProfileInput } from './radio/aiProjection'
+import { RadioSessionRepository } from './radio/sessionRepository'
+import { RadioService } from './radio/service'
+import { registerRadioRoutes } from './routes/radio'
 
 export type { ServerOptions, ServerOptionsInput } from './config'
 
@@ -74,15 +85,67 @@ export const createServer = async(options: ServerOptionsInput): Promise<FastifyI
   const catalogSampler = new CatalogSampler(catalogRepository, relationIndex, { isPlayableProvider })
   const tasteRepository = new TasteRepository()
   const snapshots = new SnapshotRepository()
+  const musicBrainz = new SqliteMusicBrainzRepository()
+  const ranker = new RecommendationRanker(catalogRepository, tasteRepository)
+  const aiProfiles = new AIProfileRepository()
+  const radioSessions = new RadioSessionRepository()
+  const aiConfiguration = () => {
+    const current = settings.getSettings()
+    const baseUrl = current['recommendation.ai.baseUrl']
+    const model = current['recommendation.ai.model']
+    const apiKey = process.env.TUNEFLOW_RECOMMENDATION_AI_API_KEY ?? ''
+    return {
+      enabled: current['recommendation.ai.enabled'],
+      configured: baseUrl !== '' && model !== '' && apiKey !== '',
+      provider: 'openai-compatible',
+      baseUrl,
+      model,
+      apiKey,
+    }
+  }
+  const aiProvider = new OpenAICompatibleAIClient({ getConfiguration: aiConfiguration })
+  const recommendationTimeZone = () => {
+    const configured = settings.getSettings()['recommendation.timeZone']
+    return configured === 'system' ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' : configured
+  }
+  const aiAnalyzer = new AIProfileAnalyzer({
+    repository: aiProfiles,
+    provider: aiProvider,
+    getConfiguration: aiConfiguration,
+    buildInput: () => {
+      return buildAIProfileInput({ history: playbackHistory.list(), taste: tasteRepository, now: Date.now(), timeZone: recommendationTimeZone() })
+    },
+  })
+  const radio = new RadioService({
+    sessions: radioSessions,
+    generator: new RadioCandidateGenerator(ranker),
+    analyzer: aiAnalyzer,
+    reranker: new AICandidateReranker({ provider: aiProvider, repository: aiProfiles, getConfiguration: aiConfiguration }),
+    profiles: aiProfiles,
+    provider: aiProvider,
+    snapshots,
+    getConfiguration: aiConfiguration,
+    isPlayableProvider,
+    sourcePriority,
+    getLocalHour: now => Number(new Intl.DateTimeFormat('en-US', {
+      timeZone: recommendationTimeZone(),
+      hour: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(now).find(part => part.type === 'hour')?.value ?? new Date(now).getUTCHours()),
+  })
   const recommendations = new RecommendationService({
     sampler: catalogSampler,
-    ranker: new RecommendationRanker(catalogRepository, tasteRepository),
+    ranker,
     snapshots,
     taste: tasteRepository,
     getTimeZone: () => settings.getSettings()['recommendation.timeZone'],
+    getMusicBrainzBaseUrl: () => settings.getSettings()['recommendation.musicBrainzBaseUrl'],
+    musicBrainzEnricher: new MusicBrainzEnricher(musicBrainz),
+    testMusicBrainzConnection: async baseUrl => await musicBrainz.testConnection(baseUrl),
     isPlayableProvider,
     sourcePriority,
     publish: response => { events.publishSnapshot('recommendations.updated', response) },
+    clearAdditionalProfileData: () => { radio.clear() },
   })
   let integrityLookup: (filePath: string) => DownloadFileIntegrity | undefined = () => undefined
   let downloadedAtLookup: (filePath: string) => number | undefined = () => undefined
@@ -279,12 +342,16 @@ export const createServer = async(options: ServerOptionsInput): Promise<FastifyI
     resourceStore: playbackResources,
     // Test fixtures are local by design; production never relaxes the SSRF boundary.
     allowPrivateNetwork: allowPrivatePlaybackTargets,
-    onRecommendationResolve: event => { recommendations.recordResolveOutcome(event) },
+    onRecommendationResolve: event => {
+      recommendations.recordResolveOutcome(event)
+      radio.recordResolveOutcome(event)
+    },
   })
   registerPlaybackHistoryRoutes(app, {
     history: playbackHistory,
     onStarted: async session => {
       recommendations.recordPlaybackStart(session)
+      radio.recordPlaybackStart(session)
       if (!settings.getSettings()['player.autoDownloadOnPlay'] || session.track.source === 'local') return
       const meta = typeof session.track.meta === 'object' && session.track.meta != null
         ? session.track.meta as Record<string, unknown>
@@ -305,9 +372,13 @@ export const createServer = async(options: ServerOptionsInput): Promise<FastifyI
       }
       await downloads.createForPlayback(musicInfo)
     },
-    onEnded: session => { recommendations.applyPlayback(session) },
+    onEnded: session => {
+      recommendations.applyPlayback(session)
+      radio.recordPlaybackEnd(session)
+    },
   })
   registerRecommendationRoutes(app, recommendations)
+  registerRadioRoutes(app, radio)
   registerDownloadRoutes(app, downloads)
   registerLibraryRoutes(app, library, {
     onDeleted: filePath => { downloads.removeCompletedForFile(filePath) },

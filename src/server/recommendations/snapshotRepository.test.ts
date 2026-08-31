@@ -35,6 +35,8 @@ it('publishes immutable versions and unions same-day exposures', () => {
   expect(second.version).toBe(2)
   expect(snapshots.current('2026-08-29')).toEqual(second)
   expect(snapshots.exposedToday('2026-08-29')).toEqual(new Set(['one', 'two']))
+  expect(snapshots.currentCanonicalIds('2026-08-29')).toEqual(new Set(['two']))
+  expect(snapshots.latestComplete()).toEqual(second)
 })
 
 it('removes snapshot details after 90 days while retaining aggregate exposure', () => {

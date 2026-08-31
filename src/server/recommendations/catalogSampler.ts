@@ -73,12 +73,22 @@ export class CatalogSampler {
     const leaderboardBudget = provider.leaderboards ? Math.min(2, limit) : 0
     const playlistBudget = limit - leaderboardBudget
     const playlists = new Map<string, { id: string, name: string, description: string, label: string }>()
-    for (const tag of targets) {
+    const cycle = Math.floor(now / 86_400_000)
+    const rotatedTargets = mode === 'bootstrap'
+      ? targets
+      : [...targets.slice(cycle % targets.length), ...targets.slice(0, cycle % targets.length)]
+    const sorts = filters.sorts.length === 0 ? [{ id: '' }] : filters.sorts
+    const perTagQuota = Math.max(1, Math.ceil(playlistBudget / Math.min(rotatedTargets.length, playlistBudget || 1)))
+    for (const [index, tag] of rotatedTargets.entries()) {
       if (playlists.size >= playlistBudget || this.closed) break
-      const page = await browse({ source: provider.id, sortId: filters.sorts[0]?.id ?? '', tagId: tag.id, page: 1 })
+      const sortId = sorts[(mode === 'bootstrap' ? 0 : cycle + index) % sorts.length]?.id ?? ''
+      const pageNumber = mode === 'bootstrap' ? 1 : ((cycle + index) % 3) + 1
+      const page = await browse({ source: provider.id, sortId, tagId: tag.id, page: pageNumber })
+      let acceptedForTag = 0
       for (const item of page.list) {
-        if (playlists.size >= playlistBudget) break
+        if (playlists.size >= playlistBudget || acceptedForTag >= perTagQuota) break
         playlists.set(item.id, { id: item.id, name: item.name, description: item.description ?? '', label: tag.name })
+        acceptedForTag += 1
       }
     }
     let sampled = 0

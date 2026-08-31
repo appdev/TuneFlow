@@ -61,7 +61,9 @@ describe('Service OpenAPI contract', () => {
       '/api/v1/catalog/playlists/tags', '/api/v1/catalog/playlists/browse', '/api/v1/catalog/playlists/detail',
       '/api/v1/catalog/playlists/search', '/api/v1/catalog/albums/search', '/api/v1/catalog/albums/detail', '/api/v1/catalog/tracks/lyrics',
       '/api/v1/catalog/tracks/picture', '/api/v1/playback/tracks/resolve', '/api/v1/playback/resources/{token}/picture', '/api/v1/playback/history', '/api/v1/playback/history/{id}', '/api/v1/streams/{token}', '/api/v1/downloads',
-      '/api/v1/recommendations/daily', '/api/v1/recommendations/daily/refresh', '/api/v1/recommendations/status', '/api/v1/recommendations/feedback', '/api/v1/recommendations/profile',
+      '/api/v1/recommendations/daily', '/api/v1/recommendations/daily/refresh', '/api/v1/recommendations/status', '/api/v1/recommendations/feedback', '/api/v1/recommendations/musicbrainz/test', '/api/v1/recommendations/profile',
+      '/api/v1/radio/sessions', '/api/v1/radio/sessions/{sessionId}', '/api/v1/radio/sessions/{sessionId}/next',
+      '/api/v1/recommendations/ai/status', '/api/v1/recommendations/ai/test', '/api/v1/recommendations/ai/reanalyze',
       '/api/v1/downloads/history/records', '/api/v1/downloads/{id}/start', '/api/v1/downloads/{id}/resume', '/api/v1/downloads/{id}/pause', '/api/v1/downloads/{id}',
       '/api/v1/library/tracks', '/api/v1/library/scan', '/api/v1/library/tracks/{id}', '/api/v1/library/tracks/{id}/stream',
       '/api/v1/library/tracks/{id}/picture', '/api/v1/library/tracks/{id}/lyrics',
@@ -111,9 +113,13 @@ describe('Service OpenAPI contract', () => {
     ]))
     expect(historyItem.properties.track.required).toEqual(expect.arrayContaining(['id', 'source']))
     const recommendationDaily = successDataSchema('/api/v1/recommendations/daily', 'get')
-    expect(recommendationDaily.required).toEqual(expect.arrayContaining(['status', 'localDate', 'version', 'generatedAt', 'sourceCoverage', 'items']))
+    expect(recommendationDaily.required).toEqual(expect.arrayContaining(['status', 'localDate', 'snapshotLocalDate', 'version', 'generatedAt', 'lastErrorCode', 'sourceCoverage', 'items']))
     expect(recommendationDaily.properties.items.items.required).toEqual(expect.arrayContaining(['recommendationItemId', 'canonicalTrackId', 'track', 'bucket', 'reason']))
-    expect(document.paths['/api/v1/recommendations/feedback'].post.requestBody.content['application/json'].schema.anyOf).toHaveLength(3)
+    expect(document.paths['/api/v1/recommendations/feedback'].post.requestBody.content['application/json'].schema.anyOf).toHaveLength(4)
+    expect(document.paths['/api/v1/radio/sessions'].post.requestBody.content['application/json'].schema.required)
+      .toEqual(expect.arrayContaining(['mode', 'requestId', 'queueGeneration', 'currentTrack', 'queuedTracks', 'limit']))
+    expect(successDataSchema('/api/v1/radio/sessions').properties.items.items.required)
+      .toEqual(expect.arrayContaining(['recommendationItemId', 'radioSessionId', 'rankingSource']))
     const downloadItem = successDataSchema('/api/v1/downloads', 'get').items
     expect(downloadItem.required).toEqual(expect.arrayContaining(['queuePosition', 'createdAt', 'updatedAt']))
     expect(document.paths['/api/v1/downloads'].post.requestBody.content['application/json'].schema.properties.existingFilePolicy.anyOf)

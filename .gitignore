@@ -65,6 +65,7 @@ typings/
 # Local development and automation artifacts
 .codex/
 .playwright-mcp/
+docs/superpowers/
 ._*
 
 # Local visual audit exports

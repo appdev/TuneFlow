@@ -7,6 +7,9 @@ dd
     base-checkbox(id="setting_player_auto_download_on_play" :model-value="appSetting['player.autoDownloadOnPlay']" :label="$t('setting__play_auto_download_on_play')" @update:model-value="updateSetting({'player.autoDownloadOnPlay': $event})")
     svg-icon(class="help-icon" name="help-circle-outline" :aria-label="$t('setting__play_auto_download_on_play_tip')")
   .gap-top
+    base-checkbox(id="setting_player_auto_radio_continuation" :model-value="autoRadioContinuation" :label="$t('setting__play_auto_radio_continuation')" @update:model-value="setAutoRadioContinuation($event)")
+    svg-icon(class="help-icon" name="help-circle-outline" :aria-label="$t('setting__play_auto_radio_continuation_tip')")
+  .gap-top
     base-checkbox(id="setting_player_save_play_time" :model-value="appSetting['player.isSavePlayTime']" :label="$t('setting__play_save_play_time')" @update:model-value="updateSetting({'player.isSavePlayTime': $event})")
   .gap-top
     base-checkbox(id="setting_player_auto_clean_played_list" :model-value="appSetting['player.isAutoCleanPlayedList']" :label="$t('setting__play_auto_clean_played_list')" @update:model-value="updateSetting({'player.isAutoCleanPlayedList': $event})")
@@ -51,6 +54,7 @@ import { useI18n } from '@renderer/plugins/i18n'
 import { appSetting, saveMediaDeviceId, updateSetting } from '@renderer/store/setting'
 import { TRY_QUALITYS_LIST } from '@renderer/core/music/utils'
 import { enumerateAudioOutputDevices, getBrowserMediaDevices, subscribeToMediaDeviceChanges } from '@renderer/utils/mediaDevices'
+import { autoRadioContinuation, setAutoRadioContinuation } from '@renderer/views/Radio/preferences'
 
 
 export default {
@@ -131,6 +135,8 @@ export default {
       isMaxOutputChannelCount,
       handleUpdateMaxOutputChannelCount,
       playQualityList,
+      autoRadioContinuation,
+      setAutoRadioContinuation,
     }
   },
 }

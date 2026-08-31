@@ -2,6 +2,8 @@ import defaultSetting from '../../common/defaultSetting'
 import { getDB } from './core/db'
 import { ApiError } from '../errors'
 import { normalizeConfiguredServiceOrigin } from '../serviceOrigins'
+import { normalizeMusicBrainzBaseUrl } from '../recommendations/musicBrainzEndpoint'
+import { normalizeAIBaseUrl } from '../radio/aiEndpoint'
 
 const serviceDefaults: Partial<TuneFlow.AppSetting> = {
   'common.transparentWindow': false,
@@ -74,6 +76,29 @@ export class SettingsRepository {
         } catch {
           throw new ApiError(400, 'INVALID_SETTING', 'Recommendation time zone is invalid')
         }
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(normalized, 'recommendation.musicBrainzBaseUrl')) {
+      normalized['recommendation.musicBrainzBaseUrl'] = normalizeMusicBrainzBaseUrl(
+        normalized['recommendation.musicBrainzBaseUrl'],
+        { allowEmpty: true },
+      )
+    }
+    if (Object.prototype.hasOwnProperty.call(normalized, 'recommendation.ai.baseUrl')) {
+      normalized['recommendation.ai.baseUrl'] = normalizeAIBaseUrl(normalized['recommendation.ai.baseUrl'])
+    }
+    if (Object.prototype.hasOwnProperty.call(normalized, 'recommendation.ai.model')) {
+      const value = normalized['recommendation.ai.model']
+      if (typeof value !== 'string' || value.length > 200) throw new ApiError(400, 'INVALID_AI_CONFIGURATION', 'AI model is invalid')
+      normalized['recommendation.ai.model'] = value.trim()
+    }
+    if (Object.prototype.hasOwnProperty.call(normalized, 'recommendation.ai.enabled') && typeof normalized['recommendation.ai.enabled'] !== 'boolean') {
+      throw new ApiError(400, 'INVALID_AI_CONFIGURATION', 'AI enabled setting is invalid')
+    }
+    if (Object.keys(normalized).some(key => key.startsWith('recommendation.ai.'))) {
+      const effective = { ...this.getSettings(), ...normalized }
+      if (effective['recommendation.ai.enabled'] && (effective['recommendation.ai.baseUrl'] === '' || effective['recommendation.ai.model'] === '')) {
+        throw new ApiError(400, 'INVALID_AI_CONFIGURATION', 'AI base URL and model are required when AI is enabled')
       }
     }
     const upsert = getDB().prepare('INSERT INTO web_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value')
