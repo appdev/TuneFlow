@@ -49,4 +49,20 @@ describe('SqliteMusicBrainzRepository', () => {
     expect(second).toEqual(first)
     expect(calls).toBe(1)
   })
+
+  it('reuses one client for all requests to the same endpoint', async() => {
+    let clients = 0
+    const repository = new SqliteMusicBrainzRepository({
+      clientFactory: () => {
+        clients += 1
+        return { getJson: async() => ({ recordings: [] }) }
+      },
+    })
+
+    await repository.testConnection('https://musicbrainz.org/ws/2/')
+    await repository.matchRecording('https://musicbrainz.org/ws/2/', track)
+    await repository.matchRecording('https://musicbrainz.org/ws/2/', { ...track, id: 'other', name: 'Other Song' })
+
+    expect(clients).toBe(1)
+  })
 })

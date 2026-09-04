@@ -1,7 +1,7 @@
 export const radioPolicy = Object.freeze({
   version: 'radio-v1' as const,
   promptVersion: 'radio-ai-v1' as const,
-  batchSize: 3,
+  batchSize: 10,
   maxCandidateCount: 50,
   maxQueuedTrackCount: 100,
   sessionIdleMs: 12 * 60 * 60_000,

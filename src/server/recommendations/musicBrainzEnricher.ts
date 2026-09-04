@@ -1,11 +1,16 @@
 import type { CatalogCandidate } from './catalogRepository'
 import { normalizeArtistIdentity, normalizeLabel } from './identity'
+import type { MusicBrainzRequestOptions } from './musicBrainzClient'
 import type { TasteSeed } from './tasteRepository'
 import type { MusicBrainzRecording, MusicBrainzRecordingMatch, RecommendationReason } from './types'
 
 export interface MusicBrainzLookup {
-  matchRecording: (baseUrl: string, track: NonNullable<TasteSeed['track']>) => Promise<MusicBrainzRecordingMatch | null>
-  relatedRecordings: (baseUrl: string, recordingMbids: readonly string[]) => Promise<MusicBrainzRecording[]>
+  matchRecording: (baseUrl: string, track: NonNullable<TasteSeed['track']>, options?: MusicBrainzRequestOptions) => Promise<MusicBrainzRecordingMatch | null>
+  relatedRecordings: (baseUrl: string, recordingMbids: readonly string[], options?: MusicBrainzRequestOptions) => Promise<MusicBrainzRecording[]>
+}
+
+export interface MusicBrainzEnricherOptions {
+  budgetMs?: number
 }
 
 export interface MusicBrainzCandidateEvidence {
@@ -27,27 +32,46 @@ const errorCode = (error: unknown): string => typeof error === 'object' && error
   : 'MUSICBRAINZ_UNAVAILABLE'
 
 export class MusicBrainzEnricher {
-  constructor(private readonly lookup: MusicBrainzLookup) {}
+  private readonly budgetMs: number
+
+  constructor(private readonly lookup: MusicBrainzLookup, options: MusicBrainzEnricherOptions = {}) {
+    this.budgetMs = options.budgetMs ?? 20_000
+  }
 
   async enrich(baseUrl: string, seeds: readonly TasteSeed[], candidates: readonly CatalogCandidate[]): Promise<MusicBrainzEnrichment> {
     if (baseUrl === '' || candidates.length === 0) return { evidence: new Map(), matchedSeeds: 0, errorCode: null }
+    const controller = new AbortController()
+    const timeout = setTimeout(() => { controller.abort() }, this.budgetMs)
+    try {
+      return await this.enrichWithinBudget(baseUrl, seeds, candidates, controller.signal)
+    } finally {
+      clearTimeout(timeout)
+    }
+  }
+
+  private async enrichWithinBudget(baseUrl: string, seeds: readonly TasteSeed[], candidates: readonly CatalogCandidate[], signal: AbortSignal): Promise<MusicBrainzEnrichment> {
     const matches: MusicBrainzRecordingMatch[] = []
     let failure: string | null = null
     for (const seed of seeds.filter(item => item.track != null).slice(0, 10)) {
+      if (signal.aborted) break
       try {
-        const match = await this.lookup.matchRecording(baseUrl, seed.track!)
+        const match = await this.lookup.matchRecording(baseUrl, seed.track!, { signal })
         if (match != null) matches.push(match)
       } catch (error) {
         failure ??= errorCode(error)
+        if (signal.aborted) break
       }
     }
+    if (signal.aborted) failure ??= 'MUSICBRAINZ_TIMEOUT'
     if (matches.length === 0) return { evidence: new Map(), matchedSeeds: 0, errorCode: failure }
 
     let related: MusicBrainzRecording[] = []
-    try {
-      related = await this.lookup.relatedRecordings(baseUrl, matches.map(item => item.recording.recordingMbid))
-    } catch (error) {
-      failure ??= errorCode(error)
+    if (!signal.aborted) {
+      try {
+        related = await this.lookup.relatedRecordings(baseUrl, matches.map(item => item.recording.recordingMbid), { signal })
+      } catch (error) {
+        failure ??= errorCode(error)
+      }
     }
     const catalogByKey = new Map<string, CatalogCandidate[]>()
     for (const candidate of candidates) {

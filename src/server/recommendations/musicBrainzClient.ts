@@ -11,21 +11,34 @@ export type MusicBrainzErrorCode =
   | 'unreachable'
 
 export class MusicBrainzClientError extends Error {
-  constructor(readonly code: MusicBrainzErrorCode) {
+  constructor(
+    readonly code: MusicBrainzErrorCode,
+    readonly retryable = false,
+    readonly retryAfterMs: number | null = null,
+  ) {
     super(code)
     this.name = 'MusicBrainzClientError'
   }
 }
 
+export interface MusicBrainzRequestOptions {
+  signal?: AbortSignal
+}
+
 export interface MusicBrainzClientOptions {
   fetch?: typeof globalThis.fetch
   now?: () => number
-  sleep?: (milliseconds: number) => Promise<void>
+  sleep?: (milliseconds: number, signal?: AbortSignal) => Promise<void>
   timeoutMs?: number
   maxResponseBytes?: number
   maxRedirects?: number
   userAgent?: string
+  retryDelaysMs?: readonly number[]
 }
+
+const OFFICIAL_REQUEST_INTERVAL_MS = 1_100
+const DEFAULT_RETRY_DELAYS_MS = Object.freeze([2_000, 5_000])
+const RETRYABLE_STATUS_CODES = new Set([502, 503, 504])
 
 const isJsonResponse = (response: Response): boolean => {
   const contentType = response.headers.get('content-type')?.toLowerCase() ?? ''
@@ -41,7 +54,9 @@ export class MusicBrainzClient {
   private readonly maxResponseBytes: number
   private readonly maxRedirects: number
   private readonly userAgent: string
+  private readonly retryDelaysMs: readonly number[]
   private lastOfficialRequestAt = Number.NEGATIVE_INFINITY
+  private officialRequestQueue: Promise<void> = Promise.resolve()
 
   constructor(baseUrl: string, options: MusicBrainzClientOptions = {}) {
     try {
@@ -51,14 +66,15 @@ export class MusicBrainzClient {
     }
     this.fetchImpl = options.fetch ?? globalThis.fetch
     this.now = options.now ?? Date.now
-    this.sleep = options.sleep ?? (async milliseconds => { await delay(milliseconds) })
+    this.sleep = options.sleep ?? (async(milliseconds, signal) => { await delay(milliseconds, undefined, { signal }) })
     this.timeoutMs = options.timeoutMs ?? 10_000
     this.maxResponseBytes = options.maxResponseBytes ?? 2 * 1024 * 1024
     this.maxRedirects = options.maxRedirects ?? 2
     this.userAgent = options.userAgent ?? 'TuneFlow-Service/1.0 (MusicBrainz metadata client)'
+    this.retryDelaysMs = options.retryDelaysMs ?? DEFAULT_RETRY_DELAYS_MS
   }
 
-  async getJson(path: string): Promise<unknown> {
+  async getJson(path: string, options: MusicBrainzRequestOptions = {}): Promise<unknown> {
     let target: URL
     try {
       target = new URL(path, this.baseUrl)
@@ -67,11 +83,35 @@ export class MusicBrainzClient {
     }
     if (target.origin !== new URL(this.baseUrl).origin) throw new MusicBrainzClientError('cross_origin_redirect')
 
+    const execute = async(): Promise<unknown> => await this.getJsonWithRetries(target, options.signal)
+    if (target.origin !== new URL(OFFICIAL_MUSICBRAINZ_BASE_URL).origin) return await execute()
+    const queued = this.officialRequestQueue.then(execute, execute)
+    this.officialRequestQueue = queued.then(() => {}, () => {})
+    return await queued
+  }
+
+  private async getJsonWithRetries(target: URL, signal?: AbortSignal): Promise<unknown> {
+    for (let attempt = 0; ; attempt += 1) {
+      this.throwIfAborted(signal)
+      try {
+        return await this.requestJson(target, signal)
+      } catch (error) {
+        if (!(error instanceof MusicBrainzClientError) || !error.retryable || attempt >= this.retryDelaysMs.length) throw error
+        await this.wait(Math.max(this.retryDelaysMs[attempt], error.retryAfterMs ?? 0), signal)
+      }
+    }
+  }
+
+  private async requestJson(initialTarget: URL, externalSignal?: AbortSignal): Promise<unknown> {
+    let target = initialTarget
     const controller = new AbortController()
+    const abort = (): void => { controller.abort() }
+    if (externalSignal?.aborted === true) throw new MusicBrainzClientError('timeout')
+    externalSignal?.addEventListener('abort', abort, { once: true })
     const timeout = setTimeout(() => { controller.abort() }, this.timeoutMs)
     try {
       for (let redirectCount = 0; redirectCount <= this.maxRedirects; redirectCount += 1) {
-        await this.waitForOfficialRateLimit(target)
+        await this.waitForOfficialRateLimit(target, controller.signal)
         let response: Response
         try {
           response = await this.fetchImpl(target, {
@@ -83,7 +123,7 @@ export class MusicBrainzClient {
           if (controller.signal.aborted || (error instanceof Error && error.name === 'AbortError')) {
             throw new MusicBrainzClientError('timeout')
           }
-          throw new MusicBrainzClientError('unreachable')
+          throw new MusicBrainzClientError('unreachable', true)
         }
 
         if (response.status >= 300 && response.status < 400) {
@@ -94,7 +134,8 @@ export class MusicBrainzClient {
           target = redirected
           continue
         }
-        if (response.status === 429) throw new MusicBrainzClientError('rate_limited')
+        if (response.status === 429) throw new MusicBrainzClientError('rate_limited', true, this.retryAfterMs(response))
+        if (RETRYABLE_STATUS_CODES.has(response.status)) throw new MusicBrainzClientError('unreachable', true, this.retryAfterMs(response))
         if (!response.ok) throw new MusicBrainzClientError('unreachable')
         if (!isJsonResponse(response)) throw new MusicBrainzClientError('invalid_response')
         const declaredLength = Number(response.headers.get('content-length') ?? 0)
@@ -114,6 +155,7 @@ export class MusicBrainzClient {
       }
     } finally {
       clearTimeout(timeout)
+      externalSignal?.removeEventListener('abort', abort)
     }
     throw new MusicBrainzClientError('invalid_response')
   }
@@ -142,10 +184,34 @@ export class MusicBrainzClient {
     return result
   }
 
-  private async waitForOfficialRateLimit(target: URL): Promise<void> {
+  private async waitForOfficialRateLimit(target: URL, signal?: AbortSignal): Promise<void> {
     if (target.origin !== new URL(OFFICIAL_MUSICBRAINZ_BASE_URL).origin) return
-    const wait = Math.max(0, 1_000 - (this.now() - this.lastOfficialRequestAt))
-    if (wait > 0) await this.sleep(wait)
+    const wait = Math.max(0, OFFICIAL_REQUEST_INTERVAL_MS - (this.now() - this.lastOfficialRequestAt))
+    if (wait > 0) await this.wait(wait, signal)
     this.lastOfficialRequestAt = this.now()
+  }
+
+  private async wait(milliseconds: number, signal?: AbortSignal): Promise<void> {
+    this.throwIfAborted(signal)
+    try {
+      await this.sleep(milliseconds, signal)
+    } catch (error) {
+      if (signal?.aborted === true || (error instanceof Error && error.name === 'AbortError')) throw new MusicBrainzClientError('timeout')
+      throw error
+    }
+    this.throwIfAborted(signal)
+  }
+
+  private throwIfAborted(signal?: AbortSignal): void {
+    if (signal?.aborted === true) throw new MusicBrainzClientError('timeout')
+  }
+
+  private retryAfterMs(response: Response): number | null {
+    const value = response.headers.get('retry-after')
+    if (value == null) return null
+    const seconds = Number(value)
+    if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1_000
+    const date = Date.parse(value)
+    return Number.isFinite(date) ? Math.max(0, date - this.now()) : null
   }
 }

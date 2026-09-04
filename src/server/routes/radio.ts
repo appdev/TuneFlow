@@ -3,6 +3,7 @@ import { ApiSuccess, ErrorResponses } from '../api/schemas/common'
 import { Identifier, Track } from '../api/schemas/domain'
 import type { ApiFastifyInstance } from '../api/types'
 import { ApiError } from '../errors'
+import { radioPolicy } from '../radio/policy'
 import type { RadioService } from '../radio/service'
 import type { RadioBatchRequest, RadioMode } from '../radio/types'
 
@@ -35,14 +36,14 @@ const RadioResponse = Type.Object({
   status: Type.Union([Type.Literal('active'), Type.Literal('degraded')]),
   aiStatus: Type.Union([Type.Literal('enhanced'), Type.Literal('profile_only'), Type.Literal('local'), Type.Literal('disabled'), Type.Literal('unavailable')]),
   profileId: NullableString,
-  items: Type.Array(RadioItem),
+  items: Type.Array(RadioItem, { maxItems: radioPolicy.batchSize }),
 }, { additionalProperties: false })
 const BatchFields = {
   requestId: Type.String({ minLength: 1, maxLength: 100 }),
   queueGeneration: Type.Integer({ minimum: 0 }),
   currentTrack: Type.Union([RadioTrack, Type.Null()]),
   queuedTracks: Type.Array(RadioTrack, { maxItems: 100 }),
-  limit: Type.Integer({ minimum: 1, maximum: 3 }),
+  limit: Type.Integer({ minimum: 1, maximum: radioPolicy.batchSize }),
 }
 const BatchBody = Type.Object(BatchFields, { additionalProperties: false })
 const CreateBody = Type.Object({

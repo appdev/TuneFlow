@@ -5,7 +5,7 @@ describe('radio policy', () => {
   it('keeps the approved v1 limits stable', () => {
     expect(radioPolicy).toMatchObject({
       version: 'radio-v1',
-      batchSize: 3,
+      batchSize: 10,
       maxCandidateCount: 50,
       maxQueuedTrackCount: 100,
       sessionIdleMs: 12 * 60 * 60_000,

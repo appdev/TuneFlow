@@ -51,7 +51,9 @@ describe('radio routes', () => {
       const settings = await app.inject({ method: 'GET', url: '/api/v1/settings' })
       expect(settings.body).not.toContain('never-return-this-secret')
       expect((await app.inject({ method: 'GET', url: '/api/v1/recommendations/ai/status' })).body).not.toContain('never-return-this-secret')
-      const invalid = await app.inject({ method: 'POST', url: '/api/v1/radio/sessions', payload: { mode: 'dedicated', ...batch, limit: 4 } })
+      const valid = await app.inject({ method: 'POST', url: '/api/v1/radio/sessions', payload: { mode: 'dedicated', ...batch, limit: 10 } })
+      expect(valid.statusCode).toBe(200)
+      const invalid = await app.inject({ method: 'POST', url: '/api/v1/radio/sessions', payload: { mode: 'dedicated', ...batch, limit: 11 } })
       expect(invalid.statusCode).toBe(400)
     } finally { delete process.env.TUNEFLOW_RECOMMENDATION_AI_API_KEY }
   })

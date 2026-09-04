@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { CatalogCandidate } from './catalogRepository'
 import { MusicBrainzEnricher } from './musicBrainzEnricher'
 import type { TasteSeed } from './tasteRepository'
@@ -57,5 +57,27 @@ describe('MusicBrainzEnricher', () => {
       relatedRecordings: async() => [],
     })
     expect((await enricher.enrich('https://music.example/ws/2/', [seed], [])).evidence.size).toBe(0)
+  })
+
+  it('stops enrichment when the total request budget expires', async() => {
+    vi.useFakeTimers()
+    try {
+      const relatedRecordings = vi.fn(async() => [])
+      const enricher = new MusicBrainzEnricher({
+        matchRecording: async(_baseUrl, _track, options) => await new Promise((_resolve, reject) => {
+          options?.signal?.addEventListener('abort', () => { reject(Object.assign(new Error('timeout'), { code: 'timeout' })) }, { once: true })
+        }),
+        relatedRecordings,
+      }, { budgetMs: 20 })
+
+      const pending = enricher.enrich('https://music.example/ws/2/', [seed], [candidate])
+      await vi.advanceTimersByTimeAsync(20)
+      const result = await pending
+
+      expect(result).toMatchObject({ matchedSeeds: 0, errorCode: 'MUSICBRAINZ_TIMEOUT' })
+      expect(relatedRecordings).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

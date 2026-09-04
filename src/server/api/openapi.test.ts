@@ -118,8 +118,11 @@ describe('Service OpenAPI contract', () => {
     expect(document.paths['/api/v1/recommendations/feedback'].post.requestBody.content['application/json'].schema.anyOf).toHaveLength(4)
     expect(document.paths['/api/v1/radio/sessions'].post.requestBody.content['application/json'].schema.required)
       .toEqual(expect.arrayContaining(['mode', 'requestId', 'queueGeneration', 'currentTrack', 'queuedTracks', 'limit']))
+    expect(document.paths['/api/v1/radio/sessions'].post.requestBody.content['application/json'].schema.properties.limit)
+      .toMatchObject({ type: 'integer', minimum: 1, maximum: 10 })
     expect(successDataSchema('/api/v1/radio/sessions').properties.items.items.required)
       .toEqual(expect.arrayContaining(['recommendationItemId', 'radioSessionId', 'rankingSource']))
+    expect(successDataSchema('/api/v1/radio/sessions').properties.items.maxItems).toBe(10)
     const downloadItem = successDataSchema('/api/v1/downloads', 'get').items
     expect(downloadItem.required).toEqual(expect.arrayContaining(['queuePosition', 'createdAt', 'updatedAt']))
     expect(document.paths['/api/v1/downloads'].post.requestBody.content['application/json'].schema.properties.existingFilePolicy.anyOf)
