@@ -39,6 +39,19 @@ afterEach(async() => {
 })
 
 describe('TuneFlow service', () => {
+  it('serves Flutter at root and preserves the legacy SPA under /V2/', async() => {
+    const { app, webRoot } = await createTestServer()
+    mkdirSync(path.join(webRoot, 'V2'))
+    writeFileSync(path.join(webRoot, 'V2/index.html'), '<title>Legacy Web</title>')
+    writeFileSync(path.join(webRoot, 'V2/renderer.js'), 'window.legacy = true')
+    expect((await app.inject('/')).body).toContain('TuneFlow')
+    expect((await app.inject('/V2')).headers.location).toBe('/V2/')
+    expect((await app.inject('/V2/')).body).toContain('Legacy Web')
+    expect((await app.inject('/V2/nested')).body).toContain('Legacy Web')
+    expect((await app.inject('/V2/renderer.js')).body).toBe('window.legacy = true')
+    expect((await app.inject('/api/v1/missing')).statusCode).toBe(404)
+  })
+
   it('keeps split durable state out of the user media root', async() => {
     const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-service-split-'))
     roots.push(root)

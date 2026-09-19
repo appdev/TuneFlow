@@ -2,6 +2,10 @@
 .superpowers
 node_modules
 dist
+!dist/
+dist/*
+!dist/web-integrated/
+!dist/web-integrated/**
 data
 music
 coverage
@@ -9,4 +13,6 @@ playwright-report
 test-results
 flutter-client
 .DS_Store
+.env
+.env.*
 npm-debug.log*

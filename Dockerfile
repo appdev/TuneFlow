@@ -10,7 +10,14 @@ COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
 
 COPY . .
-RUN npm run build:service \
+ARG TUNEFLOW_WEB_VARIANT=legacy
+RUN if [ "$TUNEFLOW_WEB_VARIANT" = "integrated" ]; then \
+      node build-config/server/install-integrated-web.mjs && npm run prepare:service; \
+    elif [ "$TUNEFLOW_WEB_VARIANT" = "legacy" ]; then \
+      npm run build:service; \
+    else \
+      echo "Unsupported TUNEFLOW_WEB_VARIANT: $TUNEFLOW_WEB_VARIANT" >&2; exit 1; \
+    fi \
  && node -e "const Database = require('./dist/server/node_modules/better-sqlite3'); const db = new Database(':memory:'); db.prepare('SELECT 1').get(); db.close()" \
  && npm run verify:service-isolated
 
@@ -28,6 +35,7 @@ COPY --from=build --chown=node:node /app/dist/web ./dist/web
 COPY --from=build --chown=node:node /app/dist/server ./dist/server
 COPY --from=build --chown=node:node /app/LICENSE /app/README.md ./
 COPY --from=build --chown=node:node /app/docs/server-web.md ./docs/server-web.md
+COPY --from=build --chown=node:node /app/docs/integrated-flutter-web.md ./docs/integrated-flutter-web.md
 
 ENV NODE_ENV=production \
     TUNEFLOW_HOST=0.0.0.0 \
