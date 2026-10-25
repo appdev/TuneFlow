@@ -107,16 +107,16 @@ export default {
 
     const tocList = computed(() => {
       return [
-        { id: 'SettingService', title: '服务器连接', icon: 'share' },
-        { id: 'SettingAccounts', title: isWeb ? '平台账号与 Web 能力说明' : '音乐平台账号 · 当前设备', icon: 'headphones' },
+        { id: 'SettingService', title: '连接设置', icon: 'share' },
+        { id: 'SettingAccounts', title: '音乐平台账号', icon: 'headphones' },
         { id: 'SettingSource', title: '音源与解析', icon: 'audio-wave' },
-        { id: 'SettingBasic', title: `${t('setting__basic')} · ${isWeb ? '当前浏览器' : '当前设备'}`, icon: 'setting' },
-        { id: 'SettingPlay', title: `${t('setting__play')} · ${isWeb ? '当前浏览器' : '当前设备'}`, icon: 'play-outline' },
+        { id: 'SettingBasic', title: t('setting__basic'), icon: 'setting' },
+        { id: 'SettingPlay', title: t('setting__play'), icon: 'play-outline' },
         { id: 'SettingPlayDetail', title: t('setting__play_detail'), icon: 'music' },
         { id: 'SettingDesktopLyric', title: t('setting__desktop_lyric'), icon: 'text' },
         { id: 'SettingSearch', title: t('setting__search'), icon: 'search-2' },
         { id: 'SettingList', title: t('setting__list'), icon: 'love' },
-        { id: 'SettingDownload', title: `${t('setting__download')} · 服务器`, icon: 'download-2' },
+        { id: 'SettingDownload', title: t('setting__download'), icon: 'download-2' },
         { id: 'SettingHotKey', title: t('setting__hot_key'), icon: 'tune-variant' },
         { id: 'SettingOdc', title: t('setting__odc'), icon: 'headphones' },
         { id: 'SettingCompatibility', title: '同步与备份说明', icon: 'information-slab-circle-outline' },

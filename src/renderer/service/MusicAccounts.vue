@@ -1,7 +1,7 @@
 <template>
   <section :class="$style.accounts">
-    <h2>音乐平台账号 · 当前设备</h2>
-    <p>使用官方页面登录，凭证保存在 App 私有目录，无需为新凭证使用系统钥匙串。歌单和个人推荐统一使用 Docker 播放；导入会补充歌曲并保留服务器已有内容。</p>
+    <h2>音乐平台账号</h2>
+    <p>使用官方页面登录后，即可浏览账号歌单和个人推荐。导入只补充歌曲，保留已有内容。</p>
     <nav aria-label="音乐平台"><button v-for="(name, id) in accountNames" :key="id" :aria-pressed="provider === id" :disabled="busy" @click="select(id)">{{ name }} · {{ status?.[id] ? '已登录' : '未登录' }}</button></nav>
     <div :class="$style.actions">
       <button :disabled="busy" @click="login">{{ status?.[provider] ? '重新授权' : '登录' }} {{ accountNames[provider] }}</button>
@@ -13,8 +13,8 @@
     </div>
     <p v-if="message" role="status">{{ message }}</p><p v-if="error" role="alert">{{ error }}</p>
     <h3>账号歌单</h3><p v-if="!playlists.length && !busy">{{ status?.[provider] ? '暂无歌单，或平台暂不可用。' : '登录后查看创建和收藏的歌单。' }}</p>
-    <ul :class="$style.playlists"><li v-for="playlist in playlists" :key="playlist.id"><span>{{ playlist.name }} · {{ playlist.trackCount }} 首</span><button :disabled="busy" @click="preview(playlist)">查看歌曲</button><button :disabled="busy" @click="importList(playlist)">导入服务器</button></li></ul>
-    <router-link v-if="importedId" :to="`/list?id=${encodeURIComponent(importedId)}`">查看服务器歌单 ›</router-link>
+    <ul :class="$style.playlists"><li v-for="playlist in playlists" :key="playlist.id"><span>{{ playlist.name }} · {{ playlist.trackCount }} 首</span><button :disabled="busy" @click="preview(playlist)">查看歌曲</button><button :disabled="busy" @click="importList(playlist)">导入歌单</button></li></ul>
+    <router-link v-if="importedId" :to="`/list?id=${encodeURIComponent(importedId)}`">查看歌单 ›</router-link>
     <h3 v-if="previewTitle">{{ previewTitle }}</h3>
     <div v-if="tracks.length" :class="$style.tracks"><material-online-list :list="tracks" :page="1" :limit="tracks.length" :total="tracks.length" source-tag search-results play-in-context @play-list="play" /></div>
     <AccountTransferModal v-model:visible="transfer" />
@@ -60,12 +60,12 @@ const load = async() => {
 const refresh = () => { void run(load) }
 const select = (id: MusicAccountProvider) => { provider.value = id; importedId.value = ''; refresh() }
 const login = () => { void run(async() => { const result = await loginMusicAccount(provider.value); await load(); notifyAccountsChanged(); message.value = result.status === 'connected' ? '已完成官方授权' : '已取消登录，现有数据保留' }) }
-const logout = () => { void run(async() => { if (!await dialog.confirm({ message: '退出此设备的平台账号？服务器歌单与音乐文件会保留。' })) return; await logoutMusicAccount(provider.value); await load(); notifyAccountsChanged() }) }
+const logout = () => { void run(async() => { if (!await dialog.confirm({ message: '退出此平台账号？已导入的歌单与音乐文件会保留。' })) return; await logoutMusicAccount(provider.value); await load(); notifyAccountsChanged() }) }
 const useDaily = () => { localStorage.setItem('qmusic.dailyRecommend.provider', provider.value); localStorage.setItem('qmusic.service.daily.mode.v1', 'account'); notifyAccountsChanged(); message.value = '首页已使用此账号的个人推荐' }
 const authorizeDaily = () => { void run(async() => { const result = await openQQDailyKeyPage(); await load(); message.value = result.status === 'saved' ? 'QQ 官方日推已授权' : '日推专项授权未完成；已登录账号仍可使用雷达推荐'; notifyAccountsChanged() }) }
 const preview = (playlist: MusicAccountPlaylist) => { void run(async() => { tracks.value = []; previewTitle.value = playlist.name; tracks.value = await loadDesktopAccountPlaylist(provider.value, playlist, () => !active) }) }
-const importList = (playlist: MusicAccountPlaylist) => { void run(async() => { const result = await importDesktopAccountPlaylist(provider.value, playlist, () => !active); importedId.value = result.id; message.value = `已将 ${result.count} 首歌曲导入服务器，其他客户端可直接读取` }) }
-const play = (index: number) => { void playFromPage('account_preview', tracks.value, index).catch(() => { error.value = '播放失败，请检查 Docker 音源设置' }) }
+const importList = (playlist: MusicAccountPlaylist) => { void run(async() => { const result = await importDesktopAccountPlaylist(provider.value, playlist, () => !active); importedId.value = result.id; message.value = `已导入 ${result.count} 首歌曲，可在我的列表中查看` }) }
+const play = (index: number) => { void playFromPage('account_preview', tracks.value, index).catch(() => { error.value = '播放失败，请检查音源设置' }) }
 onMounted(refresh)
 onBeforeUnmount(() => { active = false })
 </script>

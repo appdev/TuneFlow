@@ -17,7 +17,7 @@ export const downloadSettingLabels: Record<string, string> = {
   'player.autoDownloadOnPlay': '边听边存（播放时自动下载）',
   'download.enable': '启用下载',
   'download.maxDownloadNum': '同时下载任务数',
-  'download.savePath': '服务器保存目录',
+  'download.savePath': '保存目录',
   'download.fileName': '文件名格式',
   'download.isSavePathGroupByListName': '按歌单整理目录',
   'download.skipExistFile': '跳过已有音频',

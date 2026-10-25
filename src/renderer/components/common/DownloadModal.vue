@@ -1,5 +1,5 @@
 <template>
-  <material-modal :show="show" :heading="service ? '下载到服务器' : $t('download_track_title')" :bg-close="bgClose" :teleport="teleport" @close="handleClose">
+  <material-modal :show="show" :heading="service ? '下载歌曲' : $t('download_track_title')" :bg-close="bgClose" :teleport="teleport" @close="handleClose">
     <main class="scroll" :class="$style.main">
       <div :class="$style.track">
         <div :class="$style.cover" aria-hidden="true">

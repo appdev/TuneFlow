@@ -1,7 +1,7 @@
 <template>
   <section :class="$style.page">
     <h2>下载</h2>
-    <p>任务在服务器执行。完成后可在“我的音乐 → 音乐库”播放；移除任务记录会保留已下载的文件。</p>
+    <p>下载完成后可在“我的音乐 → 音乐库”播放；移除任务记录会保留已下载的文件。</p>
     <div>
       <button :disabled="busy" @click="load">刷新任务</button>
       <router-link to="/setting?name=SettingDownload">下载设置</router-link>
@@ -66,7 +66,7 @@ const act = async(id: string, action: 'pause' | 'resume') => {
   await load()
 }
 const remove = async(id: string) => {
-  if (!await dialog.confirm({ message: '移除服务器任务记录？已完成的音乐文件会保留。' })) return
+  if (!await dialog.confirm({ message: '移除下载记录？已完成的音乐文件会保留。' })) return
   if (busy.value) return
   busy.value = true
   try { await getWorkspace().client.deleteDownload(id) } catch (e) { error.value = e instanceof Error ? e.message : '操作失败' } finally { busy.value = false }

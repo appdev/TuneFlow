@@ -57,7 +57,7 @@
                   <span :class="$style.eyebrow">{{ $t('search__daily_eyebrow') }}</span>
                 </div>
                 <h3>{{ dailyTitle }}</h3>
-                <p>{{ dailyRecommendMode == 'personalized' ? $t('search__daily_personalized_desc') : '根据服务器收藏、歌单和播放偏好推荐，播放由 Docker 提供。' }}</p>
+                <p>{{ dailyRecommendMode == 'personalized' ? $t('search__daily_personalized_desc') : '每日精选，发现值得一听的音乐。' }}</p>
                 <p :class="[$style.sourceStatus, { [$style.personalized]: dailyRecommendMode == 'personalized' }]">
                   <source-icon v-if="selectedDailyProvider != 'server'" :source="selectedDailyProvider" :size="15" />{{ dailySourceText }}
                 </p>
@@ -148,7 +148,7 @@
               </p>
             </div>
             <div :class="$style.detailActions">
-              <button v-if="detailKind == 'playlist'" type="button" :disabled="importing" @click="importSelectedPlaylist">{{ importing ? '正在导入…' : '导入服务器' }}</button>
+              <button v-if="detailKind == 'playlist'" type="button" :disabled="importing" @click="importSelectedPlaylist">{{ importing ? '正在导入…' : '导入歌单' }}</button>
               <base-btn min :disabled="!detailMusicList.length" @click="playDetailList()">{{ $t('search__daily_recommend_play') }}</base-btn>
               <base-btn v-if="detailKind == 'daily'" min :disabled="isDailyLoading" @click="loadDailyRecommend(true)">{{ $t('search__daily_recommend_refresh') }}</base-btn>
               <base-btn v-else min :disabled="isPlaylistDetailLoading" @click="openAccountPlaylist(selectedAccountPlaylist)">{{ $t('search__daily_recommend_refresh') }}</base-btn>
@@ -193,15 +193,15 @@ import { playFromPage } from '@renderer/core/player/selection'
 import { togglePlay } from '@renderer/core/player/action'
 import { isPlay, playMusicInfo } from '@renderer/store/player/state'
 import { getWorkspace, serviceStatus, subscribeService, subscribeRecommendations } from './session'
-import { loadDesktopAccountDaily, loadDesktopAccountPlaylist, importDesktopAccountPlaylist, accountNames } from './accounts'
-import { loadDailyFeed, dailyFeedNotice, dailyKindNames, type DailySource, type DailyFeed } from './recommendations'
+import { loadDesktopAccountDaily, loadDesktopAccountPlaylist, importDesktopAccountPlaylist } from './accounts'
+import { loadDailyFeed, dailyFeedNotice, dailyKindNames, readDailyFeedCache, cacheDailyFeed, clearDailyFeedCache, type DailySource, type DailyFeed } from './recommendations'
 import { ServiceError } from './client'
 const props = withDefaults(defineProps<{ visible?: boolean, source?: string }>(), { visible: true, source: '' })
 const router = useRouter()
 const saved = localStorage.getItem('qmusic.dailyRecommend.provider')
 const isWeb = String(process.platform) === 'web'
-const selectedDailyProvider = ref<DailySource>(isWeb || localStorage.getItem('qmusic.service.daily.mode.v1') === 'server' ? 'server' : saved === 'wy' || saved === 'kg' ? saved : 'tx')
-const accountProviderOptions = ([{ id: 'tx', nameKey: 'search__account_qq', name: '' }, { id: 'wy', nameKey: 'search__account_netease', name: '' }, { id: 'kg', nameKey: 'source_kg', name: '' }, { id: 'server', nameKey: '', name: 'Docker 推荐' }] as const).filter(provider => !isWeb || provider.id === 'server')
+const selectedDailyProvider = ref<DailySource>(localStorage.getItem('qmusic.service.daily.mode.v1') === 'server' ? 'server' : saved === 'wy' || saved === 'kg' ? saved : 'tx')
+const accountProviderOptions = [{ id: 'tx', nameKey: 'search__account_qq', name: '' }, { id: 'wy', nameKey: 'search__account_netease', name: '' }, { id: 'kg', nameKey: 'source_kg', name: '' }, { id: 'server', nameKey: '', name: '推荐' }] as const
 const dailyRecommendList = shallowRef<LX.Music.MusicInfoOnline[]>([])
 const dailyCoverUrls = ref<string[]>([])
 const feed = shallowRef<DailyFeed>()
@@ -228,10 +228,10 @@ const todayMonth = computed(() => new Intl.DateTimeFormat(window.i18n.locale || 
 const todayLabel = computed(() => new Intl.DateTimeFormat(window.i18n.locale || 'zh-CN', { month: 'long', day: 'numeric' }).format(now.value))
 const hasMusicAccount = computed(() => accountStatus.value.tx || accountStatus.value.wy || accountStatus.value.kg)
 const hasMusicAccountSession = computed(() => Object.values(accountStatus.value.accounts).some(account => account.hasSession))
-const accountActionText = computed(() => isWeb ? '平台账号 · 客户端功能说明' : hasMusicAccount.value ? '音乐账号已登录 · 管理账号' : '登录音乐平台')
+const accountActionText = computed(() => isWeb ? '音乐平台账号' : hasMusicAccount.value ? '音乐账号已登录 · 管理账号' : '登录音乐平台')
 const dailyRecommendMode = computed(() => feed.value?.origin === 'account' ? 'personalized' : 'fallback')
-const dailyTitle = computed(() => `${dailyKindNames[feed.value?.kind ?? ''] ?? (selectedDailyProvider.value === 'server' ? 'Docker 每日推荐' : accountNames[selectedDailyProvider.value] + '个人推荐')} · ${dailyRecommendList.value.length} 首`)
-const dailySourceText = computed(() => isDailyLoading.value && !feed.value ? '正在加载推荐…' : feed.value ? dailyFeedNotice(feed.value) : '个人推荐不可用时自动使用 Docker 推荐')
+const dailyTitle = computed(() => `${dailyKindNames[feed.value?.kind ?? ''] ?? '今日推荐'} · ${dailyRecommendList.value.length} 首`)
+const dailySourceText = computed(() => isDailyLoading.value && !feed.value ? '正在加载推荐…' : feed.value ? dailyFeedNotice(feed.value) : '每日精选，发现好音乐')
 const detailMusicList = computed(() => detailKind.value === 'playlist' ? playlistDetailList.value : dailyRecommendList.value)
 const detailTitle = computed(() => detailKind.value === 'playlist' ? selectedAccountPlaylist.value?.name : dailyTitle.value)
 const detailCover = computed(() => detailKind.value === 'playlist' ? selectedAccountPlaylist.value?.cover : dailyCoverUrls.value[0])
@@ -247,38 +247,56 @@ let playlistRevision = 0
 let detailRevision = 0
 let statusRevision = 0
 let shownSource: DailySource | undefined
+let loadingSource: DailySource | undefined
+let shownIdentity = ''
 let controller: AbortController | undefined
 let pendingUpdate = false
 let endpoint = ''
-const loadDailyRecommend = async(force = false) => {
+const loadDailyRecommend = async(force = false, reload = false) => {
   if (!active || !props.visible) return
+  const source = selectedDailyProvider.value
+  const workspace = getWorkspace()
+  const identity = source === 'server' ? '' : JSON.stringify([accountStatus.value[source], accountStatus.value.accounts[source].importOwner ?? '', accountStatus.value.accounts[source].hasSession])
+  const cached = !force && !reload ? readDailyFeedCache(workspace, source, identity) : undefined
+  if (cached) {
+    controller?.abort(); dailyRevision++; isDailyLoading.value = false
+    shownSource = source; shownIdentity = identity; endpoint = workspace.client.endpoint
+    feed.value = cached.feed; dailyRecommendList.value = cached.feed.list
+    dailyCoverUrls.value = cached.covers ?? cached.feed.list.slice(0, 9).map(item => item.meta.picUrl ?? '')
+    dailyError.value = ''; return
+  }
+  if (!force && !reload && isDailyLoading.value && loadingSource === source) return
   controller?.abort()
   const request = controller = new AbortController()
   const revision = ++dailyRevision
-  const source = selectedDailyProvider.value
-  const workspace = getWorkspace()
+  loadingSource = source
   endpoint = workspace.client.endpoint
   now.value = new Date(); isDailyLoading.value = true; dailyError.value = ''
-  if (shownSource !== source) { dailyRecommendList.value = []; dailyCoverUrls.value = []; feed.value = undefined }
+  if (shownSource !== source || shownIdentity !== identity) { dailyRecommendList.value = []; dailyCoverUrls.value = []; feed.value = undefined }
   try {
     const next = await loadDailyFeed(workspace, source, loadDesktopAccountDaily, force, request.signal)
     if (!active || revision !== dailyRevision || workspace !== getWorkspace()) return
     // The request revision and workspace above guard this assignment.
     // eslint-disable-next-line require-atomic-updates
     shownSource = source
+    // The same request revision and workspace guard the account identity.
+    // eslint-disable-next-line require-atomic-updates
+    shownIdentity = identity
     feed.value = next; dailyRecommendList.value = next.list
+    cacheDailyFeed(workspace, source, identity, next)
     dailyCoverUrls.value = next.list.slice(0, 9).map(item => item.meta.picUrl ?? '')
     const covers = await Promise.all(next.list.slice(0, 9).map(async item => item.meta.picUrl ?? await getPicPath({ musicInfo: item }).catch(() => '')))
-    if (active && revision === dailyRevision && workspace === getWorkspace()) dailyCoverUrls.value = covers
+    if (active && revision === dailyRevision && workspace === getWorkspace()) { dailyCoverUrls.value = covers; cacheDailyFeed(workspace, source, identity, next, covers) }
   } catch (error) {
     if (active && revision === dailyRevision) {
       if (error instanceof ServiceError && error.code === 'ACCOUNT_CHANGED') {
+        clearDailyFeedCache(workspace)
         dailyRecommendList.value = []; dailyCoverUrls.value = []; feed.value = undefined
       }
       dailyError.value = error instanceof Error ? error.message : '推荐加载失败，请重试'
     }
   } finally {
-    if (revision === dailyRevision) { isDailyLoading.value = false; if (pendingUpdate) { pendingUpdate = false; void loadDailyRecommend() } }
+    if (revision === dailyRevision) { isDailyLoading.value = false; if (pendingUpdate) { pendingUpdate = false; void loadDailyRecommend(false, true) } }
   }
 }
 const openAccountModal = () => { void router.push(`/setting?name=SettingAccounts&provider=${selectedDailyProvider.value === 'server' ? 'tx' : selectedDailyProvider.value}`) }
@@ -323,10 +341,11 @@ const importSelectedPlaylist = async() => {
   importing.value = true
   try {
     const result = await importDesktopAccountPlaylist(selectedAccountPlaylistProvider.value, selectedAccountPlaylist.value, () => !active || revision !== detailRevision)
-    if (active && revision === detailRevision) importMessage.value = `已导入 ${result.count} 首，服务器已有内容保留`
-  } catch { if (active && revision === detailRevision) playlistDetailError.value = '导入失败，请检查账号和服务器连接' } finally { importing.value = false }
+    if (active && revision === detailRevision) importMessage.value = `已导入 ${result.count} 首，已有内容保留`
+  } catch { if (active && revision === detailRevision) playlistDetailError.value = '导入失败，请检查账号与连接状态' } finally { importing.value = false }
 }
 const selectDailyProvider = (source: DailySource) => {
+  if (selectedDailyProvider.value === source) return
   selectedDailyProvider.value = source; localStorage.setItem('qmusic.service.daily.mode.v1', source === 'server' ? 'server' : 'account')
   if (source !== 'server') localStorage.setItem('qmusic.dailyRecommend.provider', source)
   isShowDailyDetail.value = false; detailRevision++; void loadDailyRecommend()
@@ -335,7 +354,7 @@ const selectDailyProvider = (source: DailySource) => {
 const isCurrentTrack = (track: LX.Music.MusicInfoOnline) => playMusicInfo.musicInfo?.id === track.id
 const playTracks = async(tracks: LX.Music.MusicInfoOnline[], index = 0) => {
   if (!tracks.length) return
-  try { await playFromPage(detailKind.value === 'playlist' ? 'account_preview' : 'service_daily', tracks, index) } catch { dailyError.value = '播放失败，请检查 Docker 音源设置' }
+  try { await playFromPage(detailKind.value === 'playlist' ? 'account_preview' : 'service_daily', tracks, index) } catch { dailyError.value = '播放失败，请检查音源设置' }
 }
 const playDailyRecommend = (index = 0) => { void playTracks(dailyRecommendList.value, index) }
 const playDetailList = (index?: number) => { if (index != null && detailMusicList.value[index] && isCurrentTrack(detailMusicList.value[index])) togglePlay(); else void playTracks(detailMusicList.value, index) }
@@ -344,20 +363,21 @@ const closeDailyDetail = () => { isShowDailyDetail.value = false; detailRevision
 const handleCoverLoad = (event: Event) => { (event.target as HTMLImageElement).classList.add('q-cover-loaded') }
 const handleDailyCoverError = (index: number) => { dailyCoverUrls.value[index] = '' }
 const accountChanged = () => {
+  clearDailyFeedCache(getWorkspace())
   shownSource = undefined; dailyRecommendList.value = []; dailyCoverUrls.value = []; feed.value = undefined
   playlistRevision++; detailRevision++; accountPlaylists.value = []; playlistDetailList.value = []; isShowDailyDetail.value = false
   const source = localStorage.getItem('qmusic.dailyRecommend.provider')
   if (localStorage.getItem('qmusic.service.daily.mode.v1') === 'account' && (source === 'tx' || source === 'wy' || source === 'kg')) selectedDailyProvider.value = source
-  void refreshAccountStatus(); void loadDailyRecommend()
+  void refreshAccountStatus().finally(() => { void loadDailyRecommend() })
 }
-const update = () => { if (feed.value?.origin === 'account' || !props.visible) return; if (isDailyLoading.value) pendingUpdate = true; else void loadDailyRecommend() }
+const update = () => { clearDailyFeedCache(getWorkspace(), 'server'); if (feed.value?.origin !== 'server') return; if (isDailyLoading.value || !props.visible) pendingUpdate = true; else void loadDailyRecommend(false, true) }
 const unsubscribeRecommendations = subscribeRecommendations(update)
 const unsubscribe = subscribeService(() => {
   if (!serviceStatus.connected || serviceStatus.busy) return
   if (endpoint !== serviceStatus.endpoint) { shownSource = undefined; dailyRecommendList.value = []; dailyCoverUrls.value = []; feed.value = undefined; void loadDailyRecommend() } else if (['warming', 'generating', 'stale'].includes(feed.value?.status ?? '') && !isDailyLoading.value) update()
 })
 window.addEventListener('qmusic-accounts-changed', accountChanged)
-watch(() => props.visible, visible => { if (visible) { void refreshAccountStatus(); void loadDailyRecommend() } }, { immediate: true })
+watch(() => props.visible, visible => { if (visible) void refreshAccountStatus().finally(() => { const reload = pendingUpdate; pendingUpdate = false; void loadDailyRecommend(false, reload) }) }, { immediate: true })
 onBeforeUnmount(() => { active = false; dailyRevision++; playlistRevision++; detailRevision++; statusRevision++; controller?.abort(); unsubscribe(); unsubscribeRecommendations(); window.removeEventListener('qmusic-accounts-changed', accountChanged) })
 </script>
 <style lang="less" module>

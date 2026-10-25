@@ -1,17 +1,17 @@
 <template>
   <section :class="$style.panel">
     <template v-if="section === 'connection'">
-      <h2>服务器连接</h2>
-      <p>曲库、歌单、收藏、历史和下载由服务器统一保存。更换服务器不会迁移或删除任何数据。</p>
-      <label>服务器地址 <input v-model="address" aria-label="服务器地址" placeholder="http://192.168.0.70:3124"></label>
+      <h2>连接设置</h2>
+      <p>音乐库、歌单、收藏、播放记录与下载在各设备间保持一致。更改连接地址不会删除数据。</p>
+      <label>连接地址 <input v-model="address" aria-label="连接地址" placeholder="http://192.168.0.70:3124"></label>
       <button :disabled="busy" @click="run(() => connectService(address, reload))">连接并使用</button>
       <button :disabled="busy" @click="run(() => checkService(true))">重新连接 / 刷新</button>
       <p>{{ status.connected ? '已连接' : '连接不可用' }} · {{ status.endpoint }}</p>
       <h3>功能归属</h3>
-      <p>音源、解析与下载设置对连接这台服务器的客户端共同生效；主题、播放音质、音频输出、快捷键和歌词外观仅影响当前设备。</p>
+      <p>在这里管理连接、音源和下载；外观、播放与歌词可按自己的习惯调整。</p>
     </template>
     <template v-else-if="section === 'sources'">
-      <h2>音源与自动切换 · 服务器</h2>
+      <h2>音源与自动切换</h2>
       <p>按启用顺序尝试音源；可恢复的解析失败继续尝试其他平台。安全拦截和取消操作不会被重试绕过。</p>
       <label>脚本地址 <input v-model="sourceUrl" aria-label="音源脚本地址" placeholder="https://…/source.js"></label>
       <button :disabled="busy || !sourceUrl.trim()" @click="run(async() => { await client.importSource(sourceUrl); await load() })">从地址导入</button>
@@ -26,9 +26,9 @@
       </article>
     </template>
     <template v-else-if="section === 'downloads'">
-      <h2>下载设置 · 服务器</h2>
-      <p>下载在 Docker 中执行，完成的文件进入“我的音乐 → 音乐库”。保存目录是服务器目录。</p>
-      <p>边听边存在在线歌曲开始播放后触发，按最高可用音质自动保存到服务器，跳过已有音频；它独立于手动下载的“启用下载”开关，对连接这台服务器的客户端共同生效。</p>
+      <h2>下载设置</h2>
+      <p>下载完成后可在“我的音乐 → 音乐库”中播放。</p>
+      <p>开启边听边存后，在线播放的歌曲会按最高可用音质自动保存，已有音频会跳过。此功能独立于手动下载开关。</p>
       <button :disabled="busy" @click="run(load)">刷新设置</button>
       <label v-for="key in settingKeys" :key="key" :class="$style.setting">
         {{ downloadSettingLabels[key] }}
@@ -39,8 +39,8 @@
     </template>
     <template v-else>
       <h2>兼容功能说明</h2>
-      <p>音乐平台登录在“音乐平台账号”中管理，凭证保存在当前设备；账号歌单可显式导入服务器，个人推荐在首页选择。Docker 不托管账号凭证。旧版点对点同步、云盘和远程备份不会覆盖现有数据。</p>
-      <p>已有本机数据仍保留在原来的数据目录中。共享曲库、收藏、歌单与历史现在直接使用服务器，无需额外开启同步。</p>
+      <p>在“音乐平台账号”中登录，即可浏览账号歌单与个人推荐。导入歌单会保留已有内容，旧版同步与备份不会自动覆盖数据。</p>
+      <p>已有数据保持不变，音乐库、收藏、歌单与播放记录无需额外开启同步。</p>
     </template>
     <p v-if="error || status.error" role="alert">{{ error || status.error }}</p>
   </section>
@@ -82,7 +82,7 @@ const enabled = () => orderedSources.value.filter(item => item.enabled).map(item
 const enable = async(id: string, value: boolean) => { sources.value = await client.enableSources(value ? [...enabled(), id] : enabled().filter(item => item !== id)) }
 const moveFirst = async(id: string) => { sources.value = await client.enableSources([id, ...enabled().filter(item => item !== id)]) }
 const removeSource = async(id: string) => {
-  if (!await dialog.confirm({ message: '从服务器移除此音源？所有客户端都会使用更新后的音源链。' })) return
+  if (!await dialog.confirm({ message: '移除此音源？移除后将使用更新后的音源顺序。' })) return
   await run(async() => { await client.request(`/api/v1/sources/${encodeURIComponent(id)}`, 'DELETE'); await load() })
 }
 const importFile = (event: Event) => {
