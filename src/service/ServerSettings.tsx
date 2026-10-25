@@ -60,6 +60,7 @@ export default ({ section = 'connection' }: { section?: 'connection' | 'sources'
     </> : section === 'downloads' ? <>
       <Text size={18}>下载设置 · 服务器</Text>
       <Text size={13}>下载在 Docker 中执行，完成后进入“我的音乐 → 音乐库”。保存目录属于服务器。</Text>
+      <Text size={13}>边听边存在在线歌曲开始播放后触发，按最高可用音质自动保存到服务器，跳过已有音频；它独立于手动下载的“启用下载”开关，对连接这台服务器的客户端共同生效。</Text>
       {action('刷新设置', () => { void run(load) })}
       {Object.entries(downloadSettingLabels).filter(([key]) => key in settings).map(([key, label]) => <View key={key} style={{ gap: 6 }}>
         <Text size={13}>{label}</Text>
