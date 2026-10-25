@@ -9,7 +9,7 @@ export const downloadSources = [
   { name: '备用线路 1', prefix: 'https://ghfast.top/' },
   { name: '备用线路 2', prefix: 'https://gh-proxy.com/' },
 ]
-export const releaseBase = 'https://github.com/Nshpiter/Q-music/releases/download/'
+export const releaseBase = 'https://github.com/appdev/Q-music/releases/download/'
 export const downloadUrl = (source: { prefix: string }, url: string) => {
   if (!url.startsWith(releaseBase)) throw new Error('不是 Q-music 发布文件')
   return mirrorBase && source.prefix == mirrorBase ? `${mirrorBase}/releases/${url.slice(releaseBase.length)}` : source.prefix + url
@@ -33,11 +33,11 @@ export const compareVersions = (a: string, b: string) => {
 export const getUpdateVersion = async(request: Request, platform: 'desktop' | 'android'): Promise<UpdateVersion> => {
   const path = platform == 'android' ? 'mobile-version.json' : 'version.json'
   const urls = [
-    'https://api.github.com/repos/Nshpiter/Q-music/releases?per_page=30',
-    `https://raw.githubusercontent.com/Nshpiter/Q-music/master/publish/${path}`,
-    `https://cdn.jsdelivr.net/gh/Nshpiter/Q-music@master/publish/${path}`,
-    `https://ghfast.top/https://raw.githubusercontent.com/Nshpiter/Q-music/master/publish/${path}`,
-    `https://gh-proxy.com/https://raw.githubusercontent.com/Nshpiter/Q-music/master/publish/${path}`,
+    'https://api.github.com/repos/appdev/Q-music/releases?per_page=30',
+    `https://raw.githubusercontent.com/appdev/Q-music/master/publish/${path}`,
+    `https://cdn.jsdelivr.net/gh/appdev/Q-music@master/publish/${path}`,
+    `https://ghfast.top/https://raw.githubusercontent.com/appdev/Q-music/master/publish/${path}`,
+    `https://gh-proxy.com/https://raw.githubusercontent.com/appdev/Q-music/master/publish/${path}`,
     ...(mirrorBase ? [`${mirrorBase}/channels/${platform}.json`] : []),
   ]
   // 同时检查独立线路，避免坏线路反复阻塞；比较版本，避免 CDN 旧缓存抢先返回。
@@ -45,7 +45,7 @@ export const getUpdateVersion = async(request: Request, platform: 'desktop' | 'a
     const body = await request(url)
     if (index == 0) {
       if (!Array.isArray(body)) throw new Error('发布信息格式错误')
-      const releases = body.filter(release => !release.draft && !release.prerelease &&
+      const releases = body.filter(release => !release.draft && (!release.prerelease || String(release.body).includes('<!-- qmusic-service-preview -->')) &&
         validVersion(String(release.tag_name ?? '').replace(/^v/, '')) &&
         release.assets?.some((asset: ReleaseAsset) => platform == 'android'
           ? /^Q-music-android-v[\d.]+-.+\.apk$/.test(asset.name)

@@ -70,7 +70,7 @@ test('PC 镜像返回 HTML/错误版本时被排除，切线保留最初的校�
   const instance = new Custom({}, {}, { platform: 'win32' })
   assert.equal(instance.resolveFiles(info)[0].info.sha512, 'trusted-hash')
   prefix = 'https://gh-proxy.com/'
-  assert.equal(instance.resolveFiles(info)[0].url.href, 'https://gh-proxy.com/https://github.com/Nshpiter/Q-music/releases/download/v0.4.10/Q-music-v0.4.10-x64-Setup.exe')
+  assert.equal(instance.resolveFiles(info)[0].url.href, 'https://gh-proxy.com/https://github.com/appdev/Q-music/releases/download/v0.4.10/Q-music-v0.4.10-x64-Setup.exe')
   assert.equal(instance.resolveFiles(info)[0].info.sha512, 'trusted-hash')
   await assert.rejects(provider.loadUpdateMetadata('0.4.11'))
   await assert.rejects(provider.loadUpdateMetadata('0.4.10', [{ name: 'latest.yml', digest: 'sha256:' + '0'.repeat(64) }]))

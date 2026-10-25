@@ -81,7 +81,7 @@ const run = async(target) => {
   await verifyNative(qrc, platform, arch)
   await fs.mkdir(path.join(stage, 'build/Release'), { recursive: true })
   await fs.copyFile(qrc, path.join(stage, 'build/Release/qrc_decode.node'))
-  await fs.writeFile(path.join(stage, 'package.json'), JSON.stringify({ name: 'q-music-docker-preview', version: process.env.Q_PREVIEW_VERSION || pkg.version + '-service.6', main: 'dist/main.js', description: 'Q-music unified Docker Service client', author: pkg.author, license: pkg.license, dependencies }, null, 2))
+  await fs.writeFile(path.join(stage, 'package.json'), JSON.stringify({ name: 'q-music-docker-preview', version: process.env.Q_PREVIEW_VERSION || pkg.version, main: 'dist/main.js', description: 'Q-music unified Docker Service client', author: pkg.author, license: pkg.license, dependencies }, null, 2))
   const config = {
     appId: 'io.github.qmusic.docker.preview', productName: 'Q-music Docker Preview', electronVersion,
     directories: { app: stage, output, buildResources: path.join(root, 'resources') },
