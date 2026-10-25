@@ -168,6 +168,8 @@ test('server downloads never create desktop filesystem/worker tasks', async() =>
     '@renderer/worker/utils': {}, '@renderer/utils': {}, '@common/constants': { DOWNLOAD_STATUS: {} }, '../index': {}, './utils': {},
     '@renderer/service/tracks': adapter,
     '@renderer/service/client': { ServiceClient: class { constructor(endpoint) { this.endpoint = endpoint }; async download(track, quality) { writes.push({ endpoint: this.endpoint, track, quality }) } } },
+    '@renderer/service/downloads': { downloadWithConfirmation: async(client, track, quality) => { await client.download(track, quality); return true } },
+    '@renderer/plugins/Dialog': {}, '@renderer/service/session': {},
   }, { window: { lx: { worker: { download: { createDownloadTasks: fail } } } } })
   await action.createDownloadTasks([adapter.toServiceTrack(original, 'http://one:3124')], '320k')
   assert.equal(writes.length, 1); assert.equal(writes[0].endpoint, 'http://one:3124'); assert.equal(writes[0].quality, '320k')

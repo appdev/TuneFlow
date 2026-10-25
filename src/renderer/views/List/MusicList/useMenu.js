@@ -6,6 +6,7 @@ import { isServerLibraryTrack } from '@renderer/service/tracks'
 
 export default ({
   readOnly,
+  library,
   isSelectionMode,
   selectedList,
   selectFromMenu,
@@ -106,11 +107,11 @@ export default ({
         disabled: !itemMenuControl.dislike,
       },
       {
-        name: t('list__remove'),
+        name: library?.value ? '删除音乐文件' : t('list__remove'),
         action: 'remove',
         disabled: !itemMenuControl.remove,
       },
-    ].filter(item => !readOnly.value || !['moveTo', 'sort', 'toggleSource', 'remove'].includes(item.action))
+    ].filter(item => !readOnly.value || (library?.value && item.action === 'remove') || !['moveTo', 'sort', 'toggleSource', 'remove'].includes(item.action))
   })
 
   const showMenu = (event, musicInfo) => {

@@ -12,7 +12,7 @@
         </div>
       </div>
       <p v-if="!qualitys.length" :class="$style.message">{{ $t('player_download_unavailable') }}</p>
-      <p v-if="error" role="status" :class="$style.message">{{ $t('player_download_failed') }}</p>
+      <p v-if="error" role="status" :class="$style.message">{{ error === true ? $t('player_download_failed') : error }}</p>
       <DownloadQualityOptions :qualities="qualitys" :working="working" @select="handleClick" />
     </main>
   </material-modal>
@@ -79,7 +79,7 @@ export default {
       try {
         await createDownloadTasks([this.musicInfo], quality, this.listId)
         this.$emit('update:show', false)
-      } catch { this.error = true } finally { this.working = false }
+      } catch (error) { this.error = error?.code === 'DOWNLOAD_TASK_ACTIVE' ? error.message : true } finally { this.working = false }
     },
     handleClose() {
       if (this.working) return

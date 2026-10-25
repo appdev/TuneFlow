@@ -10,6 +10,8 @@ import { addDislikeInfo, hasDislike } from '@renderer/core/dislikeList'
 import { playNext } from '@renderer/core/player'
 import { playMusicInfo } from '@renderer/store/player/state'
 import { trashLocalMusic } from '@renderer/utils/removeLocalMusic'
+import { LIBRARY_ID } from '@renderer/service/workspace'
+import { deleteLibrarySelection } from '@renderer/service/libraryActions'
 
 
 export default ({ props, list, selectedList, removeAllSelect }) => {
@@ -54,6 +56,10 @@ export default ({ props, list, selectedList, removeAllSelect }) => {
 
   const handleRemoveMusic = async(index, single) => {
     const targets = selectedList.value.length && !single ? [...selectedList.value] : [list.value[index]].filter(Boolean)
+    if (props.listId === LIBRARY_ID) {
+      if (await deleteLibrarySelection(targets)) removeAllSelect()
+      return
+    }
     if (targets.some(music => music.source == 'local')) {
       const listId = props.listId
       let deleteFiles = false

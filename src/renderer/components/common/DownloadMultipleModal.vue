@@ -3,7 +3,7 @@
     <main class="scroll" :class="$style.main">
       <p>{{ $t('download__multiple_tip2') }}</p>
       <p v-if="list.length != onlineList.length">{{ $t('download_local_skipped', { count: list.length - onlineList.length }) }}</p>
-      <p v-if="error" role="alert">{{ $t('player_download_failed') }}</p>
+      <p v-if="error" role="alert">{{ error === true ? $t('player_download_failed') : error }}</p>
       <DownloadQualityOptions v-if="onlineList.length" :qualities="qualities" :working="working" @select="handleClick" />
     </main>
   </material-modal>
@@ -52,7 +52,7 @@ export default {
         await createDownloadTasks(this.onlineList, quality, this.listId)
         this.$emit('update:show', false)
         this.$emit('confirm')
-      } catch { this.error = true } finally { this.working = false }
+      } catch (error) { this.error = error?.code === 'DOWNLOAD_TASK_ACTIVE' ? error.message : true } finally { this.working = false }
     },
     handleClose() {
       if (this.working) return

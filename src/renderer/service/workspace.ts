@@ -105,6 +105,20 @@ export class ServiceWorkspace {
     return (await this.client.playlist(id)).tracks.map(item => this.native(item))
   }
 
+  async deleteLibraryTracks(tracks: LX.Music.MusicInfo[]) {
+    const originals = tracks.map(track => this.original(track))
+    if (originals.some(track => track.source !== 'local' || !track.id)) throw new ServiceError('INVALID_LIBRARY_TRACK')
+    let deleted = 0
+    let failed = 0
+    for (const id of new Set(originals.map(track => track.id))) {
+      try { await this.client.deleteLibraryTrack(id); deleted++ } catch (error) {
+        if (error instanceof ServiceError && error.code === 'LIBRARY_TRACK_NOT_FOUND') deleted++
+        else failed++
+      }
+    }
+    return { deleted, failed }
+  }
+
   async lists(action: string, input: unknown): Promise<unknown> {
     const data = input as ListOperation
     const request = async<T = unknown>(path: string, method = 'GET', body?: unknown) => this.client.request<T>(path, method, body)

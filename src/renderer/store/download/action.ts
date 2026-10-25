@@ -19,6 +19,9 @@ import { proxy } from '../index'
 import { buildSavePath } from './utils'
 import { getServiceProvenance } from '@renderer/service/tracks'
 import { ServiceClient } from '@renderer/service/client'
+import { downloadWithConfirmation, replacementMessage } from '@renderer/service/downloads'
+import { dialog } from '@renderer/plugins/Dialog'
+import { getWorkspace } from '@renderer/service/session'
 
 const waitingUpdateTasks = new Map<string, LX.Download.ListItem>()
 let timer: NodeJS.Timeout | null = null
@@ -363,7 +366,11 @@ export const createDownloadTasks = async(list: LX.Music.MusicInfoOnline[], quali
   // Never create filesystem tasks for server-owned tracks or signed streams.
   for (const item of remote) {
     const service = getServiceProvenance(item)!
-    if (!service.streamPath) await new ServiceClient(service.endpoint).download(service.track, quality)
+    if (!service.streamPath) {
+      await downloadWithConfirmation(new ServiceClient(service.endpoint), service.track, quality,
+        async() => dialog.confirm({ message: replacementMessage(service.track.name, quality), confirmButtonText: '重新下载并替换' }),
+        () => getWorkspace().client.endpoint === service.endpoint)
+    }
   }
   list = list.filter(item => !getServiceProvenance(item))
   if (!list.length) return

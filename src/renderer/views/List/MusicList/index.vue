@@ -14,6 +14,10 @@
       @add="handleShowMusicAddModal(0)" @download="handleShowDownloadModal(0)"
     >
       <template #heading><span v-if="currentPlaylist" :class="$style.playlistHeading"><PlaylistIdentity :list="currentPlaylist" :name="['default', 'love'].includes(currentPlaylist.id) ? $t(currentPlaylist.name) : currentPlaylist.name" /></span></template>
+      <template v-if="currentPlaylist?.id === 'service_library'" #selected-actions>
+        <button type="button" :disabled="!selectedList.length" @click="handleShowMusicAddModal(0)">{{ $t('list__add_to') }}</button>
+        <button type="button" :disabled="!selectedList.length" @click="handleRemoveMusic(0)">删除音乐文件</button>
+      </template>
     </material-list-toolbar>
     <div class="thead">
       <table>
@@ -121,7 +125,7 @@
 </template>
 
 <script>
-import { isReadOnlyList } from '@renderer/service/workspace'
+import { isReadOnlyList, LIBRARY_ID } from '@renderer/service/workspace'
 import { isServerLibraryTrack } from '@renderer/service/tracks'
 import { clipboardWriteText } from '@common/utils/electron'
 import { assertApiSupport } from '@renderer/store/utils'
@@ -265,6 +269,7 @@ export default {
       menuClick,
     } = useMenu({
       readOnly: computed(() => isReadOnlyList(props.listId)),
+      library: computed(() => props.listId === LIBRARY_ID),
       isSelectionMode,
       selectedList,
       selectFromMenu,
@@ -364,6 +369,7 @@ export default {
       handleShowMusicAddModal,
       handleShowDownloadModal,
       canDownloadSelection,
+      handleRemoveMusic,
       appSetting,
       isCurrentMusic,
       isPlay,
