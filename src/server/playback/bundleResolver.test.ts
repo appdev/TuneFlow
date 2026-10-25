@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
+import Fastify from 'fastify'
 import type { SourcesService } from '../routes/sources'
+import { registerPlaybackRoutes } from '../routes/playback'
 import { SourceServiceError } from '../sources/types'
 import { PlaybackResourceStore } from './resourceStore'
 import { PlaybackBundleResolver } from './bundleResolver'
@@ -196,7 +198,7 @@ describe('playback resource bundle resolver', () => {
     expect(result).toMatchObject({ completeness: 'audio-only', sourceIds: { audio: 'a' } })
   })
 
-  it('does not bypass a higher-priority terminal failure for a lower complete source', async() => {
+  it('uses a lower complete source after a higher-priority script parsing failure', async() => {
     const sources = sourceService({
       a: { 'wy:musicUrl': new SourceServiceError('SOURCE_PROTOCOL_ERROR', 'invalid script output', 'script') },
       b: {
@@ -213,7 +215,7 @@ describe('playback resource bundle resolver', () => {
       budgetMs: 10,
     })
 
-    await expect(resolver.resolve(input)).rejects.toMatchObject({ code: 'SOURCE_PROTOCOL_ERROR', origin: 'script' })
+    await expect(resolver.resolve(input)).resolves.toMatchObject({ sourceIds: { audio: 'b' }, completeness: 'complete' })
   })
 
   it('does not let successful higher-priority audio hide a lower-priority safety failure', async() => {
@@ -266,7 +268,7 @@ describe('playback resource bundle resolver', () => {
     })
     vi.spyOn(sources, 'requestSource').mockImplementation(async(id) => {
       await new Promise(resolve => { setTimeout(resolve, id === 'a' ? 10 : 15) })
-      if (id === 'a') throw new SourceServiceError('SOURCE_PROTOCOL_ERROR', 'late invalid output', 'script')
+      if (id === 'a') throw new SourceServiceError('SOURCE_RESPONSE_TOO_LARGE', 'late oversized response', 'safety')
       return { url: 'https://b.test/audio' }
     })
     const resolver = new PlaybackBundleResolver({
@@ -277,7 +279,7 @@ describe('playback resource bundle resolver', () => {
       budgetMs: 5,
     })
 
-    await expect(resolver.resolve(input)).rejects.toMatchObject({ code: 'SOURCE_PROTOCOL_ERROR', origin: 'script' })
+    await expect(resolver.resolve(input)).rejects.toMatchObject({ code: 'SOURCE_RESPONSE_TOO_LARGE', origin: 'safety' })
   })
 
   it('bounds hanging built-in enrichment with the same resolve deadline', async() => {
@@ -671,6 +673,141 @@ describe('playback resource bundle resolver', () => {
     ])
     expect(bundle.sourceIds).toEqual({ audio: 'a', lyrics: 'a', picture: 'snapshot' })
     expect(bundle.resources.pictureUrl).toMatch(/^\/api\/v1\/playback\/resources\/[a-f0-9]{64}\/picture$/)
+  })
+
+  it.each([
+    new SourceServiceError('SOURCE_PROTOCOL_ERROR', 'invalid output', 'protocol'),
+    new SourceServiceError('SOURCE_PROTOCOL_ERROR', 'script parsing failed', 'script'),
+    new SourceServiceError('SOURCE_UNAVAILABLE', 'track unavailable', 'script'),
+    new SourceServiceError('SOURCE_NETWORK_ERROR', 'offline', 'service-network'),
+    new SourceServiceError('SOURCE_TIMEOUT', 'timed out', 'worker-timeout'),
+  ])('continues through failed platforms after $code ($origin)', async(failure) => {
+    const sources = sourceService({
+      a: {
+        'wy:musicUrl': failure,
+        'tx:musicUrl': failure,
+        'kg:musicUrl': { url: 'https://a.test/available' },
+      },
+    })
+    const requests = vi.spyOn(sources, 'requestSource')
+    const findAlternatives = vi.fn(async() => [
+      { id: 'same-platform', source: 'wy' },
+      { id: 'tx-track', source: 'tx' },
+      { id: 'kg-track', source: 'kg' },
+    ])
+    const onAttempt = vi.fn()
+    const resolver = new PlaybackBundleResolver({
+      sources,
+      mediaClient: mediaClient as never,
+      resourceStore: new PlaybackResourceStore(),
+      findAlternatives,
+      onAttempt,
+      hedgeDelayMs: 0,
+    })
+
+    await expect(resolver.resolve(input)).resolves.toMatchObject({
+      audioKind: 'online',
+      streamCandidates: [{ sourceId: 'a', url: 'https://a.test/available' }],
+    })
+    expect(findAlternatives).toHaveBeenCalledTimes(1)
+    expect(requests.mock.calls.map(([, request]) => request.source)).toEqual(['wy', 'tx', 'kg'])
+    expect(onAttempt.mock.calls.map(([attempt]) => attempt.code)).toEqual([failure.code, failure.code, 'OK'])
+  })
+
+  it.each(['SOURCE_TARGET_BLOCKED', 'SOURCE_RESPONSE_TOO_LARGE', 'SOURCE_CANCELLED'])('keeps %s terminal regardless of forwarded origin', async(code) => {
+    for (const origin of ['protocol', 'script', 'service-network', 'safety', 'caller'] as const) {
+      const failure = new SourceServiceError(code, 'must stop', origin)
+      const sources = sourceService({
+        a: { 'wy:musicUrl': failure, 'tx:musicUrl': { url: 'https://a.test/alternative' } },
+        b: { 'wy:musicUrl': { url: 'https://b.test/audio' } },
+      })
+      const findAlternatives = vi.fn(async() => [{ id: 'alt', source: 'tx' }])
+      const resolver = new PlaybackBundleResolver({
+        sources,
+        mediaClient: mediaClient as never,
+        resourceStore: new PlaybackResourceStore(),
+        findAlternatives,
+        hedgeDelayMs: 0,
+      })
+
+      await expect(resolver.resolve(input)).rejects.toBe(failure)
+      expect(findAlternatives).not.toHaveBeenCalled()
+    }
+  })
+
+  it('does not hide an unexpected resolver error by switching platforms', async() => {
+    const failure = new Error('unexpected resolver failure')
+    const findAlternatives = vi.fn(async() => [{ id: 'alt', source: 'tx' }])
+    const resolver = new PlaybackBundleResolver({
+      sources: sourceService({ a: { 'wy:musicUrl': failure } }),
+      mediaClient: mediaClient as never,
+      resourceStore: new PlaybackResourceStore(),
+      findAlternatives,
+      hedgeDelayMs: 0,
+    })
+
+    await expect(resolver.resolve(input)).rejects.toBe(failure)
+    expect(findAlternatives).not.toHaveBeenCalled()
+  })
+
+  it('reports all failed source attempts after exhausting every platform', async() => {
+    const failure = new SourceServiceError('SOURCE_PROTOCOL_ERROR', 'invalid output', 'protocol')
+    const resolver = new PlaybackBundleResolver({
+      sources: sourceService({ a: { 'wy:musicUrl': failure, 'tx:musicUrl': failure } }),
+      mediaClient: mediaClient as never,
+      resourceStore: new PlaybackResourceStore(),
+      findAlternatives: async() => [{ id: 'alt', source: 'tx' }],
+      hedgeDelayMs: 0,
+    })
+
+    await expect(resolver.resolve(input)).rejects.toMatchObject({
+      code: 'SOURCE_ALL_UNAVAILABLE',
+      details: {
+        attempts: [
+          expect.objectContaining({ sourceId: 'a', code: failure.code }),
+          expect.objectContaining({ sourceId: 'a', code: failure.code }),
+        ],
+      },
+    })
+  })
+
+  it('returns an opaque playback stream through the HTTP route after switching platforms', async() => {
+    const app = Fastify()
+    const sources = sourceService({
+      a: {
+        'wy:musicUrl': new SourceServiceError('SOURCE_PROTOCOL_ERROR', 'invalid output', 'protocol'),
+        'tx:musicUrl': { url: 'https://a.test/alternative' },
+      },
+    })
+    const requests = vi.spyOn(sources, 'requestSource')
+    const tokens = new TokenStore()
+    const resources = new PlaybackResourceStore()
+    registerPlaybackRoutes(app, {
+      sources,
+      tokenStore: tokens,
+      resourceStore: resources,
+      bundleResolver: new PlaybackBundleResolver({
+        sources,
+        mediaClient: mediaClient as never,
+        resourceStore: resources,
+        findAlternatives: async() => [{ id: 'alt', source: 'tx' }],
+        hedgeDelayMs: 0,
+      }),
+    })
+    try {
+      const response = await app.inject({ method: 'POST', url: '/api/v1/playback/tracks/resolve', payload: input })
+
+      expect(response.statusCode).toBe(200)
+      const resolved = response.json().data
+      expect(resolved.url).toMatch(/^\/api\/v1\/streams\/[a-f0-9]{64}$/)
+      expect(response.body).not.toContain('a.test')
+      expect(tokens.get(resolved.url.split('/').pop())?.candidates).toEqual([
+        { sourceId: 'a', url: 'https://a.test/alternative' },
+      ])
+      expect(requests.mock.calls.map(([, request]) => request.source)).toEqual(['wy', 'tx'])
+    } finally {
+      await app.close()
+    }
   })
 
   it('fully exhausts the original track before evaluating alternatives', async() => {

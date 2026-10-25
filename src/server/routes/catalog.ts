@@ -148,7 +148,7 @@ const LeaderboardPage = Type.Object({
 const sourceFailure = (error: unknown, message: string): never => {
   if (error instanceof ApiError) throw error
   const code = typeof error === 'object' && error != null && 'code' in error && typeof error.code === 'string' ? error.code : 'SOURCE_PROTOCOL_ERROR'
-  if (code === 'INVALID_PLAYLIST_ID' || code === 'INVALID_ALBUM_ID') throw new ApiError(400, code, message)
+  if (code === 'INVALID_PLAYLIST_ID' || code === 'INVALID_ALBUM_ID' || code === 'INVALID_PLAYLIST_TAG') throw new ApiError(400, code, message)
   throw new ApiError(502, code, message)
 }
 

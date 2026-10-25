@@ -15,6 +15,7 @@ export interface SourceInfo {
 }
 
 export interface SourceSummary extends SourceInfo {
+  allowShowUpdateAlert: boolean
   active: boolean
   enabled: boolean
   priority: number | null
@@ -22,6 +23,7 @@ export interface SourceSummary extends SourceInfo {
 }
 
 export interface InstalledSource extends SourceInfo {
+  allowShowUpdateAlert: boolean
   scriptPath: string
   installedAt: number
   sources?: SourceSummary['sources']

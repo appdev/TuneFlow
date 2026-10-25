@@ -22,8 +22,10 @@ export const getMusicType = (musicInfo: TuneFlow.Music.MusicInfoOnline, requeste
 export const getMusicTypes = (musicInfo: TuneFlow.Music.MusicInfoOnline, requested: TuneFlow.Quality, qualityList?: TuneFlow.QualityList): TuneFlow.Quality[] => {
   const start = Math.max(0, QUALITYS.indexOf(requested))
   const sourceQualitys = qualityList?.[musicInfo.source]
+  // Public/older playlist DTOs may carry only qualitys, without the SDK's private map.
+  const declaredQualitys = new Set((musicInfo.meta?.qualitys ?? []).map(item => item.type))
   const candidates = QUALITYS.slice(start).filter(quality =>
-    musicInfo.meta._qualitys[quality] != null && (sourceQualitys == null || sourceQualitys.includes(quality)),
+    (musicInfo.meta?._qualitys?.[quality] != null || declaredQualitys.has(quality)) && (sourceQualitys == null || sourceQualitys.includes(quality)),
   )
   return candidates.length > 0 ? [...candidates] : ['128k']
 }

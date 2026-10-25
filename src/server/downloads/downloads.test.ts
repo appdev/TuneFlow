@@ -122,6 +122,13 @@ describe('TuneFlow download policy', () => {
     expect(getMusicTypes(track, '320k', { kw: ['flac24bit', 'flac', '320k', '128k'] })).toEqual(['320k', '128k'])
   })
 
+  it('downloads public playlist DTOs without a private quality map and retains source limits', () => {
+    const track = { ...fixtureTrack, meta: { songId: 'public-track', qualitys: [{ type: 'flac' }, { type: '320k' }, { type: '128k' }] } } as TuneFlow.Music.MusicInfoOnline
+    expect(getMusicTypes(track, 'flac')).toEqual(['flac', '320k', '128k'])
+    expect(getMusicTypes(track, 'flac', { kw: ['128k'] })).toEqual(['128k'])
+    expect(getMusicTypes({ ...track, meta: {} } as TuneFlow.Music.MusicInfoOnline, 'flac')).toEqual(['128k'])
+  })
+
   it('clips TuneFlow names and atomically reserves collision suffixes without overwrite', () => {
     const root = createRoot()
     const longSinger = new Array(60).fill('歌手').join('、')

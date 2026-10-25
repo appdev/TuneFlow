@@ -235,7 +235,13 @@ export const createWebRuntime = (dependencies: WebRuntimeDependencies = {}): Web
       return request('PUT', '/api/v1/sources/enabled', { sourceIds: params })
     }],
     [WIN_MAIN_RENDERER_EVENT_NAME.get_user_api_list, async() => request('GET', '/api/v1/sources')],
-    [WIN_MAIN_RENDERER_EVENT_NAME.user_api_set_allow_update_alert, async() => undefined],
+    [WIN_MAIN_RENDERER_EVENT_NAME.user_api_set_allow_update_alert, async params => {
+      const value = params as { id?: unknown, enable?: unknown }
+      if (typeof value?.id !== 'string' || typeof value.enable !== 'boolean') {
+        throw unsupported(WIN_MAIN_RENDERER_EVENT_NAME.user_api_set_allow_update_alert, 'UNSUPPORTED_IPC')
+      }
+      await request('PUT', `/api/v1/sources/${encodeURIComponent(value.id)}/update-alert`, { enabled: value.enable })
+    }],
     [WIN_MAIN_RENDERER_EVENT_NAME.request_user_api, async params => {
       const requestParams = params as { data?: { source?: unknown, action?: unknown, info?: { type?: unknown, musicInfo?: unknown } } }
       const data = requestParams?.data

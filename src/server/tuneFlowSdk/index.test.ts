@@ -31,6 +31,12 @@ it('rejects collection results containing an empty identifier', async() => {
     .rejects.toMatchObject({ code: 'SOURCE_PROTOCOL_ERROR' })
 })
 
+it.each(['42', '42-999', '42-10000-extra', '../42-10000', '42-43?url=http://private'])('rejects invalid KW tag %j before starting a provider request', async(tagId) => {
+  const provider = vi.spyOn(musicSdk.kw.songList, 'getList')
+  await expect(browsePlaylists({ source: 'kw', sortId: 'new', tagId, page: 1 })).rejects.toMatchObject({ code: 'INVALID_PLAYLIST_TAG' })
+  expect(provider).not.toHaveBeenCalled()
+})
+
 it('executes the bundled KW provider through an HTTP fixture boundary', async() => {
   server = http.createServer((_request, response) => {
     response.setHeader('content-type', 'application/json')

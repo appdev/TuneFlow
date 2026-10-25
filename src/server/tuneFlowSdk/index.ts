@@ -266,6 +266,11 @@ export const getPlaylistTags = async(source: string): Promise<PlaylistDiscoveryF
 
 export const browsePlaylists = async({ source, sortId, tagId, page }: PlaylistBrowseInput): Promise<PlaylistBrowseResult> => {
   const songList = playlistProvider(source)
+  // KW's native SDK returns no URL for unknown tag digests. Reject before its
+  // async request helper can start an unhandled request with an undefined URL.
+  if (source === 'kw' && tagId !== '' && !/^\d+-(?:10000|43)$/.test(tagId)) {
+    throw Object.assign(new Error('Invalid playlist tag'), { code: 'INVALID_PLAYLIST_TAG' })
+  }
   return serializePlaylistCall(source, async() => {
     const result = asRecord(await songList.getList(sortId, tagId, page), 'playlist browse')
     if (!Array.isArray(result.list)) throw protocolError('Invalid playlist browse response')

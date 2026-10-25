@@ -7,6 +7,7 @@
     "dev:web": "cross-env NODE_ENV=development webpack serve --config build-config/renderer-web/webpack.config.dev.js",
     "build:web": "cross-env NODE_ENV=production webpack --config build-config/renderer-web/webpack.config.prod.js",
     "build:web:integrated": "node build-config/server/build-integrated-web.mjs",
+    "build:web:qmusic": "node build-config/server/build-qmusic-web.mjs",
     "build:docker:integrated": "node build-config/server/build-integrated-docker.mjs",
     "build:server": "node build-config/server/build.mjs",
     "prepare:service": "npm run build:server && node build-config/server/prepare.mjs",

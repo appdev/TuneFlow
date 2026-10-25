@@ -33,7 +33,7 @@ export class SourcesService {
 
   constructor(
     private readonly repository: SourceRepository,
-    private readonly publishUpdateAlert: (alert: { log: string, updateUrl?: string }) => void = () => {},
+    private readonly publishUpdateAlert: (alert: { id: string, name: string, log: string, updateUrl?: string }) => void = () => {},
     private readonly networkOptions: SourceNetworkOptions = {},
   ) {}
 
@@ -117,6 +117,10 @@ export class SourcesService {
     try { this.repository.removeSource(id) } catch (error) { asApiError(error) }
   }
 
+  setAllowShowUpdateAlert(id: string, enabled: boolean): SourceSummary {
+    try { return this.repository.setAllowShowUpdateAlert(id, enabled) } catch (error) { return asApiError(error) }
+  }
+
   async close(): Promise<void> {
     await Promise.all([...this.workers.values()].map(async worker => worker.close()))
     this.workers.clear()
@@ -127,7 +131,11 @@ export class SourcesService {
     if (worker != null) return worker
     const source = this.repository.getSource(id)
     worker = new SourceWorkerHost({ ...source, script: readFileSync(source.scriptPath, 'utf8') }, {
-      onUpdateAlert: alert => { this.publishUpdateAlert(alert) },
+      onUpdateAlert: alert => {
+        const current = this.repository.getSource(id)
+        if (!current.allowShowUpdateAlert) return
+        this.publishUpdateAlert({ id: current.id, name: current.name, ...alert })
+      },
     })
     this.workers.set(id, worker)
     return worker
@@ -249,6 +257,22 @@ export const registerSourceRoutes = (app: ApiFastifyInstance, service: SourcesSe
     const sources = await service.configureEnabled(body.sourceIds)
     events?.publishSnapshot('sources.updated', sources)
     return { data: sources }
+  })
+  app.put('/api/v1/sources/:id/update-alert', {
+    schema: {
+      operationId: 'setSourceUpdateAlert',
+      tags: ['Sources'],
+      summary: 'Set whether a source may show update alerts',
+      params: IdParams,
+      body: Type.Object({ enabled: Type.Boolean() }, { additionalProperties: false }),
+      response: { 200: sourceResponse, ...ErrorResponses },
+    },
+  }, async(request) => {
+    const body = request.body as { enabled?: unknown } | null
+    if (body == null || typeof body.enabled !== 'boolean') throw new ApiError(400, 'SOURCE_INVALID_METADATA', 'The update alert setting is required')
+    const source = service.setAllowShowUpdateAlert((request.params as { id: string }).id, body.enabled)
+    events?.publishSnapshot('sources.updated', service.list())
+    return { data: source }
   })
   app.delete('/api/v1/sources/:id', {
     schema: {

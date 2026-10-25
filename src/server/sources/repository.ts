@@ -25,6 +25,7 @@ export class SourceRepository {
         version TEXT NOT NULL,
         author TEXT NOT NULL,
         homepage TEXT NOT NULL,
+        allow_show_update_alert INTEGER NOT NULL DEFAULT 1,
         script_path TEXT NOT NULL,
         installed_at INTEGER NOT NULL,
         sources_json TEXT
@@ -46,6 +47,8 @@ export class SourceRepository {
         AND EXISTS (SELECT 1 FROM web_sources WHERE id = active_source_id)
         AND NOT EXISTS (SELECT 1 FROM web_source_selection);
     `)
+    const columns = new Set((getDB().prepare('PRAGMA table_info(web_sources)').all() as Array<{ name: string }>).map(row => row.name))
+    if (!columns.has('allow_show_update_alert')) getDB().exec('ALTER TABLE web_sources ADD COLUMN allow_show_update_alert INTEGER NOT NULL DEFAULT 1')
     validateInstalledSourceFiles(getDB(), this.sourceDir)
   }
 
@@ -59,6 +62,7 @@ export class SourceRepository {
       version: row.version,
       author: row.author,
       homepage: row.homepage,
+      allowShowUpdateAlert: row.allowShowUpdateAlert !== 0,
       active: row.priority === 0,
       enabled: row.priority != null,
       priority: row.priority,
@@ -69,6 +73,7 @@ export class SourceRepository {
   listSources(): SourceSummary[] {
     return (getDB().prepare(`
       SELECT s.id, s.name, s.description, s.version, s.author, s.homepage,
+        s.allow_show_update_alert AS allowShowUpdateAlert,
         s.script_path AS scriptPath, s.installed_at AS installedAt,
         s.sources_json AS sources, selection.position AS priority
       FROM web_sources s
@@ -78,11 +83,11 @@ export class SourceRepository {
   }
 
   getSource(id: string): InstalledSource {
-    const row = getDB().prepare('SELECT id, name, description, version, author, homepage, script_path AS scriptPath, installed_at AS installedAt, sources_json AS sources FROM web_sources WHERE id=?').get(id) as SourceRow | undefined
+    const row = getDB().prepare('SELECT id, name, description, version, author, homepage, allow_show_update_alert AS allowShowUpdateAlert, script_path AS scriptPath, installed_at AS installedAt, sources_json AS sources FROM web_sources WHERE id=?').get(id) as SourceRow | undefined
     if (row == null) throw new SourceServiceError('SOURCE_NOT_FOUND')
     const hash = /^user_api_([a-f0-9]{64})$/.exec(row.id)?.[1]
     if (hash == null) throw new SourceServiceError('SOURCE_INVALID_METADATA', 'Invalid installed source id')
-    return { ...row, scriptPath: path.join(this.sourceDir, `${hash}.js`), sources: row.sources == null ? undefined : JSON.parse(row.sources) }
+    return { ...row, allowShowUpdateAlert: row.allowShowUpdateAlert !== 0, scriptPath: path.join(this.sourceDir, `${hash}.js`), sources: row.sources == null ? undefined : JSON.parse(row.sources) }
   }
 
   listSourceExportFiles(): SourceExportSource[] {
@@ -109,7 +114,7 @@ export class SourceRepository {
       const storedScriptPath = path.basename(scriptPath)
       getDB().prepare(`INSERT INTO web_sources (id, name, description, version, author, homepage, script_path, installed_at)
         VALUES (@id, @name, @description, @version, @author, @homepage, @scriptPath, @installedAt)`).run({ id, ...info, scriptPath: storedScriptPath, installedAt })
-      return { id, ...info, active: false, enabled: false, priority: null }
+      return { id, ...info, allowShowUpdateAlert: true, active: false, enabled: false, priority: null }
     } catch (error) {
       if (existsSync(temporaryPath)) unlinkSync(temporaryPath)
       if (renamed && existsSync(scriptPath)) unlinkSync(scriptPath)
@@ -131,6 +136,12 @@ export class SourceRepository {
     for (const id of ids) this.getSource(id)
     getDB().transaction(() => { this.replaceSelectionRows(ids) })()
     return this.listSources()
+  }
+
+  setAllowShowUpdateAlert(id: string, enabled: boolean): SourceSummary {
+    this.getSource(id)
+    getDB().prepare('UPDATE web_sources SET allow_show_update_alert=? WHERE id=?').run(enabled ? 1 : 0, id)
+    return this.listSources().find(source => source.id === id)!
   }
 
   promoteSource(id: string): SourceSummary {

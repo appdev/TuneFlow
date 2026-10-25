@@ -645,6 +645,38 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, { sources: { fixture: {
     expect(alerts).toEqual([{ log: 'fixture update', updateUrl: 'https://example.test/update' }])
   })
 
+  it('persists update alert preferences and filters service events', async() => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-source-update-alert-setting-'))
+    roots.push(root)
+    mkdirSync(path.join(root, 'sources'))
+    initDatabase(root)
+    const alertSource = script('Update preference', `
+window.tuneflow.send(window.tuneflow.EVENT_NAMES.updateAlert, { log: 'fixture update', updateUrl: 'https://example.test/update' })
+window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, { sources: { fixture: { type: 'music', actions: ['lyric'], qualitys: [] } } })`)
+    const repository = new SourceRepository(root)
+    const installed = await repository.installSource(alertSource)
+    expect(installed.allowShowUpdateAlert).toBe(true)
+    repository.setAllowShowUpdateAlert(installed.id, false)
+    expect(repository.getSource(installed.id).allowShowUpdateAlert).toBe(false)
+
+    const alerts: unknown[] = []
+    const service = new SourcesService(repository, alert => alerts.push(alert))
+    await service.activate(installed.id)
+    expect(alerts).toEqual([])
+    await service.close()
+
+    repository.setAllowShowUpdateAlert(installed.id, true)
+    const enabledService = new SourcesService(repository, alert => alerts.push(alert))
+    await enabledService.activate(installed.id)
+    expect(alerts).toEqual([{
+      id: installed.id,
+      name: 'Update preference',
+      log: 'fixture update',
+      updateUrl: 'https://example.test/update',
+    }])
+    await enabledService.close()
+  })
+
   it('provides isolated TuneFlow crypto, buffer, and zlib utility behavior', async() => {
     const utilitySource = script('Utility compatibility', `
 window.tuneflow.on(window.tuneflow.EVENT_NAMES.request, async () => {

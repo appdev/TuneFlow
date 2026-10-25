@@ -56,11 +56,17 @@ const originalMusicInfo = (info: unknown): unknown => typeof info === 'object' &
   : info
 
 const isRetryableResourceFailure = (error: unknown): boolean => {
-  return error instanceof SourceServiceError && (error.origin === 'service-network' || error.origin === 'worker-timeout')
+  return error instanceof SourceServiceError && !isTerminalResourceFailure(error) && (
+    error.origin === 'service-network' || error.origin === 'worker-timeout' || error.origin === 'script' || error.origin === 'protocol'
+  )
 }
 
 const isTerminalResourceFailure = (error: unknown): boolean => {
-  return error instanceof SourceServiceError && (error.origin === 'caller' || error.origin === 'safety')
+  // Worker forwarding can preserve a safety code without preserving its origin.
+  return error instanceof SourceServiceError && (
+    error.origin === 'caller' || error.origin === 'safety' ||
+    error.code === 'SOURCE_TARGET_BLOCKED' || error.code === 'SOURCE_RESPONSE_TOO_LARGE' || error.code === 'SOURCE_CANCELLED'
+  )
 }
 
 const beforeDeadline = async<T>(factory: (signal: AbortSignal) => Promise<T>, deadline: number, callerSignal?: AbortSignal): Promise<T | undefined> => {
@@ -324,6 +330,7 @@ export class PlaybackBundleResolver {
       attempts.push({ sourceId: candidate.id, action: 'bundle', code, elapsedMs: Date.now() - startedAt })
       this.options.onAttempt?.({ requestId, sourceId: candidate.id, priority: candidate.priority, action: 'bundle', code, elapsedMs: Date.now() - startedAt })
       if (callerSignal?.aborted === true) throw error
+      if (isTerminalResourceFailure(error)) throw error
       if (isRetryableResourceFailure(error) || audioSignal.aborted) return Object.keys(result).length > 1 ? result : undefined
       throw error
     }

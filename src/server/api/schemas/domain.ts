@@ -70,6 +70,7 @@ export const SourceSummary = Type.Object({
   version: Type.String(),
   author: Type.String(),
   homepage: Type.String(),
+  allowShowUpdateAlert: Type.Boolean(),
   active: Type.Boolean(),
   enabled: Type.Boolean(),
   priority: Type.Union([Type.Integer({ minimum: 0 }), Type.Null()]),
