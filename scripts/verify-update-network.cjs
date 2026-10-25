@@ -16,6 +16,19 @@ function load(file, dependencies, extra = {}) {
 const sources = load('src/utils/updateSources.ts', { './updateMirror.json': { baseUrl: '' } })
 const digest = 'a'.repeat(64)
 const name = 'Q-music-android-v0.4.10-arm64-v8a.apk'
+test('整合版只使用自有更新仓库，并识别已公开的预览通道', async() => {
+  assert.equal(sources.releaseBase, 'https://github.com/appdev/Q-music/releases/download/')
+  const result = await sources.getUpdateVersion(async url => {
+    assert.ok(url.includes('appdev/Q-music'))
+    if (url.includes('api.github')) return [
+      { tag_name: 'v0.4.25', prerelease: true, body: 'unrelated prerelease', assets: [{ name }] },
+      { tag_name: 'v0.4.24', prerelease: true, body: '<!-- qmusic-service-preview -->', assets: [{ name }] },
+      { tag_name: 'v0.4.26', draft: true, body: '<!-- qmusic-service-preview -->', assets: [{ name }] },
+    ]
+    throw Error('offline')
+  }, 'android')
+  assert.equal(result.version, '0.4.24')
+})
 function setup(outcomes) {
   let attempts = 0
   let installed = 0
