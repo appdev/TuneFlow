@@ -3,7 +3,7 @@ import { useI18n } from '@/lang'
 import Menu, { type Menus, type MenuType, type Position } from '@/components/common/Menu'
 import { hasDislike } from '@/core/dislikeList'
 import { existsFile } from '@/utils/fs'
-import { isReadOnlyList } from '@/service/workspace'
+import { isReadOnlyList, LIBRARY_ID } from '@/service/workspace'
 import { isServerLibraryTrack } from '@/service/tracks'
 
 export interface SelectInfo {
@@ -76,10 +76,10 @@ export default forwardRef<ListMenuType, ListMenuProps>((props, ref) => {
       { action: 'musicSourceDetail', disabled: musicInfo.source == 'local', label: t('music_source_detail') },
       // { action: 'musicSearch', label: t('music_search') },
       { action: 'dislike', disabled: hasDislike(musicInfo), label: t('dislike') },
-      { action: 'remove', label: t('delete') },
+      { action: 'remove', label: selectInfoRef.current.listId === LIBRARY_ID ? '删除音乐文件' : t('delete') },
     ]
     if (musicInfo.source == 'local') menu.splice(5, 0, { action: 'editMetadata', disabled: !edit_metadata, label: t('edit_metadata') })
-    setMenus(menu.filter(item => !isReadOnlyList(selectInfoRef.current.listId) || !['move', 'changePosition', 'toggleSource', 'remove'].includes(item.action)))
+    setMenus(menu.filter(item => !isReadOnlyList(selectInfoRef.current.listId) || (selectInfoRef.current.listId === LIBRARY_ID && item.action === 'remove') || !['move', 'changePosition', 'toggleSource', 'remove'].includes(item.action)))
     void Promise.all([hasEditMetadata(musicInfo)]).then(([_edit_metadata]) => {
       // console.log(_edit_metadata)
       let isUpdated = false

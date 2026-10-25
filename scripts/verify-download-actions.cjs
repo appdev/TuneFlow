@@ -91,6 +91,8 @@ test('下载提交服务器原始曲目和所选音质，跳过曲库文件且�
       original: track => track.meta.service.track,
       client: { download: async(track, quality) => { submitted.push({ track, quality }) } },
     }) },
+    '@/service/downloads': { downloadWithConfirmation: async(client, track, quality) => { await client.download(track, quality); return true } },
+    '@/utils/tools': {},
     './store': {
       getDownloadTask: id => tasks.get(id),
       removeDownloadTask: id => tasks.delete(id),

@@ -175,7 +175,7 @@ export default () => {
         onPlay={info => { handlePlay(info.listId, info.index) }}
         onDownload={info => { void downloadSelection(info.selectedList.length ? info.selectedList : [info.musicInfo]).then(ok => { if (ok) hancelExitSelect() }) }}
         onPlayLater={info => { hancelExitSelect(); handlePlayLater(info.listId, info.musicInfo, info.selectedList, hancelExitSelect) }}
-        onRemove={info => { hancelExitSelect(); handleRemove(info.listId, info.musicInfo, info.selectedList, hancelExitSelect) }}
+        onRemove={info => { handleRemove(info.listId, info.musicInfo, info.selectedList, hancelExitSelect) }}
         onDislikeMusic={info => { void handleDislikeMusic(info.musicInfo) }}
         onCopyName={info => { handleShare(info.musicInfo) }}
         onMusicSourceDetail={info => { void handleShowMusicSourceDetail(info.musicInfo) }}

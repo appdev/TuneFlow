@@ -22,7 +22,7 @@ export interface LyricsDto { lyric: string, tlyric?: string | null, rlyric?: str
 export interface ProviderDto { id: string, name: string, searchKinds: string[], leaderboards: boolean, playlistDiscovery?: { browse: boolean, detail: boolean } }
 
 export class ServiceError extends Error {
-  constructor(public code: string, public status = 0) { super(`请求失败（${code}）`) }
+  constructor(public code: string, public status = 0) { super(code === 'DOWNLOAD_TASK_ACTIVE' ? '这首歌曲已有未完成的下载，请先完成或移除旧任务，再选择新的音质。' : `请求失败（${code}）`) }
 }
 
 // Avoid the incomplete URL implementation shipped with this React Native version.
@@ -110,10 +110,11 @@ export class ServiceClient {
   async enableSources(sourceIds: string[]) { return this.request<SourceDto[]>('/api/v1/sources/enabled', 'PUT', { sourceIds }) }
   async importSource(url: string) { return this.request('/api/v1/sources/import', 'POST', { url }) }
   async downloads() { return this.request<DownloadDto[]>('/api/v1/downloads') }
-  async download(track: TrackDto, quality: string) { return this.request<DownloadDto>('/api/v1/downloads', 'POST', { musicInfo: track, quality, skipExisting: true, existingFilePolicy: 'reuse' }) }
+  async download(track: TrackDto, quality: string, existingFilePolicy: 'error' | 'replace' | 'reuse' = 'error') { return this.request<DownloadDto>('/api/v1/downloads', 'POST', { musicInfo: track, quality, existingFilePolicy }) }
   async downloadAction(id: string, action: 'start' | 'pause' | 'resume') { return this.request(`/api/v1/downloads/${encodeURIComponent(id)}/${action}`, 'POST') }
   async deleteDownload(id: string) { return this.request(`/api/v1/downloads/${encodeURIComponent(id)}`, 'DELETE') }
   async library() { return this.request<LibraryDto[]>('/api/v1/library/tracks') }
+  async deleteLibraryTrack(id: string) { return this.request(`/api/v1/library/tracks/${encodeURIComponent(id)}`, 'DELETE') }
   async settings() { return this.request<Record<string, unknown>>('/api/v1/settings') }
   async patchSettings(patch: Record<string, unknown>) { return this.request<Record<string, unknown>>('/api/v1/settings', 'PATCH', patch) }
 }

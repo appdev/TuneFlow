@@ -7,6 +7,8 @@ import { confirmDialog, openUrl, shareMusic, toast } from '@/utils/tools'
 import { addDislikeInfo, hasDislike } from '@/core/dislikeList'
 import playerState from '@/store/player/state'
 import { playFromList } from '@/core/player/selection'
+import { LIBRARY_ID } from '@/service/workspace'
+import { deleteLibrarySelection } from '@/service/libraryActions'
 
 import type { SelectInfo } from './ListMenu'
 import { type Metadata } from '@/components/MetadataEditModal'
@@ -29,6 +31,10 @@ export const handlePlayLater = (listId: SelectInfo['listId'], musicInfo: SelectI
 
 export const handleRemove = (listId: SelectInfo['listId'], musicInfo: SelectInfo['musicInfo'], selectedList: SelectInfo['selectedList'], onCancelSelect: () => void) => {
   const targets = selectedList.length ? [...selectedList] : [musicInfo]
+  if (listId === LIBRARY_ID) {
+    void deleteLibrarySelection(targets).then(deleted => { if (deleted) onCancelSelect() })
+    return
+  }
   if (targets.some(music => music.source == 'local')) {
     const remove = async(deleteFiles: boolean) => {
       const removed: string[] = []

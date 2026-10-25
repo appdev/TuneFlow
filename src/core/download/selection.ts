@@ -2,6 +2,7 @@ import { downloadMusics } from './worker'
 import settingState from '@/store/setting/state'
 import { toast } from '@/utils/tools'
 import { isServerLibraryTrack } from '@/service/tracks'
+import { ServiceError } from '@/service/client'
 
 const pending = new Map<string, Promise<boolean>>()
 let queue = Promise.resolve(false)
@@ -19,8 +20,8 @@ export const downloadSelection = async(musics: LX.Music.MusicInfo[]): Promise<bo
       if (!await downloadMusics(targets, quality)) return false
       toast(global.i18n.t('download_selection_added'))
       return true
-    } catch {
-      toast(global.i18n.t('download_selection_failed'))
+    } catch (error) {
+      toast(error instanceof ServiceError && error.code === 'DOWNLOAD_TASK_ACTIVE' ? error.message : global.i18n.t('download_selection_failed'))
       return false
     }
   }).finally(() => { pending.delete(key) })

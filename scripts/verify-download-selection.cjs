@@ -11,6 +11,7 @@ function fixture(options = {}) {
     '@/store/setting/state': { setting: { 'player.playQuality': 'flac' } },
     '@/utils/tools': { toast: text => messages.push(text) },
     '@/service/tracks': { isServerLibraryTrack: music => music.meta?.service?.track?.source === 'local' },
+    '@/service/client': { ServiceError: class extends Error {} },
   }
   const context = { exports: {}, global: { i18n: { t: text => text } }, require: id => { assert.ok(id in deps, id); return deps[id] } }
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/core/download/selection.ts'), 'utf8'), {

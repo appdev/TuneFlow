@@ -3,6 +3,8 @@ import RNFS from 'react-native-fs'
 // 下载只解析在线地址，不能复用播放器的本地文件优先策略。
 import { getMusicPlayUrlInfo } from '@/core/music/online'
 import { getWorkspace } from '@/service/session'
+import { downloadWithConfirmation, replacementMessage } from '@/service/downloads'
+import { confirmDialog } from '@/utils/tools'
 import { NativeModules } from 'react-native'
 import {
   getDownloadTask,
@@ -127,7 +129,9 @@ export const downloadMusics = async(musicInfos: LX.Music.MusicInfoOnline[], qual
   const workspace = getWorkspace()
   for (const musicInfo of musicInfos) {
     const track = workspace.original(musicInfo)
-    if (track.source !== 'local') await workspace.client.download(track, quality)
+    if (track.source !== 'local' && !await downloadWithConfirmation(workspace.client, track, quality,
+      async() => confirmDialog({ message: replacementMessage(track.name, quality), confirmButtonText: '重新下载并替换' }),
+      () => workspace === getWorkspace())) return false
   }
   return true
 }
