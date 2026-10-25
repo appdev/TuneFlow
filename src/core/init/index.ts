@@ -2,19 +2,17 @@ import { initSetting, showPactModal } from '@/core/common'
 import registerPlaybackService from '@/plugins/player/service'
 import initTheme from './theme'
 import initI18n from './i18n'
-import initUserApi from './userApi'
 import initPlayer from './player'
 import dataInit from './dataInit'
-import initSync from './sync'
 import initCommonState from './common'
 import { initDeeplink } from './deeplink'
-import { setApiSource } from '@/core/apiSource'
 import commonActions from '@/store/common/action'
 import settingState from '@/store/setting/state'
 import { checkUpdate } from '@/core/version'
 import { bootLog } from '@/utils/bootLog'
 import { cheatTip } from '@/utils/tools'
-import { initPlaylistAutoSync } from '@/core/musicAccount/autoSync'
+import { loadServiceProfile } from '@/service/session'
+import { initServiceLists } from '@/service/listStore'
 
 let isFirstPush = true
 const handlePushedHomeScreen = async() => {
@@ -46,24 +44,22 @@ export default async() => {
   await initI18n(setting)
   bootLog('I18n inited.')
 
-  await initUserApi(setting)
-  bootLog('User Api inited.')
-
-  setApiSource(setting['common.apiSource'])
-  bootLog('Api inited.')
+  await loadServiceProfile()
+  global.lx.qualityList = Object.fromEntries(['kw', 'kg', 'tx', 'wy', 'mg'].map(source => [source, ['128k', '320k', 'flac', 'flac24bit']]))
+  global.lx.apiInitPromise[2](true)
+  bootLog('Service profile inited.')
 
   registerPlaybackService()
   bootLog('Playback Service Registered.')
   await initPlayer(setting)
   bootLog('Player inited.')
   await dataInit(setting)
-  initPlaylistAutoSync()
+  initServiceLists()
   bootLog('Data inited.')
   await initCommonState(setting)
   bootLog('Common State inited.')
 
-  void initSync(setting)
-  bootLog('Sync inited.')
+  // Shared lists come from Service; legacy peer/account sync stays inactive.
 
   // syncSetting()
 

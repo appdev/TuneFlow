@@ -18,6 +18,7 @@ import {
 } from './utils'
 import musicSdk from '@/utils/musicSdk'
 import { toNewMusicInfo, toOldMusicInfo } from '@/utils'
+import { getServiceProvenance } from '@/service/tracks'
 
 const translationAttempts = new Map<string, number>()
 const normalized = (value: string) => value.toLowerCase().replace(/[\s.,!?，。！？、・「」()（）·'"—…：:；;~～-]/g, '')
@@ -52,6 +53,7 @@ const getTranslationCandidates = async(musicInfo: LX.Music.MusicInfoOnline): Pro
 }
 
 export const findMatchedTranslation = async(musicInfo: LX.Music.MusicInfoOnline, lyricInfo: LX.Player.LyricInfo): Promise<string> => {
+  if (getServiceProvenance(musicInfo)) return ''
   if ((lyricInfo.tlyric?.length ?? 0) > 0 || !lyricInfo.lyric || !/[A-Za-z]{3,}|[\u3040-\u30ff\uac00-\ud7af]/.test(lyricInfo.lyric)) return ''
   const lastAttempt = translationAttempts.get(musicInfo.id)
   if (lastAttempt && Date.now() - lastAttempt < 30 * 60_000) return ''

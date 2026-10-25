@@ -31,6 +31,7 @@ interface PageCache { data: ListDetailInfo, sourcePage: number }
 type CacheValue = Map<string, PageCache | ListDetailInfo['list']>
 
 const cache = new Map<string, CacheValue>()
+export const clearServiceLeaderboardCache = () => { cache.clear(); leaderboardState.boards = {}; leaderboardActions.clearListDetail() }
 const LIST_LOAD_LIMIT = 30
 const RETRY_DELAYS = [250, 500]
 

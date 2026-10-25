@@ -15,7 +15,6 @@ import ListMusicSearch, { type ListMusicSearchType } from './ListMusicSearch'
 import MusicPositionModal, { type MusicPositionModalType } from './MusicPositionModal'
 import MetadataEditModal, { type MetadataEditType, type MetadataEditProps } from '@/components/MetadataEditModal'
 import MusicToggleModal, { type MusicToggleModalType } from './MusicToggleModal'
-import ExternalImportModal, { type ExternalImportModalType } from '../ExternalImportModal'
 import { useBackHandler } from '@/utils/hooks/useBackHandler'
 import commonState from '@/store/common/state'
 import { downloadSelection } from '@/core/download/selection'
@@ -34,7 +33,6 @@ export default () => {
   const metadataEditTypeRef = useRef<MetadataEditType>(null)
   const listMenuRef = useRef<ListMenuType>(null)
   const musicToggleModalRef = useRef<MusicToggleModalType>(null)
-  const externalImportModalRef = useRef<ExternalImportModalType>(null)
   const layoutHeightRef = useRef<number>(0)
   const isShowMultipleModeBar = useRef(false)
   const isShowSearchBarModeBar = useRef(false)
@@ -141,7 +139,6 @@ export default () => {
       <View style={{ zIndex: 2 }}>
         <ActiveList
           ref={activeListRef}
-          onShowImport={() => { externalImportModalRef.current?.show(listState.activeListId) }}
           onShowSearchBar={handleShowSearch}
           onScrollToTop={hancelScrollToTop}
         />
@@ -193,7 +190,6 @@ export default () => {
         onUpdate={handleUpdateMetadata}
       />
       <MusicToggleModal ref={musicToggleModalRef} />
-      <ExternalImportModal ref={externalImportModalRef} />
     </View>
   )
 }

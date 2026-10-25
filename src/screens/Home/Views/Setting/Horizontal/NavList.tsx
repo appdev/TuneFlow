@@ -1,4 +1,4 @@
-import { memo, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { View, FlatList, type FlatListProps } from 'react-native'
 
 import { Icon } from '@/components/common/Icon'
@@ -8,7 +8,7 @@ import { useTheme } from '@/store/theme/hook'
 import { createStyle } from '@/utils/tools'
 import Text from '@/components/common/Text'
 import { scaleSizeH } from '@/utils/pixelRatio'
-import { SETTING_SCREENS, type SettingScreenIds } from '../Main'
+import { SETTING_SCREENS, settingTitle, type SettingScreenIds } from '../Main'
 import { useI18n } from '@/lang'
 import { Q_UI } from '@/theme/ui'
 import useAdaptiveLayout from '@/utils/hooks/useAdaptiveLayout'
@@ -36,7 +36,7 @@ const ListItem = memo(({ id, activeId, onPress, itemHeight }: {
     <Button
       accessibilityRole="tab"
       accessibilityState={{ selected: active }}
-      accessibilityLabel={t(`setting_${id}`)}
+      accessibilityLabel={settingTitle(id, t)}
       style={{
         ...styles.listItem,
         height: itemHeight - 6,
@@ -46,7 +46,7 @@ const ListItem = memo(({ id, activeId, onPress, itemHeight }: {
       onPress={handlePress}
     >
       <View style={styles.listName}>
-        <Text numberOfLines={1} size={15} style={{ fontWeight: active ? '600' : '400' }} color={active ? theme['q-accent-text'] : theme['q-text-primary']}>{t(`setting_${id}`)}</Text>
+        <Text numberOfLines={1} size={15} style={{ fontWeight: active ? '600' : '400' }} color={active ? theme['q-accent-text'] : theme['q-text-primary']}>{settingTitle(id, t)}</Text>
       </View>
       <Icon accessible={false} style={[styles.listActiveIcon, { opacity: active ? 1 : 0 }]} name="chevron-right" size={12} color={theme['q-accent-text']} />
     </Button>
@@ -59,6 +59,11 @@ export default ({ onChangeId }: {
 }) => {
   const flatListRef = useRef<FlatList>(null)
   const [activeId, setActiveId] = useState(global.lx.settingActiveId)
+  useEffect(() => {
+    const onNavigation = (nav: string) => { if (nav === 'nav_setting') setActiveId(global.lx.settingActiveId) }
+    global.state_event.on('navActiveIdUpdated', onNavigation)
+    return () => { global.state_event.off('navActiveIdUpdated', onNavigation) }
+  }, [])
   const { isCar } = useAdaptiveLayout()
   const itemHeight = Math.max(ITEM_HEIGHT + 6, isCar ? 64 : 56)
 

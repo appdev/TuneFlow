@@ -8,7 +8,7 @@ import { useTheme } from '@/store/theme/hook'
 import { createStyle } from '@/utils/tools'
 import Text from '@/components/common/Text'
 import { useI18n } from '@/lang'
-import { type SettingScreenIds } from '../Main'
+import { settingTitle, type SettingScreenIds } from '../Main'
 
 export interface HeaderProps {
   onShowNavBar: () => void
@@ -30,7 +30,7 @@ export default forwardRef<HeaderType, HeaderProps>(({ onShowNavBar }, ref) => {
 
   return (
     <Button
-      accessibilityLabel={t(`setting_${activeId}`)}
+      accessibilityLabel={settingTitle(activeId, t)}
       accessibilityHint={t('setting_open_nav') || undefined}
       onPress={onShowNavBar}
       style={{ ...styles.currentList, borderBottomColor: theme['c-border-background'] }}
@@ -38,7 +38,7 @@ export default forwardRef<HeaderType, HeaderProps>(({ onShowNavBar }, ref) => {
       <View style={styles.currentListIcon}>
         <Icon accessible={false} color={theme['c-button-font']} name="chevron-right" size={12} />
       </View>
-      <Text numberOfLines={1} size={16} style={styles.currentListText} color={theme['c-button-font']}>{t(`setting_${activeId}`)}</Text>
+      <Text numberOfLines={1} size={16} style={styles.currentListText} color={theme['c-button-font']}>{settingTitle(activeId, t)}</Text>
     </Button>
   )
 })

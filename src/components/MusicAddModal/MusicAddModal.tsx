@@ -9,9 +9,6 @@ import { useI18n } from '@/lang'
 import { useTheme } from '@/store/theme/hook'
 import { addListMusics, moveListMusics } from '@/core/list'
 import settingState from '@/store/setting/state'
-import QQFavoriteTarget from './QQFavoriteTarget'
-import { pushMusicAccountScreen } from '@/navigation/navigation'
-import commonState from '@/store/common/state'
 
 export interface SelectInfo {
   musicInfo: LX.Music.MusicInfo | null
@@ -30,7 +27,6 @@ export default forwardRef<MusicAddModalType, MusicAddModalProps>(({ onAdded }, r
   const busyRef = useRef(false)
   const creatingRef = useRef(false)
   const [busy, setBusy] = useState(false)
-  const [cloudBusy, setCloudBusy] = useState(false)
   const [creating, setCreating] = useState(false)
   const [selectInfo, setSelectInfo] = useState<SelectInfo>(initSelectInfo)
 
@@ -70,11 +66,7 @@ export default forwardRef<MusicAddModalType, MusicAddModalProps>(({ onAdded }, r
       {!selectInfo.musicInfo ? null : <>
         <Title musicInfo={selectInfo.musicInfo} isMove={selectInfo.isMove} />
         <List musicInfo={selectInfo.musicInfo} onPress={info => { void handleSelect(info) }} disabled={busy || creating} onCreating={handleCreating}>
-        {!selectInfo.isMove ? <QQFavoriteTarget key={selectInfo.musicInfo.id} musicInfo={selectInfo.musicInfo} disabled={busy || creating} onBusy={value => { busyRef.current = value; setBusy(value); setCloudBusy(value) }} onLogin={() => {
-          dialogRef.current?.setVisible(false)
-          if (commonState.componentIds.home) pushMusicAccountScreen(commonState.componentIds.home, 'tx')
-        }} /> : null}
-        {busy && !cloudBusy ? <View accessibilityLiveRegion="polite" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingBottom: 12 }}>
+        {busy ? <View accessibilityLiveRegion="polite" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingBottom: 12 }}>
           <ActivityIndicator size="small" color={theme['q-accent-text']} />
           <Text size={12} color={theme['q-text-secondary']}>{t('list_create_saving')}</Text>
         </View> : null}

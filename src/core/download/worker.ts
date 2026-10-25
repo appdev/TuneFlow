@@ -2,7 +2,7 @@ import RNFS from 'react-native-fs'
 
 // 下载只解析在线地址，不能复用播放器的本地文件优先策略。
 import { getMusicPlayUrlInfo } from '@/core/music/online'
-import { requestStoragePermission } from '@/utils/tools'
+import { getWorkspace } from '@/service/session'
 import { NativeModules } from 'react-native'
 import {
   getDownloadTask,
@@ -18,16 +18,6 @@ const DOWNLOAD_DIR = `${RNFS.ExternalStorageDirectoryPath}/Music/QMusic`
 const PROGRESS_THROTTLE = 300
 const MAX_CONCURRENT = 2
 
-const QUALITY_EXT: Record<LX.Quality, LX.Download.FileExt> = {
-  '128k': 'mp3',
-  '192k': 'mp3',
-  '320k': 'mp3',
-  flac: 'flac',
-  flac24bit: 'flac',
-  ape: 'ape',
-  wav: 'wav',
-}
-
 const runningTasks = new Set<string>()
 const deletingTasks = new Set<string>()
 const waitingQueue: string[] = []
@@ -36,23 +26,6 @@ const formatSpeed = (bytesPerSecond: number) => {
   if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) return '--'
   const mb = bytesPerSecond / 1024 / 1024
   return mb >= 1 ? `${mb.toFixed(1)}M/s` : `${Math.max(bytesPerSecond / 1024, 1).toFixed(0)}K/s`
-}
-
-const buildTask = (musicInfo: LX.Music.MusicInfoOnline, quality: LX.Quality): DownloadTaskInfo => {
-  const fileName = `${musicInfo.singer} - ${musicInfo.name}.${QUALITY_EXT[quality]}`
-  return {
-    id: `${musicInfo.id}_${quality}`,
-    status: 'waiting',
-    statusText: '',
-    progress: 0,
-    downloaded: 0,
-    total: 0,
-    speed: '',
-    musicInfo,
-    quality,
-    fileName,
-    filePath: null,
-  }
 }
 
 const patchTask = (id: string, patch: Partial<DownloadTaskInfo>) => {
@@ -151,17 +124,11 @@ const scheduleNext = () => {
  * 添加下载任务：自动请求存储权限，去重后进入下载队列
  */
 export const downloadMusics = async(musicInfos: LX.Music.MusicInfoOnline[], quality: LX.Quality) => {
-  const isGranted = await requestStoragePermission()
-  if (!isGranted) return false
-
+  const workspace = getWorkspace()
   for (const musicInfo of musicInfos) {
-    const task = buildTask(musicInfo, quality)
-    const existing = getDownloadTask(task.id)
-    if (deletingTasks.has(task.id) || runningTasks.has(task.id) || (existing && existing.status != 'error')) continue
-    upsertDownloadTask({ ...task, status: 'waiting' })
-    waitingQueue.push(task.id)
+    const track = workspace.original(musicInfo)
+    if (track.source !== 'local') await workspace.client.download(track, quality)
   }
-  scheduleNext()
   return true
 }
 

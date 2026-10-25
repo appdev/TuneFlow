@@ -11,6 +11,7 @@ type CacheValue = LimitDetailCache | ListInfo
 
 const cache = new Map<string, CacheValue>()
 const listRequests = new Map<string, Promise<ListInfo>>()
+export const clearServiceSonglistCache = () => { cache.clear(); listRequests.clear(); songlistState.tags = {}; songlistState.listInfo.list = []; songlistState.listInfo.key = null; songlistState.listDetailInfo.list = []; songlistState.listDetailInfo.key = null }
 const LIST_LOAD_LIMIT = 30
 
 

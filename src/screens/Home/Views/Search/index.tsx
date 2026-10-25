@@ -26,10 +26,10 @@ import { useSettingValue } from '@/store/setting/hook'
 interface SearchInfo {
   temp_source: LX.OnlineSource
   source: LX.OnlineSource | 'all'
-  searchType: 'music' | 'songlist'
+  searchType: SearchType
 }
 
-const getAvailableSources = (type: SearchType) => type == 'music' ? searchMusicState.sources : searchSonglistState.sources
+const getAvailableSources = (type: SearchType) => type == 'album' ? ['all', 'tx', 'wy', 'kg'] as const : type == 'music' ? searchMusicState.sources : searchSonglistState.sources
 const normalizeSource = (type: SearchType, source: SearchInfo['source']) => {
   const sources = getAvailableSources(type)
   if ((sources as readonly string[]).includes(source)) return source
@@ -63,6 +63,9 @@ export default () => {
           break
         case 'songlist':
           headerBarRef.current?.setSourceList(searchSonglistState.sources, searchInfo.current.source)
+          break
+        case 'album':
+          headerBarRef.current?.setSourceList(getAvailableSources('album'), searchInfo.current.source)
           break
       }
       headerBarRef.current?.setText(searchState.searchText)

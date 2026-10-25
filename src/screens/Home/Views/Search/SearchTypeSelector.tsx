@@ -12,6 +12,7 @@ import Button from '@/components/common/Button'
 const SEARCH_TYPE_LIST = [
   'music',
   'songlist',
+  'album',
 ] as const
 
 export default () => {
@@ -26,7 +27,7 @@ export default () => {
   }, [])
 
   const list = useMemo(() => {
-    return SEARCH_TYPE_LIST.map(type => ({ label: t(`search_type_${type}`), id: type }))
+    return SEARCH_TYPE_LIST.map(type => ({ label: type === 'album' ? '专辑' : t(`search_type_${type}`), id: type }))
   }, [t])
 
   const handleTypeChange = (type: SearchType) => {

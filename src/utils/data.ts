@@ -1,4 +1,6 @@
-import { getData, saveData, getAllKeys, removeDataMultiple, saveDataMultiple, removeData, getDataMultiple } from '@/plugins/storage'
+import { getData as readDeviceData, saveData as writeDeviceData, getAllKeys, removeDataMultiple, saveDataMultiple, removeData, getDataMultiple } from '@/plugins/storage'
+import { getWorkspace, subscribeService, serviceStatus } from '@/service/session'
+import { scopeClientDataKey } from '@/service/workspace'
 import { DEFAULT_SETTING, LIST_IDS, storageDataPrefix, type NAV_ID_Type } from '@/config/constant'
 import { throttle } from './common'
 // import { gzip, ungzip } from '@/utils/nativeModules/gzip'
@@ -29,6 +31,8 @@ const dislikeListPrefix = storageDataPrefix.dislikeList
 const userApiPrefix = storageDataPrefix.userApi
 const openStoragePathPrefix = storageDataPrefix.openStoragePath
 const selectedManagedFolderPrefix = storageDataPrefix.selectedManagedFolder
+const getData = async<T = unknown>(key: string): Promise<T | null> => readDeviceData<T>(scopeClientDataKey(key, getWorkspace().client.endpoint))
+const saveData = async(key: string, value: unknown) => writeDeviceData(scopeClientDataKey(key, getWorkspace().client.endpoint), value)
 
 // const defaultListKey = listPrefix + 'default'
 // const loveListKey = listPrefix + 'love'
@@ -36,6 +40,14 @@ const selectedManagedFolderPrefix = storageDataPrefix.selectedManagedFolder
 let listPosition: LX.List.ListPositionInfo
 let listPrevSelectId: string
 let listUpdateInfo: LX.List.ListUpdateInfo
+let serverEndpoint = getWorkspace().client.endpoint
+subscribeService(() => {
+  if (serverEndpoint === serviceStatus.endpoint) return
+  serverEndpoint = serviceStatus.endpoint
+  listPosition = undefined as unknown as LX.List.ListPositionInfo
+  listPrevSelectId = undefined as unknown as string
+  listUpdateInfo = undefined as unknown as LX.List.ListUpdateInfo
+})
 
 let searchSetting: typeof DEFAULT_SETTING['search']
 let songListSetting: typeof DEFAULT_SETTING['songList']

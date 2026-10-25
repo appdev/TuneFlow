@@ -7,6 +7,10 @@ const ts = require('typescript')
 const crypto = require('node:crypto')
 const root = path.join(__dirname, '..')
 function load(file, dependencies = {}, globals = {}) {
+  if (file == 'src/core/musicAccount/playlistSync.ts') {
+    dependencies['@/service/session'] ??= { isServiceMode: () => false }
+    dependencies['@/service/accounts'] ??= {}
+  }
   if (file != 'src/utils/playlistMerge.ts') dependencies['@/utils/playlistMerge'] = load('src/utils/playlistMerge.ts')
   const context = { exports: {}, Error, Buffer, URL, AbortController, setTimeout, clearTimeout,
     require: id => { assert.ok(id in dependencies, `Missing mock: ${id}`); return dependencies[id] }, ...globals }

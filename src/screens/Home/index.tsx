@@ -5,6 +5,7 @@ import { COMPONENT_IDS } from '@/config/constant'
 import Vertical from './Vertical'
 import { navigations } from '@/navigation'
 import settingState from '@/store/setting/state'
+import { useServiceStatus } from '@/service/useSession'
 
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
 
 
 export default ({ componentId }: Props) => {
+  const status = useServiceStatus()
   useEffect(() => {
     setComponentId(COMPONENT_IDS.home, componentId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -25,7 +27,7 @@ export default ({ componentId }: Props) => {
 
   return (
     <PageContent>
-      <Vertical />
+      <Vertical key={status.endpoint} />
     </PageContent>
   )
 }

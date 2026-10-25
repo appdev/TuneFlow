@@ -5,6 +5,8 @@ import { createSourceSnapshot, mergeSourcePlaylist } from '@/utils/playlistMerge
 import { getQQSyncIdentity } from './qqCredentials'
 import { setPlaylistSyncState } from './syncState'
 import { assertPlaylistSession, getAccountPlaylistTracks, type AccountPlaylist, type PlaylistSession } from './playlists'
+import { isServiceMode } from '@/service/session'
+import { accountPlaylistId, importMobileAccountPlaylist } from '@/service/accounts'
 
 // 来源包含账号 ID，避免切换账号后将两个“我喜欢”写进同一个列表。
 export const accountSourceId = (owner: string, id: string) => `account:${owner}:${id}`
@@ -12,7 +14,7 @@ export const parseAccountSourceId = (sourceId: string) => {
   const match = /^account:(\d+):((?:dir:)?\d+)$/.exec(sourceId)
   return match ? { owner: match[1], id: match[2] } : null
 }
-export const findAccountList = (session: PlaylistSession, id: string) => listState.userList.find(item => item.source == session.provider && item.sourceListId == accountSourceId(session.owner, id))
+export const findAccountList = (session: PlaylistSession, id: string) => listState.userList.find(item => isServiceMode() ? item.id === accountPlaylistId(session, id) : item.source == session.provider && item.sourceListId == accountSourceId(session.owner, id))
 const pending = new Map<string, Promise<{ id: string, count: number }>>()
 
 const performSync = async(session: PlaylistSession, playlist: Pick<AccountPlaylist, 'id' | 'name'>, signal?: AbortSignal, target?: LX.List.UserListInfo, automatic = false) => {
@@ -60,6 +62,15 @@ const performSync = async(session: PlaylistSession, playlist: Pick<AccountPlayli
 }
 
 export const syncAccountPlaylist = async(session: PlaylistSession, playlist: Pick<AccountPlaylist, 'id' | 'name'>, signal?: AbortSignal, target?: LX.List.UserListInfo, automatic = false) => {
+  if (isServiceMode()) {
+    if (automatic) throw new Error('cancelled')
+    const key = `service:${accountPlaylistId(session, playlist.id)}`
+    const running = pending.get(key)
+    if (running) return running
+    const task = importMobileAccountPlaylist(session, playlist, signal).finally(() => { pending.delete(key) })
+    pending.set(key, task)
+    return task
+  }
   const key = `${session.provider}:${accountSourceId(session.owner, playlist.id)}`
   const running = pending.get(key)
   if (running) return running

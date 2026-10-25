@@ -15,13 +15,14 @@ const MusicAccountEntry = memo(() => {
   const [connected, setConnected] = useState<boolean | null>(null)
 
   useEffect(() => {
-    void Promise.all([isMusicAccountConnected('tx'), isMusicAccountConnected('wy')])
-      .then(([tx, wy]) => { setConnected(tx || wy) })
+    void Promise.all([isMusicAccountConnected('tx'), isMusicAccountConnected('wy'), isMusicAccountConnected('kg')])
+      .then(states => { setConnected(states.some(Boolean)) })
       .catch(() => { setConnected(false) })
   }, [])
 
   return (
     <View style={styles.content}>
+      <Text size={13}>通过官方页面登录，凭证保存在本设备。账号歌单导入同一服务器，重复导入只补充歌曲，保留服务器已有编辑；个人推荐和播放仍使用 Docker 后台。</Text>
       <TouchableOpacity
         style={styles.row}
         activeOpacity={0.6}

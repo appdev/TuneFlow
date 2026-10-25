@@ -1,4 +1,5 @@
 import { memo, useRef } from 'react'
+import { isServerLibraryTrack } from '@/service/tracks'
 import { StyleSheet, View } from 'react-native'
 // import { BorderWidths } from '@/theme'
 import { Icon } from '@/components/common/Icon'
@@ -91,7 +92,7 @@ export default memo(({ item, index, activeIndex, onPress, onShowMenu, onLongPres
           <View style={styles.itemInfo}>
             <Text size={isCar ? 18 : 14} style={active ? styles.playingTitle : undefined} color={active ? theme['q-accent-text'] : theme['c-font']} numberOfLines={1}>{item.name}</Text>
             <View style={styles.listItemSingle}>
-              {item.source != 'local' ? <SourceLogo source={item.source} size={18} style={styles.sourceLogo} /> : null}
+              {item.source != 'local' && !isServerLibraryTrack(item) ? <SourceLogo source={item.source} size={18} style={styles.sourceLogo} /> : null}
               <Text style={styles.listItemSingleText} size={isCar ? 13 : 11} color={theme['q-text-secondary']} numberOfLines={1}>
                 {singer}
               </Text>

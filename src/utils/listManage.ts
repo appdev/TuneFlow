@@ -10,6 +10,7 @@ import {
 } from '@/utils/data'
 import { arrPush, arrPushByPosition, arrUnshift } from '@/utils/common'
 import { LIST_IDS } from '@/config/constant'
+import { getWorkspace, isServiceMode } from '@/service/session'
 
 export const userLists: LX.List.UserListInfo[] = []
 export const allMusicList = new Map<string, LX.Music.MusicInfo[]>()
@@ -99,7 +100,7 @@ const overwriteUserList = (lists: LX.List.UserListInfo[]) => {
  * @returns 所有用户列表
  */
 export const getUserLists = async() => {
-  const lists = await getUserListsFromStore()
+  const lists = isServiceMode() ? await getWorkspace().playlists() : await getUserListsFromStore()
   return setUserLists(lists)
 }
 
@@ -208,7 +209,7 @@ export const getListMusicSync = (id: string | null) => {
 export const getListMusics = async(listId: string): Promise<LX.Music.MusicInfo[]> => {
   if (!listId) return []
   if (allMusicList.has(listId)) return allMusicList.get(listId)!
-  const list = await getListMusicsFromStore(listId)
+  const list = isServiceMode() ? await getWorkspace().tracks(listId) : await getListMusicsFromStore(listId)
   return setMusicList(listId, list)
 }
 

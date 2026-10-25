@@ -1,7 +1,7 @@
 // import { getPlayInfo } from '@/utils/data'
 // import { log } from '@/utils/log'
 import { init as musicSdkInit } from '@/utils/musicSdk'
-import { getUserLists, setUserList } from '@/core/list'
+import { setUserList } from '@/core/list'
 import { setNavActiveId } from '../common'
 import { getViewPrevState } from '@/utils/data'
 import { bootLog } from '@/utils/bootLog'
@@ -28,7 +28,9 @@ export default async(appSetting: LX.AppSetting) => {
   // ]).catch(err => log.error(err))
   void musicSdkInit() // 初始化音乐sdk
   bootLog('User list init...')
-  setUserList(await getUserLists()) // 获取用户列表
+  // Render immediately, including offline startup. Service session refreshes
+  // the in-memory lists without reading or replacing the old device library.
+  setUserList([])
   setDislikeInfo(await getDislikeInfo()) // 获取不喜欢列表
   bootLog('User list inited.')
   setNavActiveId((await getViewPrevState()).id)

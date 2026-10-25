@@ -5,15 +5,14 @@ import Button from '@/components/common/Button'
 import { Icon } from '@/components/common/Icon'
 import { useTheme } from '@/store/theme/hook'
 import { useI18n } from '@/lang'
-import { pushMusicAccountScreen } from '@/navigation/navigation'
-import commonState from '@/store/common/state'
-import PlaylistSyncModal, { type PlaylistSyncModalType } from '../PlaylistSyncModal'
 
 import ListMenu, { type ListMenuType } from './ListMenu'
 import ListNameEdit, { type ListNameEditType } from './ListNameEdit'
 import List from './List'
 import ListImportExport, { type ListImportExportType } from './ListImportExport'
 import { handleRemove, handleSync } from './listAction'
+import { refreshServiceLists } from '@/service/session'
+import { toast } from '@/utils/tools'
 import ListMusicSort, { type ListMusicSortType } from './ListMusicSort'
 import DuplicateMusic, { type DuplicateMusicType } from './DuplicateMusic'
 
@@ -21,7 +20,6 @@ import DuplicateMusic, { type DuplicateMusicType } from './DuplicateMusic'
 export default ({ embedded = false }: { embedded?: boolean }) => {
   const theme = useTheme()
   const t = useI18n()
-  const syncRef = useRef<PlaylistSyncModalType>(null)
   const [visible, setVisible] = useState(embedded)
   const listMenuRef = useRef<ListMenuType>(null)
   const listNameEditRef = useRef<ListNameEditType>(null)
@@ -56,11 +54,9 @@ export default ({ embedded = false }: { embedded?: boolean }) => {
               {!embedded ? <Button accessibilityLabel={t('close')} onPress={() => { global.app_event.changeLoveListVisible(false) }} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="close" size={20} color={theme['q-text-secondary']} /></Button> : null}
             </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Button onPress={() => { if (commonState.componentIds.home) pushMusicAccountScreen(commonState.componentIds.home) }} style={{ flex: 1, minHeight: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: theme['q-surface-tint'] }}><Text size={12} color={theme['q-accent-text']}>{t('list_import')}</Text></Button>
-              <Button onPress={() => syncRef.current?.show()} style={{ flex: 1, minHeight: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: theme['q-surface-tint'] }}><Text size={12} color={theme['q-accent-text']}>{t('list_sync_entry')}</Text></Button>
+              <Button onPress={() => { void refreshServiceLists().catch(() => { toast('歌单刷新失败，请检查服务器连接') }) }} style={{ flex: 1, minHeight: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: theme['q-surface-tint'] }}><Text size={12} color={theme['q-accent-text']}>刷新歌单</Text></Button>
             </View>
           </View>
-          <PlaylistSyncModal ref={syncRef} />
           <List onShowMenu={(info, position) => listMenuRef.current?.show(info, position)} />
           <ListNameEdit ref={listNameEditRef} />
           <ListMusicSort ref={listMusicSortRef} />

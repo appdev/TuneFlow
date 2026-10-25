@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { BackHandler, StyleSheet, View } from 'react-native'
 
 import Text from '@/components/common/Text'
@@ -112,7 +113,7 @@ export default ({ componentId, initialProvider = 'tx' }: { componentId: string, 
     </View>
     <View style={styles.recommendActions}>
       <Button disabled={loggingOut || syncing} accessibilityState={{ selected: dailyProvider == provider }} style={[styles.recommendButton, { backgroundColor: theme['q-surface-tint'] }]} onPress={() => {
-        void setDailyProvider(provider).then(() => { if (mounted.current) { setSelectedDailyProvider(provider); toast(t('daily_provider_saved')) } }).catch(() => { toast(t('daily_preference_failed')) })
+        void setDailyProvider(provider).then(async() => { await AsyncStorage.setItem('@qmusic_service_daily_mode', 'account'); if (mounted.current) { setSelectedDailyProvider(provider); toast(t('daily_provider_saved')) } }).catch(() => { toast(t('daily_preference_failed')) })
       }}><Text size={12} color={theme['q-accent-text']}>{t(dailyProvider == provider ? 'daily_provider_current' : 'daily_provider_use')}</Text></Button>
       <Button disabled={loggingOut || syncing} style={styles.recommendButton} onPress={() => { setDailySettings(true) }}><Text size={12} color={theme['q-text-secondary']}>{t(provider == 'tx' ? 'daily_official_daily' : 'daily_settings')} ›</Text></Button>
     </View>

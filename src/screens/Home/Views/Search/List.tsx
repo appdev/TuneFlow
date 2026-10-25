@@ -5,6 +5,7 @@ import type { Source as SongListSource } from '@/store/search/songlist/state'
 import MusicList, { type MusicListType } from './MusicList'
 import BlankView, { type BlankViewType } from './BlankView'
 import SonglistList from './SonglistList'
+import AlbumSearch from '@/service/AlbumSearch'
 
 interface ListProps {
   onSearch: (keyword: string) => void
@@ -42,6 +43,6 @@ export default forwardRef<ListType, ListProps>(({ onSearch }, ref) => {
       ? <BlankView ref={blankViewRef} onSearch={onSearch} />
       : listType == 'songlist'
         ? <SonglistList ref={listRef} />
-        : <MusicList ref={listRef} />
+        : listType == 'album' ? <AlbumSearch ref={listRef} /> : <MusicList ref={listRef} />
   )
 })

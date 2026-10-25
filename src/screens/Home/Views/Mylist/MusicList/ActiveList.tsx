@@ -15,11 +15,8 @@ import Loading from '@/components/common/Loading'
 import { useSettingValue } from '@/store/setting/hook'
 import Button from '@/components/common/Button'
 import IconButton from '@/components/common/IconButton'
-import { useWindowSize } from '@/utils/hooks'
-import { useFontSize } from '@/store/common/hook'
 
 export interface ActiveListProps {
-  onShowImport: () => void
   onShowSearchBar: () => void
   onScrollToTop: () => void
 }
@@ -27,16 +24,13 @@ export interface ActiveListType {
   setVisibleBar: (visible: boolean) => void
 }
 
-export default forwardRef<ActiveListType, ActiveListProps>(({ onShowImport, onShowSearchBar, onScrollToTop }, ref) => {
+export default forwardRef<ActiveListType, ActiveListProps>(({ onShowSearchBar, onScrollToTop }, ref) => {
   const theme = useTheme()
   const currentListId = useActiveListId()
   const lists = useMyList()
   const fetching = useListFetching(currentListId)
   const currentList = lists.find(list => list.id == currentListId)
   const langId = useSettingValue('common.langId')
-  const { width } = useWindowSize()
-  const fontSize = useFontSize()
-  const compactActions = width < 360 || fontSize > 1.1
   const currentListName = useMemo(() => {
     switch (currentListId) {
       case LIST_IDS.TEMP:
@@ -83,21 +77,6 @@ export default forwardRef<ActiveListType, ActiveListProps>(({ onShowImport, onSh
         <Icon accessible={false} style={styles.currentListIcon} color={theme['q-text-secondary']} name="menu" size={17} />
         { fetching ? <Loading color={theme['q-accent-text']} style={styles.loading} /> : null }
         {currentList ? <PlaylistIdentity list={currentList} name={currentListName} /> : <Text style={styles.currentListText} numberOfLines={1} color={theme['q-text-primary']}>{currentListName}</Text>}
-      </Button>
-      <Button
-        accessibilityLabel={global.i18n.t('playlist_import_modal__title')}
-        style={{
-          ...styles.importButton,
-          width: compactActions ? 48 : undefined,
-          backgroundColor: theme['q-surface-tint'],
-          borderColor: theme['q-outline'],
-        }}
-        onPress={onShowImport}
-      >
-        <Icon accessible={false} color={theme['q-accent-text']} name="download-2" size={15} />
-        {!compactActions ? <Text size={11} style={styles.importText} color={theme['q-accent-text']} numberOfLines={1}>
-          {global.i18n.t('playlist_import_modal__title')}
-        </Text> : null}
       </Button>
       <IconButton
         accessibilityLabel={global.i18n.t('list_search')}

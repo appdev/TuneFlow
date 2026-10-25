@@ -5,7 +5,7 @@ import { useTheme } from '@/store/theme/hook'
 import { createStyle } from '@/utils/tools'
 import Text from '@/components/common/Text'
 import Button from '@/components/common/Button'
-import { SETTING_SCREENS, type SettingScreenIds } from '../Main'
+import { SETTING_SCREENS, settingTitle, type SettingScreenIds } from '../Main'
 import { useI18n } from '@/lang'
 import { BorderWidths } from '@/theme'
 import { Q_UI } from '@/theme/ui'
@@ -31,11 +31,11 @@ const ListItem = memo(({ id, activeId, onPress, onLayout }: {
       <Button
         accessibilityRole="tab"
         accessibilityState={{ selected: active }}
-        accessibilityLabel={t(`setting_${id}`)}
+        accessibilityLabel={settingTitle(id, t)}
         style={{ ...styles.listName, borderColor: active ? theme['q-outline'] : 'transparent' }}
         onPress={handlePress}
       >
-        <Text size={13} numberOfLines={1} color={active ? theme['q-accent-text'] : theme['q-text-primary']}>{t(`setting_${id}`)}</Text>
+        <Text size={13} numberOfLines={1} color={active ? theme['q-accent-text'] : theme['q-text-primary']}>{settingTitle(id, t)}</Text>
       </Button>
     </View>
   )
@@ -51,6 +51,11 @@ export default ({ onChangeId }: {
   onChangeId: (id: SettingScreenIds) => void
 }) => {
   const [activeId, setActiveId] = useState(global.lx.settingActiveId)
+  useEffect(() => {
+    const onNavigation = (nav: string) => { if (nav === 'nav_setting') setActiveId(global.lx.settingActiveId) }
+    global.state_event.on('navActiveIdUpdated', onNavigation)
+    return () => { global.state_event.off('navActiveIdUpdated', onNavigation) }
+  }, [])
   const activeIdRef = useRef(activeId)
   const scrollRef = useRef<ScrollView>(null)
   const viewportWidthRef = useRef(0)

@@ -26,6 +26,7 @@ export function compareVer(currentVer: string, targetVer: string): -1 | 0 | 1 {
 
 
 export const toNewMusicInfo = (oldMusicInfo: any): LX.Music.MusicInfo => {
+  if (oldMusicInfo.meta?.service) return oldMusicInfo
   const meta: Record<string, any> = {
     songId: oldMusicInfo.songmid, // 歌曲ID，local为文件路径
     albumName: oldMusicInfo.albumName, // 歌曲专辑名称

@@ -6,13 +6,14 @@ import { useTheme } from '@/store/theme/hook'
 import useAdaptiveLayout from '@/utils/hooks/useAdaptiveLayout'
 import { downloadSelection } from '@/core/download/selection'
 import { useI18n } from '@/lang'
+import { isServerLibraryTrack } from '@/service/tracks'
 
 export default memo(({ music }: { music: LX.Music.MusicInfo }) => {
   const theme = useTheme()
   const { isCar } = useAdaptiveLayout()
   const t = useI18n()
   const [busy, setBusy] = useState(false)
-  if (music.source == 'local') return null
+  if (music.source == 'local' || isServerLibraryTrack(music)) return null
   return <Button accessibilityLabel={`${t('download')} · ${music.name}`} disabled={busy} accessibilityState={{ busy, disabled: busy }}
     style={{ width: isCar ? 56 : 44, height: '100%', flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}
     onPress={() => {

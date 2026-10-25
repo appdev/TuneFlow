@@ -6,7 +6,6 @@ import Image from '@/components/common/Image'
 import { Icon } from '@/components/common/Icon'
 import { useTheme } from '@/store/theme/hook'
 import { useI18n } from '@/lang'
-import { confirmDialog } from '@/utils/tools'
 import { setActiveList } from '@/core/list'
 import { setNavActiveId } from '@/core/common'
 import { getAccountPlaylists, openPlaylistSession, type AccountPlaylist, type PlaylistSession } from '@/core/musicAccount/playlists'
@@ -77,10 +76,6 @@ export default ({ provider, onLogin, onOpenLibrary, onBusyChange }: {
     request.current = controller
     try {
       const targets = lists.filter(item => selected.has(item.id))
-      if (targets.some(item => findAccountList(account, item.id))) {
-        const confirmed = await confirmDialog({ message: t('account_lists_replace_confirm') })
-        if (!confirmed || !mounted.current) return
-      }
       setError('')
       let success = 0
       let failed = 0
@@ -119,7 +114,7 @@ export default ({ provider, onLogin, onOpenLibrary, onBusyChange }: {
     <View style={styles.heading}>
       <View style={styles.copy}>
         <Text size={23} style={styles.title}>{t('account_lists_title')}</Text>
-        <Text size={12} color={theme['q-text-secondary']} style={styles.subtitle}>{t(provider == 'tx' ? 'list_sync_import_tip' : 'account_lists_tip')}</Text>
+        <Text size={12} color={theme['q-text-secondary']} style={styles.subtitle}>完整读取后导入 Docker，重复导入只补充歌曲，保留服务器已有内容。播放使用服务器音源与自动切换。</Text>
       </View>
       <Button disabled={busy || loading} accessibilityLabel={t('account_lists_refresh')} onPress={() => { void load() }} style={styles.iconButton}>
         <Icon name="available_updates" size={20} color={theme['q-accent-text']} />

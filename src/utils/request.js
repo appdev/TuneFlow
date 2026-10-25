@@ -167,8 +167,6 @@ const blobToBuffer = (blob) => {
 }
 
 const fetchData = (url, { timeout = 15000, ...options }) => {
-  console.log('---start---', url)
-
   const controller = new global.AbortController()
   let id = BackgroundTimer.setTimeout(() => {
     id = null

@@ -3,6 +3,8 @@ import { useI18n } from '@/lang'
 import Menu, { type Menus, type MenuType, type Position } from '@/components/common/Menu'
 import { hasDislike } from '@/core/dislikeList'
 import { existsFile } from '@/utils/fs'
+import { isReadOnlyList } from '@/service/workspace'
+import { isServerLibraryTrack } from '@/service/tracks'
 
 export interface SelectInfo {
   musicInfo: LX.Music.MusicInfo
@@ -65,7 +67,7 @@ export default forwardRef<ListMenuType, ListMenuProps>((props, ref) => {
     const menu = [
       { action: 'play', label: t('play') },
       { action: 'playLater', label: t('play_later') },
-      { action: 'download', label: t('download'), disabled: !(selectInfoRef.current.selectedList.length ? selectInfoRef.current.selectedList : [musicInfo]).some(item => item.source != 'local') },
+      { action: 'download', label: t('download'), disabled: !(selectInfoRef.current.selectedList.length ? selectInfoRef.current.selectedList : [musicInfo]).some(item => item.source != 'local' && !isServerLibraryTrack(item)) },
       { action: 'add', label: t('add_to') },
       { action: 'move', label: t('move_to') },
       { action: 'changePosition', label: t('change_position') },
@@ -77,7 +79,7 @@ export default forwardRef<ListMenuType, ListMenuProps>((props, ref) => {
       { action: 'remove', label: t('delete') },
     ]
     if (musicInfo.source == 'local') menu.splice(5, 0, { action: 'editMetadata', disabled: !edit_metadata, label: t('edit_metadata') })
-    setMenus(menu)
+    setMenus(menu.filter(item => !isReadOnlyList(selectInfoRef.current.listId) || !['move', 'changePosition', 'toggleSource', 'remove'].includes(item.action)))
     void Promise.all([hasEditMetadata(musicInfo)]).then(([_edit_metadata]) => {
       // console.log(_edit_metadata)
       let isUpdated = false

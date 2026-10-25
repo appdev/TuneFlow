@@ -188,7 +188,7 @@ android {
             // 可直接侧载的本地测试包：内置 JS bundle，但仍使用 debug keystore。
             initWith release
             applicationIdSuffix ".preview"
-            versionNameSuffix "-adaptive-preview"
+            versionNameSuffix "-service.5"
             debuggable false
             minifyEnabled true
             signingConfig signingConfigs.debug

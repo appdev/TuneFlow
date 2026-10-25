@@ -20,6 +20,8 @@ import {
 } from './local'
 import { findLocalPlayback } from './preferLocal'
 import settingState from '@/store/setting/state'
+import { ServiceClient } from '@/service/client'
+import { getServiceProvenance, resolveServiceTrack, serviceLyrics } from '@/service/tracks'
 
 
 export const getMusicUrl = async({
@@ -35,6 +37,8 @@ export const getMusicUrl = async({
   onToggleSource?: (musicInfo?: LX.Music.MusicInfoOnline) => void
   allowToggleSource?: boolean
 }): Promise<string> => {
+  const service = getServiceProvenance(musicInfo)
+  if (service) return (await resolveServiceTrack(service, quality)).url
   if ('progress' in musicInfo) {
     return getDownloadMusicUrl({ musicInfo, isRefresh, onToggleSource, allowToggleSource })
   } else if (musicInfo.source == 'local') {
@@ -65,6 +69,8 @@ export const getMusicPlayUrlInfo = async({
   onToggleSource?: (musicInfo?: LX.Music.MusicInfoOnline) => void
   allowToggleSource?: boolean
 }): Promise<{ url: string, quality: LX.Quality }> => {
+  const service = getServiceProvenance(musicInfo)
+  if (service) return resolveServiceTrack(service, quality)
   if ('progress' in musicInfo) {
     return getDownloadMusicUrl({ musicInfo, isRefresh, onToggleSource, allowToggleSource }).then(url => ({ url, quality: '128k' as const }))
   } else if (musicInfo.source == 'local') {
@@ -89,6 +95,13 @@ export const getPicPath = async({
   isRefresh?: boolean
   onToggleSource?: (musicInfo?: LX.Music.MusicInfoOnline) => void
 }): Promise<string> => {
+  const service = getServiceProvenance(musicInfo)
+  if (service) {
+    const client = new ServiceClient(service.endpoint)
+    if (service.picturePath) return client.resourceUrl(service.picturePath)
+    if (service.streamPath) return ''
+    return client.resourceUrl((await client.picture(service.track)).url)
+  }
   if ('progress' in musicInfo) {
     return getDownloadPicUrl({ musicInfo, isRefresh, listId, onToggleSource })
   } else if (musicInfo.source == 'local') {
@@ -107,6 +120,16 @@ export const getLyricInfo = async({
   isRefresh?: boolean
   onToggleSource?: (musicInfo?: LX.Music.MusicInfoOnline) => void
 }): Promise<LX.Player.LyricInfo> => {
+  const service = getServiceProvenance(musicInfo)
+  if (service) {
+    if (service.lyricsPath) {
+      const client = new ServiceClient(service.endpoint)
+      client.resourceUrl(service.lyricsPath)
+      return serviceLyrics(await client.request(service.lyricsPath))
+    }
+    if (service.streamPath) return serviceLyrics({ lyric: '' })
+    return serviceLyrics(await new ServiceClient(service.endpoint).lyrics(service.track))
+  }
   if ('progress' in musicInfo) {
     return getDownloadLyricInfo({ musicInfo, isRefresh, onToggleSource })
   } else if (musicInfo.source == 'local') {

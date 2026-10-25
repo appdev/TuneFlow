@@ -67,8 +67,8 @@ const registerPlaybackService = async() => {
   //   }
   // })
 
-  TrackPlayer.addEventListener(TPEvent.PlaybackError, async(err: any) => {
-    console.log('playback-error', err)
+  TrackPlayer.addEventListener(TPEvent.PlaybackError, async() => {
+    console.warn('playback-error')
     global.app_event.error()
     global.app_event.playerError()
   })

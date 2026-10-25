@@ -1,12 +1,13 @@
 import { downloadMusics } from './worker'
 import settingState from '@/store/setting/state'
 import { toast } from '@/utils/tools'
+import { isServerLibraryTrack } from '@/service/tracks'
 
 const pending = new Map<string, Promise<boolean>>()
 let queue = Promise.resolve(false)
 
 export const downloadSelection = async(musics: LX.Music.MusicInfo[]): Promise<boolean> => {
-  const targets = [...new Map(musics.filter((music): music is LX.Music.MusicInfoOnline => music.source != 'local').map(music => [`${music.source}:${music.id}`, music])).values()]
+  const targets = [...new Map(musics.filter((music): music is LX.Music.MusicInfoOnline => music.source != 'local' && !isServerLibraryTrack(music)).map(music => [`${music.source}:${music.id}`, music])).values()]
   if (!targets.length) { toast(global.i18n.t('download_selection_local')); return false }
   const quality = settingState.setting['player.playQuality']
   const key = `${quality}:${targets.map(music => `${music.source}:${music.id}`).sort().join('|')}`

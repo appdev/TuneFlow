@@ -1,7 +1,7 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Animated, StyleSheet, View } from 'react-native'
 import { Icon } from '@/components/common/Icon'
-import { getPicUrl } from '@/core/music/online'
+import { getPicPath } from '@/core/music'
 import { useTheme } from '@/store/theme/hook'
 import { useMotion } from '@/utils/useMotion'
 
@@ -11,7 +11,7 @@ const loadCover = async(musicInfo: LX.Music.MusicInfoOnline) => {
   const key = `${musicInfo.source}_${musicInfo.id}`
   let request = covers.get(key)
   if (!request) {
-    request = getPicUrl({ musicInfo, isRefresh: false, allowToggleSource: false }).catch(() => '')
+    request = getPicPath({ musicInfo, isRefresh: false }).catch(() => '')
     if (covers.size >= 64) covers.delete(covers.keys().next().value!)
     covers.set(key, request)
   }

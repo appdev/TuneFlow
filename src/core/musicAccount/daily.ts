@@ -138,7 +138,7 @@ const neteaseDaily = async(session: AccountSession, signal?: AbortSignal) => {
   return wySongList.filterListDetail({ playlist: { tracks: songs }, privileges }).map((song: unknown) => toNewMusicInfo(song) as LX.Music.MusicInfoOnline)
 }
 
-export const getAccountDaily = async(provider: DailyProvider, force = false, signal?: AbortSignal): Promise<DailyRecommendation> => {
+export const getAccountDaily = async(provider: DailyProvider, force = false, signal?: AbortSignal, allowDeviceFallback = true): Promise<DailyRecommendation> => {
   let reason: DailyReason = 'unavailable'
   let session: AccountSession | undefined
   let identity = ''
@@ -197,6 +197,7 @@ export const getAccountDaily = async(provider: DailyProvider, force = false, sig
   }
   aborted(signal)
   if (!result) {
+    if (!allowDeviceFallback) return { provider, kind: 'local', reason, list: [] }
     // 与 PC 一致保留本地兜底，但返回明确标记，绝不冒充平台日推。
     const list = await getDailyRecommend(provider, force)
     aborted(signal)

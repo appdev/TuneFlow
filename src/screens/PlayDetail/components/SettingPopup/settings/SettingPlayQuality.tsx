@@ -13,6 +13,7 @@ import { useSettingValue } from '@/store/setting/hook'
 import { useTheme } from '@/store/theme/hook'
 import { useStatus, useUserApiList } from '@/store/userApi'
 import Button from '@/components/common/Button'
+import { getServiceProvenance } from '@/service/tracks'
 
 const QUALITY_INFO: Partial<Record<LX.Quality, { name: 'standard' | 'high' | 'lossless' | 'hires', desc: string }>> = {
   '128k': { name: 'standard', desc: '128 kbps' },
@@ -32,6 +33,7 @@ export default memo(() => {
   const theme = useTheme()
   const t = useI18n()
   const currentMusic = playMusicInfo.musicInfo
+  const service = currentMusic ? getServiceProvenance(currentMusic) : undefined
   const activeQuality = currentMusic ? playerMusicInfo.quality ?? quality : quality
   const onlineMusic = currentMusic && !('progress' in currentMusic) && currentMusic.source != 'local'
     ? currentMusic
@@ -47,6 +49,7 @@ export default memo(() => {
   const handleChange = (id: LX.Quality, available: boolean) => {
     if (!available || activeQuality == id) return
     updateSetting({ 'player.playQuality': id })
+    if (service) service.playQuality = id
     if (onlineMusic) requestAnimationFrame(() => { setMusicUrl(onlineMusic, true) })
   }
 
@@ -59,10 +62,10 @@ export default memo(() => {
           : <Icon name="music_time" color={theme['q-accent-text']} rawSize={24} />}
         <View style={styles.routeCopy}>
           <Text size={13} style={styles.routeTitle} color={theme['q-text-primary']}>
-            {customApi ? t('play_detail_quality_custom_first') : t('play_detail_quality_official_first')}
+            {service ? 'Docker Service' : customApi ? t('play_detail_quality_custom_first') : t('play_detail_quality_official_first')}
           </Text>
           <Text size={11} color={theme['q-text-secondary']} numberOfLines={2}>
-            {customApi
+            {service ? '由服务器解析音质并自动切换平台' : customApi
               ? t('play_detail_quality_custom_desc', { name: customApiName ?? t('play_detail_quality_custom_source'), status: apiStatusLabel })
               : t('play_detail_quality_official_desc')}
           </Text>
@@ -72,7 +75,7 @@ export default memo(() => {
         {qualitys.map(id => {
           const info = QUALITY_INFO[id]!
           const active = activeQuality == id
-          const available = !onlineMusic || getPlayQualityCandidates(id, onlineMusic)[0] == id
+          const available = !!service || !onlineMusic || getPlayQualityCandidates(id, onlineMusic)[0] == id
           return (
             <Button
               key={id}

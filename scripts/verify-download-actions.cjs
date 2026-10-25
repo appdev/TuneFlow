@@ -67,12 +67,13 @@ test('再次点击当前本地歌曲只切换播放状态，不重复入队', as
   }
 })
 
-test('已有本地版本时下载另一音质仍使用在线地址，不把本地路径交给网络下载器', async() => {
+test('下载提交服务器原始曲目和所选音质，跳过曲库文件且不启动手机下载器', async() => {
   const tasks = new Map()
   const requests = []
   const downloads = []
-  let finished
-  const complete = new Promise(resolve => { finished = resolve })
+  const submitted = []
+  const original = { id: 'original-song', source: 'tx', name: 'Song', singer: 'Artist' }
+  const library = { id: 'library-file', source: 'local' }
   const deps = {
     'react-native-fs': {
       ExternalStorageDirectoryPath: '/storage',
@@ -86,21 +87,26 @@ test('已有本地版本时下载另一音质仍使用在线地址，不把本�
     '@/utils/tools': { requestStoragePermission: async() => true },
     '@/core/music': { getMusicPlayUrlInfo: async() => ({ url: '/existing/song.mp3', quality: '128k' }) },
     '@/core/music/online': { getMusicPlayUrlInfo: async options => { requests.push(options); return { url: 'https://audio.example/song.flac', quality: 'flac' } } },
+    '@/service/session': { getWorkspace: () => ({
+      original: track => track.meta.service.track,
+      client: { download: async(track, quality) => { submitted.push({ track, quality }) } },
+    }) },
     './store': {
       getDownloadTask: id => tasks.get(id),
       removeDownloadTask: id => tasks.delete(id),
-      upsertDownloadTask: task => { tasks.set(task.id, task); if (['completed', 'error'].includes(task.status)) finished(task) },
+      upsertDownloadTask: task => { tasks.set(task.id, task) },
     },
   }
   const context = { exports: {}, console, require: id => { assert.ok(id in deps, id); return deps[id] } }
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/core/download/worker.ts'), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
   }).outputText, context)
-  assert.equal(await context.exports.downloadMusics([{ id: 'song', source: 'tx', name: 'Song', singer: 'Artist' }], 'flac'), true)
-  const task = await complete
-  assert.equal(task.status, 'completed')
-  assert.equal(requests.length, 1)
-  assert.equal(requests[0].quality, 'flac')
-  assert.equal(downloads.length, 1)
-  assert.equal(downloads[0].fromUrl, 'https://audio.example/song.flac')
+  assert.equal(await context.exports.downloadMusics([
+    { id: 'service-song', source: 'tx', meta: { service: { track: original } } },
+    { id: 'service-library', source: 'kw', meta: { service: { track: library } } },
+  ], 'flac'), true)
+  assert.deepEqual(submitted, [{ track: original, quality: 'flac' }])
+  assert.equal(tasks.size, 0)
+  assert.equal(requests.length, 0)
+  assert.equal(downloads.length, 0)
 })

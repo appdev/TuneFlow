@@ -6,6 +6,8 @@ import mg from './mg'
 // import bd from './bd'
 import xm from './xm'
 import { supportQuality } from './api-source'
+import { installServiceCatalog } from '@/service/workspace'
+import { getWorkspace } from '@/service/session'
 
 
 const sources = {
@@ -43,6 +45,7 @@ const sources = {
   // bd,
   xm,
 }
+installServiceCatalog(sources, getWorkspace)
 export default {
   ...sources,
   supportQuality,

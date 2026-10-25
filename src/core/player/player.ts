@@ -31,6 +31,7 @@ import { LIST_IDS } from '@/config/constant'
 import { addListMusics, removeListMusics } from '@/core/list'
 import { addDislikeInfo } from '@/core/dislikeList'
 import { updateSetting } from '@/core/common'
+import { getServiceProvenance } from '@/service/tracks'
 
 // import { checkMusicFileAvailable } from '@renderer/utils/music'
 
@@ -118,7 +119,7 @@ const getMusicPlayUrl = async(musicInfo: LX.Music.MusicInfo | LX.Download.ListIt
   addLoadTimeout()
 
   // const type = getPlayType(settingState.setting['player.isPlayHighQuality'], musicInfo)
-  let toggleMusicInfo = ('progress' in musicInfo ? musicInfo.metadata.musicInfo : musicInfo).meta.toggleMusicInfo
+  let toggleMusicInfo = getServiceProvenance(musicInfo) ? null : ('progress' in musicInfo ? musicInfo.metadata.musicInfo : musicInfo).meta.toggleMusicInfo
 
   return (toggleMusicInfo ? getMusicPlayUrlInfo({
     musicInfo: toggleMusicInfo,
@@ -162,7 +163,7 @@ export const setMusicUrl = (musicInfo: LX.Music.MusicInfo | LX.Download.ListItem
     if (!url) return
     setResource(musicInfo, url, playerState.progress.nowPlayTime)
   }).catch((err: any) => {
-    console.log(err)
+    console.warn('Unable to resolve playback')
     setStatusText(err.message as string)
     global.app_event.error()
     addDelayNextTimeout()
@@ -184,6 +185,9 @@ export const setPlayQuality = (quality: LX.Quality) => {
 
   const musicInfo = playerState.playMusicInfo.musicInfo
   if (!musicInfo) return
+
+  const service = getServiceProvenance(musicInfo)
+  if (service) service.playQuality = quality
 
   setStatusText(global.i18n.t('player__switching_quality'))
   setMusicUrl(musicInfo, true)
@@ -210,7 +214,7 @@ const handleRestorePlay = async(restorePlayInfo: LX.Player.SavedPlayInfo) => {
     ) return
     setMusicInfo({ pic: url })
     global.app_event.picUpdated()
-  })
+  }).catch(() => { console.warn('Artwork unavailable') })
 
   void getLyricInfo({ musicInfo }).then((lyricInfo) => {
     if (musicInfo.id != playMusicInfo.musicInfo?.id) return
@@ -235,7 +239,7 @@ const debouncePlay = debounceBackgroundTimer((musicInfo: LX.Player.PlayMusic) =>
       playerState.loadErrorPicUrl == url) return
     setMusicInfo({ pic: url })
     global.app_event.picUpdated()
-  })
+  }).catch(() => { console.warn('Artwork unavailable') })
 
   void getLyricInfo({ musicInfo }).then((lyricInfo) => {
     if (musicInfo.id != playerState.playMusicInfo.musicInfo?.id) return

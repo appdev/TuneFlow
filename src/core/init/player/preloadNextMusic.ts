@@ -24,11 +24,9 @@ const preloadNextMusicUrl = async(curTime: number) => {
     preloadMusicInfo.info = info
     const url = await getMusicUrl({ musicInfo: info.musicInfo }).catch(() => '')
     if (url) {
-      console.log('preload url', url)
       const [cached, available] = await Promise.all([isCached(url), checkUrl(url).then(() => true).catch(() => false)])
       if (!cached && !available) {
-        const url = await getMusicUrl({ musicInfo: info.musicInfo, isRefresh: true }).catch(() => '')
-        console.log('preload url refresh', url)
+        await getMusicUrl({ musicInfo: info.musicInfo, isRefresh: true }).catch(() => '')
       }
     }
   }

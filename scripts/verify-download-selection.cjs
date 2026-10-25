@@ -10,6 +10,7 @@ function fixture(options = {}) {
     './worker': { downloadMusics: async (tracks, quality) => { calls.push({ tracks, quality }); if (options.gate) await options.gate; if (options.error) throw Error('failed'); return options.granted !== false } },
     '@/store/setting/state': { setting: { 'player.playQuality': 'flac' } },
     '@/utils/tools': { toast: text => messages.push(text) },
+    '@/service/tracks': { isServerLibraryTrack: music => music.meta?.service?.track?.source === 'local' },
   }
   const context = { exports: {}, global: { i18n: { t: text => text } }, require: id => { assert.ok(id in deps, id); return deps[id] } }
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/core/download/selection.ts'), 'utf8'), {
@@ -20,7 +21,8 @@ function fixture(options = {}) {
 test('混合歌单跳过本地文件、去重在线歌曲，并使用当前音质', async () => {
   const h = fixture()
   const one = { id: '1', source: 'wy' }, two = { id: '1', source: 'tx' }
-  assert.equal(await h.downloadSelection([one, { id: 'local', source: 'local' }, one, two]), true)
+  const library = { id: 'server-local', source: 'kw', meta: { service: { track: { source: 'local' } } } }
+  assert.equal(await h.downloadSelection([one, { id: 'local', source: 'local' }, library, one, two]), true)
   assert.equal(h.calls.length, 1)
   assert.deepEqual(JSON.parse(JSON.stringify(h.calls[0])), { tracks: [one, two], quality: 'flac' })
   assert.deepEqual(h.messages, ['download_selection_added'])

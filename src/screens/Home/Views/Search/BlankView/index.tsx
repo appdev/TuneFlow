@@ -9,10 +9,10 @@ import HotSearch, { type HotSearchType } from './HotSearch'
 import Button from '@/components/common/Button'
 import { Icon } from '@/components/common/Icon'
 import { setNavActiveId } from '@/core/common'
-import DailyRecommend from './DailyRecommend'
-import { useDockInset } from '@/components/common/DockInset'
+import DailyRecommend from '@/service/DailyRecommendations'
 import { pushMusicAccountScreen } from '@/navigation/navigation'
 import commonState from '@/store/common/state'
+import { useDockInset } from '@/components/common/DockInset'
 import useAdaptiveLayout from '@/utils/hooks/useAdaptiveLayout'
 
 interface BlankViewProps {
@@ -81,9 +81,9 @@ export default forwardRef<BlankViewType, BlankViewProps>(({ onSearch }, ref) => 
                   <Text size={12} color={theme['q-text-primary']}>{t(item.id)}</Text>
                 </Button>
               ))}
-              <Button accessibilityLabel={t('account_lists_entry')} style={styles.shortcut} onPress={() => { if (commonState.componentIds.home) pushMusicAccountScreen(commonState.componentIds.home) }}>
+              <Button accessibilityLabel="平台登录与账号歌单" style={styles.shortcut} onPress={() => { if (commonState.componentIds.home) pushMusicAccountScreen(commonState.componentIds.home) }}>
                 <View style={{ ...styles.shortcutIcon, backgroundColor: theme['q-surface-tint'] }}><Icon accessible={false} name="available_updates" rawSize={21} color={theme['q-accent-text']} /></View>
-                <Text size={12} color={theme['q-text-primary']}>{t('account_lists_entry')}</Text>
+                <Text size={12} color={theme['q-text-primary']}>平台账号</Text>
               </Button>
             </View>
             </View>

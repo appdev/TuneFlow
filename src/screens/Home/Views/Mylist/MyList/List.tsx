@@ -15,6 +15,7 @@ import { scaleSizeH } from '@/utils/pixelRatio'
 import Loading from '@/components/common/Loading'
 import Button, { type BtnType } from '@/components/common/Button'
 import { useDockInset } from '@/components/common/DockInset'
+import { isReadOnlyList } from '@/service/workspace'
 
 type FlatListType = FlatListProps<LX.List.MyListInfo>
 
@@ -34,6 +35,7 @@ const ListItem = memo(({ item, index, activeId, onPress, onShowMenu }: {
   const active = activeId == item.id
 
   const handleShowMenu = () => {
+    if (isReadOnlyList(item.id)) return
     if (moreButtonRef.current?.measure) {
       moreButtonRef.current.measure((fx, fy, width, height, px, py) => {
         // console.log(fx, fy, width, height, px, py)
