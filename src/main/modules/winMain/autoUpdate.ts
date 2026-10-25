@@ -6,6 +6,7 @@ import { isExistWindow, sendEvent } from './index'
 import { WIN_MAIN_RENDERER_EVENT_NAME } from '@common/ipcNames'
 import { compareVersions, downloadSources, getUpdateVersion } from '@common/utils/updateSources'
 import { createUpdateProvider, loadUpdateMetadata, requestUpdate } from './updateProvider'
+import { SERVICE_PREVIEW } from '@common/servicePreview'
 
 autoUpdater.logger = log
 autoUpdater.autoDownload = false
@@ -93,6 +94,7 @@ const check = async(shouldDownload: boolean) => {
 }
 
 export default () => {
+  if (SERVICE_PREVIEW) return
   autoUpdater.on('update-available', info => {
     report(WIN_MAIN_RENDERER_EVENT_NAME.update_available, info)
   })

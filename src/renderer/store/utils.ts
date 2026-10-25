@@ -12,10 +12,10 @@ import { appSetting } from './setting'
 import { joinPath } from '@common/utils/nodejs'
 import { markRaw, shallowReactive } from '@common/utils/vueTools'
 import { getThemes as getTheme } from '@renderer/utils/ipc'
-import { qualityList, themeInfo, themeShouldUseDarkColors } from './index'
+import { themeInfo, themeShouldUseDarkColors } from './index'
 
 export const assertApiSupport = (source: LX.Source): boolean => {
-  return source == 'local' || qualityList.value[source] != null
+  return source == 'local' || ['kw', 'kg', 'tx', 'wy', 'mg'].includes(source)
 }
 
 export const buildBgUrl = (originUrl: string, dataPath: string): string => {

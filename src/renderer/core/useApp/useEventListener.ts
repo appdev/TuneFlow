@@ -2,6 +2,7 @@ import { getFontSizeWithScreen } from '@renderer/utils'
 import {
   minWindow,
   onFocus,
+  onFullScreenChanged,
   onSettingChanged,
   onThemeChange,
   openDevTools,
@@ -107,6 +108,10 @@ export default () => {
     clearDownKeys()
   })
 
+  const rFullscreen = onFullScreenChanged(({ params: fullscreen }) => {
+    isFullscreen.value = fullscreen
+  })
+
   const rThemeChange = onThemeChange(({ params: setting }) => {
     // console.log(setting)
     themeShouldUseDarkColors.value = setting.shouldUseDarkColors
@@ -136,6 +141,7 @@ export default () => {
     document.body.removeEventListener('click', handleBodyClick)
     rSetConfig()
     rFocus()
+    rFullscreen()
     rThemeChange()
   })
 }

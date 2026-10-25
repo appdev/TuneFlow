@@ -65,6 +65,7 @@ typings/
 build
 
 dist
+artifacts/
 
 publish/assets
 

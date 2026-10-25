@@ -9,24 +9,10 @@
           </svg>
         </button>
       </div>
-      <button type="button" :class="[$style.listsAdd, $style.importBtn]" @click="isShowLocalMusicModal = true">
+      <button type="button" :class="[$style.listsAdd, $style.importBtn]" @click="refreshLibrary">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
-        <span>{{ $t('local_import_title') }}</span>
+        <span>刷新音乐库</span>
       </button>
-      <div :class="$style.headerBtns">
-        <button type="button" :class="[$style.listsAdd, $style.importBtn]" :aria-label="$t('playlist_import_modal__title')" :title="$t('playlist_import_modal__title')" @click="isShowExternalImportModal = true">
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" viewBox="0 0 425.2 425.2" space="preserve">
-            <use xlink:href="#icon-download-2" />
-          </svg>
-          <span>{{ $t('playlist_import_modal__entry') }}</span>
-        </button>
-        <button type="button" :class="[$style.listsAdd, $style.importBtn]" :aria-label="$t('list_update_modal__title')" :title="$t('list_update_modal__title')" @click="isShowListUpdateModal = true">
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" style="transform: rotate(45deg);" height="70%" viewBox="0 0 24 24" space="preserve">
-            <use xlink:href="#icon-refresh" />
-          </svg>
-          <span>{{ $t('list_sync_entry') }}</span>
-        </button>
-      </div>
     </div>
     <ul ref="dom_lists_list" class="scroll" :class="[$style.listsContent, { [$style.sortable]: isDragging }]">
       <li
@@ -52,13 +38,13 @@
       <li
         v-for="(item, index) in userLists"
         :key="item.id" class="user-list" :data-list-id="item.id"
-        :class="[$style.listsItem, {[$style.active]: item.id == listId}, {[$style.clicked]: rightClickItemIndex == index}, {[$style.fetching]: fetchingListStatus[item.id]}]"
+        :class="[$style.listsItem, { 'default-list': isReadOnlyList(item.id), [$style.active]: item.id == listId}, {[$style.clicked]: rightClickItemIndex == index}, {[$style.fetching]: fetchingListStatus[item.id]}]"
         role="button" tabindex="0" :data-index="index" :aria-pressed="item.id == listId" @contextmenu="handleListsItemRigthClick($event, index)"
         @keydown.enter.self="handleListToggle(item.id)" @keydown.space.self.prevent="handleListToggle(item.id)"
       >
         <span :class="$style.listsLabel" :title="item.name" @click="handleListToggle(item.id, index + 2)">
           <PlaylistIdentity :list="item" subtitle />
-          <svg :class="$style.dragHandle" viewBox="0 0 16 24" aria-hidden="true"><title>{{ $t('lists__drag_sort') }}</title><g fill="currentColor"><circle cx="5" cy="6" r="1.3" /><circle cx="11" cy="6" r="1.3" /><circle cx="5" cy="12" r="1.3" /><circle cx="11" cy="12" r="1.3" /><circle cx="5" cy="18" r="1.3" /><circle cx="11" cy="18" r="1.3" /></g></svg>
+          <svg v-if="!isReadOnlyList(item.id)" :class="$style.dragHandle" viewBox="0 0 16 24" aria-hidden="true"><title>{{ $t('lists__drag_sort') }}</title><g fill="currentColor"><circle cx="5" cy="6" r="1.3" /><circle cx="11" cy="6" r="1.3" /><circle cx="5" cy="12" r="1.3" /><circle cx="11" cy="12" r="1.3" /><circle cx="5" cy="18" r="1.3" /><circle cx="11" cy="18" r="1.3" /></g></svg>
         </span>
         <base-input
           :class="$style.listsInput" type="text" :value="item.name"
@@ -74,26 +60,21 @@
         </li>
       </transition>
     </ul>
-    <button :class="$style.cloudLink" aria-label="云端曲库" @click="openCloudLibrary">
-      <svg-icon name="share" />
-      <span>云端曲库</span>
-      <svg-icon name="angle-right-solid" :class="$style.cloudArrow" />
-    </button>
     <base-menu v-model="isShowMenu" :menus="menus" :xy="menuLocation" item-name="name" @menu-click="handleMenuClick" />
     <DuplicateMusicModal v-model:visible="isShowDuplicateMusicModal" :list-info="duplicateListInfo" />
     <ListSortModal v-model:visible="isShowListSortModal" :list-info="sortListInfo" />
     <ListUpdateModal v-model:visible="isShowListUpdateModal" />
-    <ExternalImportModal v-model:visible="isShowExternalImportModal" :list-id="listId" />
     <LocalMusicModal v-model:visible="isShowLocalMusicModal" @open-list="handleListToggle" />
   </div>
 </template>
 
 <script>
 import { openUrl } from '@common/utils/electron'
+import { scanServiceLibrary } from '@renderer/service/session'
+import { isReadOnlyList } from '@renderer/service/workspace'
 
 import musicSdk from '@renderer/utils/musicSdk'
 import DuplicateMusicModal from './components/DuplicateMusicModal.vue'
-import ExternalImportModal from './components/ExternalImportModal.vue'
 import LocalMusicModal from './components/LocalMusicModal.vue'
 import ListSortModal from './components/ListSortModal.vue'
 import ListUpdateModal from './components/ListUpdateModal.vue'
@@ -127,7 +108,6 @@ export default {
   components: {
     PlaylistIdentity,
     DuplicateMusicModal,
-    ExternalImportModal,
     LocalMusicModal,
     ListSortModal,
     ListUpdateModal,
@@ -142,10 +122,12 @@ export default {
   setup(props, { emit }) {
     const router = useRouter()
     const t = useI18n()
+    const refreshLibrary = async() => {
+      try { await scanServiceLibrary(); handleListToggle('service_library') } catch (error) { void dialog({ message: error.message }) }
+    }
 
     const dom_lists_list = ref(null)
     const rightClickItemIndex = ref(-10)
-    const isShowExternalImportModal = ref(false)
     const isShowLocalMusicModal = ref(false)
 
     const { handleImportList, handleExportList } = useShare()
@@ -247,13 +229,14 @@ export default {
     })
 
     return {
+      isReadOnlyList,
+      refreshLibrary,
       rightClickItemIndex,
       defaultList,
       loveList,
       userLists,
       fetchingListStatus,
       dom_lists_list,
-      isShowExternalImportModal,
       isShowLocalMusicModal,
       isShowListUpdateModal,
       isShowListSortModal,

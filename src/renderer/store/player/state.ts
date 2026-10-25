@@ -48,7 +48,7 @@ export interface PlaybackSourceInfo {
   requestedSource: LX.Source
   resolvedSource: LX.Source
   quality: LX.Quality | null
-  mode: 'official' | 'api' | 'fallback' | 'cache' | 'local' | 'download'
+  mode: 'official' | 'api' | 'fallback' | 'cache' | 'local' | 'download' | 'service'
   isFallback: boolean
   resolvedSongId: string
   resolvedMediaId: string

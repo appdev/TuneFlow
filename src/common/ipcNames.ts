@@ -48,6 +48,7 @@ const modules = {
     min: 'min',
     max: 'max',
     fullscreen: 'fullscreen',
+    fullscreen_changed: 'fullscreen_changed',
     set_app_name: 'set_app_name',
     clear_cache: 'clear_cache',
     get_cache_size: 'get_cache_size',

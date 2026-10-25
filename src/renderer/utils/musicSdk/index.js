@@ -6,6 +6,8 @@ import mg from './mg/index'
 import bd from './bd/index'
 import xm from './xm'
 import { supportQuality } from './api-source'
+import { installServiceCatalog } from '@renderer/service/workspace'
+import { getWorkspace } from '@renderer/service/session'
 
 
 const sources = {
@@ -47,6 +49,7 @@ const sources = {
   bd,
   xm,
 }
+installServiceCatalog(sources, getWorkspace)
 export default {
   ...sources,
   init() {

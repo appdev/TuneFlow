@@ -2,6 +2,10 @@ import { log } from '@common/utils'
 
 type DebugExtra = Record<string, unknown>
 
+// Full DOM snapshots force layout and are only useful during diagnosis.
+// Keep production errors without measuring every page on the navigation path.
+const rendererDiagnosticsEnabled = process.env.NODE_ENV !== 'production' || window.localStorage.getItem('qmusic.debug.renderer') === '1'
+
 const getNodeState = (id: string) => {
   const node = document.getElementById(id)
   if (!node) return null
@@ -37,6 +41,10 @@ export const cleanupStaleModalClass = () => {
 
 export const logRendererState = (label: string, extra: DebugExtra = {}) => {
   try {
+    if (!rendererDiagnosticsEnabled) {
+      if (label.endsWith(':error') || label === 'window:unhandledrejection') log.error('[renderer]', label, JSON.stringify(extra))
+      return
+    }
     log.info('[renderer-debug]', label, JSON.stringify({
       route: window.location.hash,
       root: getNodeState('root'),

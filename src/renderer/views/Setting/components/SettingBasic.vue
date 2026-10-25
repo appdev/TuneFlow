@@ -70,21 +70,6 @@ dd
       span(:class="$style.glassValue") {{ appSetting['theme.glassBlur'] ?? 20 }}px
 
 dd
-  h3#basic_source {{ $t('setting__basic_source') }}
-  div
-    .gap-top(v-for="item in apiSources" :key="item.id")
-      base-checkbox(
-        :id="`setting_api_source_${item.id}`" name="setting_api_source"
-        need :model-value="appSetting['common.apiSource']" :disabled="item.disabled" :value="item.id" :aria-label="item.label" @update:model-value="updateSetting({'common.apiSource': $event})")
-        span(:class="$style.sourceLabel")
-          | {{ item.name }}
-          span(v-if="item.desc" :class="$style.desc") {{ item.desc }}
-          span(v-if="item.statusLabel" :class="$style.status") {{ item.statusLabel }}
-    div(:class="$style.sourcePreferenceTip") {{ $t('setting__basic_source_preference_tip') }}
-    .p.gap-top
-      base-btn.btn(min @click="isShowUserApiModal = true") {{ $t('setting__basic_source_user_api_btn') }}
-
-dd
   h3#basic_window_size {{ $t('setting__basic_window_size') }}
   div
     base-checkbox.gap-left(
@@ -115,7 +100,7 @@ dd
       v-for="item in langList" :id="`setting_lang_${item.locale}`" :key="item.locale" name="setting_lang"
       need :model-value="appSetting['common.langId']" :value="item.locale" :label="item.name" @update:model-value="updateSetting({'common.langId': $event})")
 
-dd
+dd(v-if="!isMac")
   h3#basic_control_btn_position {{ $t('setting__basic_control_btn_position') }}
   div
     base-checkbox.gap-left(
@@ -141,6 +126,7 @@ user-api-modal(v-model="isShowUserApiModal")
 
 <script>
 import { computed, ref, shallowReactive } from '@common/utils/vueTools'
+import { isMac } from '@common/utils'
 import { windowSizeList, userApi, isFullscreen, themeId } from '@renderer/store'
 import { langList, useI18n } from '@root/lang'
 import { getSystemFonts, showSelectDialog } from '@renderer/utils/ipc'
@@ -384,6 +370,7 @@ export default {
       windowSizeList,
       langList,
       controlBtnPositionList,
+      isMac,
       fontList,
       isFullscreen,
       toggleTheme,

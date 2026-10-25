@@ -11,7 +11,6 @@
 
 <script>
 import { computed } from '@common/utils/vueTools'
-import { useI18n } from '@renderer/plugins/i18n'
 import SourceIcon from './SourceIcon.vue'
 
 export default {
@@ -22,9 +21,8 @@ export default {
     subtitle: { type: Boolean, default: false },
   },
   setup(props) {
-    const t = useI18n()
     const source = computed(() => props.list.source)
-    const sourceName = computed(() => ({ tx: 'QQ音乐', wy: '网易云音乐', kg: '酷狗音乐', kw: '酷我音乐', mg: '咪咕音乐', bd: '百度音乐' })[source.value] || source.value || t('playlist_local'))
+    const sourceName = computed(() => props.list.id === 'service_library' ? '服务器音乐库' : props.list.id === 'service_history' ? '服务器播放记录' : source.value ? `${({ tx: 'QQ音乐', wy: '网易云音乐', kg: '酷狗音乐', kw: '酷我音乐', mg: '咪咕音乐' })[source.value] || source.value} · 服务器` : '服务器歌单')
     return { source, sourceName }
   },
 }

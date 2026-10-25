@@ -4,7 +4,7 @@ transition(enter-active-class="q-detail-enter-active" leave-active-class="q-deta
     div(:class="$style.bg" :style="detailBgStyle")
     //- div(:class="$style.bg" :style="bgStyle")
     //- div(:class="$style.bg2")
-    ControlBtnsLeftHeader(v-if="appSetting['common.controlBtnPosition'] == 'left'" :detail-action-enabled="appSetting['playDetail.style.layout'] != 'immersive'")
+    ControlBtnsLeftHeader(v-if="!isMac && appSetting['common.controlBtnPosition'] == 'left'" :detail-action-enabled="appSetting['playDetail.style.layout'] != 'immersive'")
     ControlBtnsRightHeader(v-else)
     button(type="button" :class="$style.detailBackBtn" :aria-label="$t('player__hide_detail_tip')" @click="hide")
       svg(viewBox="0 0 24 24" aria-hidden="true")
@@ -49,6 +49,7 @@ transition(enter-active-class="q-detail-enter-active" leave-active-class="q-deta
 <script>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from '@common/utils/vueTools'
 import { isFullscreen } from '@renderer/store'
+import { isMac } from '@common/utils'
 import {
   isShowPlayerDetail,
   isShowPlayComment,
@@ -596,6 +597,7 @@ export default {
 
 
     return {
+      isMac,
       singers,
       openMetadata,
       appSetting,
@@ -716,6 +718,10 @@ export default {
     background: rgba(255, 255, 255, .14);
     transform: translateY(2px);
   }
+}
+
+:global(.mac-native-window) .detailBackBtn {
+  left: 100Px;
 }
 
 .metadataLink {

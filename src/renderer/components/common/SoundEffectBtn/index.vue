@@ -1,5 +1,5 @@
 <template>
-  <button :class="$style.btn" :aria-label="$t('player__sound_effect')" @click="visible = true">
+  <button class="native-only" :class="$style.btn" :aria-label="$t('player__sound_effect')" @click="visible = true">
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M5 7h8" />
       <path d="M17 7h2" />

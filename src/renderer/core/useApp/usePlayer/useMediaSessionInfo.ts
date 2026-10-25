@@ -5,6 +5,7 @@ import { playProgress } from '@renderer/store/player/playProgress'
 import { pause, play, playNext, playPrev, stop } from '@renderer/core/player'
 
 export default () => {
+  if (!navigator.mediaSession) return
   // 创建一个空白音频以保持对 Media Session 的注册
   const emptyAudio = new Audio()
   emptyAudio.autoplay = false
@@ -14,7 +15,8 @@ export default () => {
   emptyAudio.onplaying = () => {
     emptyAudio.pause()
   }
-  void emptyAudio.play()
+  const prepareSession = async() => String(process.platform) === 'web' ? Promise.resolve() : emptyAudio.play()
+  void prepareSession().catch(() => {})
   let prevPicUrl = ''
 
   const updateMediaSessionInfo = () => {
@@ -73,7 +75,7 @@ export default () => {
     navigator.mediaSession.playbackState = 'none'
   }
   const handleSetPlayInfo = () => {
-    void emptyAudio.play().finally(() => {
+    void prepareSession().catch(() => {}).finally(() => {
       updateMediaSessionInfo()
       updatePositionState({
         position: playProgress.nowPlayTime,

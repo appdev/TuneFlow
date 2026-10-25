@@ -14,6 +14,7 @@ import { migrateDBData } from './utils/migrate'
 import { openDirInExplorer } from '@common/utils/electron'
 import { setProxyByHost } from '@common/utils/request'
 import { installNavigationGuard } from './utils/navigationPolicy'
+import { SERVICE_PREVIEW, SERVICE_APP_NAME, SERVICE_PROFILE } from '@common/servicePreview'
 
 export const initGlobalData = () => {
   if (process.platform === 'linux' && process.env.NODE_ENV === 'production') {
@@ -152,6 +153,17 @@ export const applyElectronEnvParams = () => {
 }
 
 export const setUserDataPath = () => {
+  if (SERVICE_PREVIEW) {
+    app.setName(SERVICE_APP_NAME)
+    const requestedProfile = app.commandLine.getSwitchValue('user-data-dir')
+    const previewPath = requestedProfile ? path.resolve(requestedProfile) : path.join(app.getPath('appData'), SERVICE_PROFILE)
+    mkdirSync(previewPath, { recursive: true })
+    app.setPath('userData', previewPath)
+    global.lxOldDataPath = previewPath
+    global.lxDataPath = path.join(previewPath, 'LxDatas')
+    mkdirSync(global.lxDataPath, { recursive: true })
+    return
+  }
   if (process.env.Q_MUSIC_LOCAL_PREVIEW === '1') {
     const previewPath = path.join(app.getPath('temp'), 'q-music-local-preview')
     if (!existsSync(previewPath)) mkdirSync(previewPath, { recursive: true })
@@ -175,6 +187,7 @@ export const setUserDataPath = () => {
 }
 
 export const registerDeeplink = (startApp: () => void) => {
+  if (SERVICE_PREVIEW) return
   if (process.env.Q_MUSIC_LOCAL_PREVIEW === '1') return
   if (process.env.NODE_ENV !== 'production' && process.platform === 'win32') {
     // Set the path of electron.exe and your app.

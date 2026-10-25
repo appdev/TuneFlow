@@ -22,10 +22,10 @@ const init = () => {
   })
 }
 
+setUserDataPath()
 initGlobalData()
 initSingleInstanceHandle()
 applyElectronEnvParams()
-setUserDataPath()
 registerDeeplink(init)
 listenerAppEvent(init)
 

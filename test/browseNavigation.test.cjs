@@ -81,15 +81,8 @@ test('响应式专辑曲目写入队列时可跨进程克隆，保留嵌套音�
 
 function albumsHarness(overrides = {}) {
   return load('src/renderer/store/search/albums.js', {
-    '@renderer/utils/request': { httpFetch: () => { throw Error('unexpected request') } },
-    '@renderer/utils': { toNewMusicInfo: item => item },
-    '@renderer/utils/musicSdk/tx/musicSearch': {},
-    '@renderer/utils/musicSdk/tx/utils': {},
-    '@renderer/utils/musicSdk/wy/utils': {},
-    '@renderer/utils/musicSdk/wy/musicDetail': {},
-    '@renderer/utils/musicSdk/kg/musicInfo': {},
+    '@renderer/service/session': { getWorkspace: () => overrides },
     '../browseRequest': timeout,
-    ...overrides,
   })
 }
 
@@ -145,14 +138,13 @@ test('酷狗旧分享链接的 95 首歌单按固定 90 首分页', async () => 
   assert.equal(result.page, 1)
 })
 
-test('聚合专辑搜索保留可用平台，单平台失败可见，不将失败当作空结果', async () => {
+test('聚合专辑搜索使用 Service，保留可用平台且报告失败平台', async () => {
   const api = albumsHarness({
-    '@renderer/utils/musicSdk/tx/musicSearch': { musicSearch: async (...args) => {
-      assert.equal(args[4], 2)
-      return { body: { item_album: [{ albummid: 'qq1', name: '专辑', singer: '歌手' }] }, meta: { sum: 1 } }
-    } },
-    '@renderer/utils/musicSdk/wy/utils': { eapiRequest: () => ({ promise: Promise.reject(Error('offline')) }) },
-    '@renderer/utils/request': { httpFetch: () => ({ promise: Promise.resolve({ body: { status: 1, data: { info: [{ albumid: 1, albumname: '专辑' }], total: 1 } } }) }) },
+    search: async(source, text, page, limit, kind) => {
+      assert.equal(kind, 'albums'); assert.equal(text, '专辑')
+      if (source === 'wy') throw Error('offline')
+      return { list: [{ id: source, source, name: '专辑' }], total: 1, limit }
+    },
   })
   const data = await api.searchAlbums('专辑', 'all')
   assert.deepEqual(Array.from(data.list, item => item.source), ['tx', 'kg'])
@@ -161,41 +153,17 @@ test('聚合专辑搜索保留可用平台，单平台失败可见，不将失�
   await assert.rejects(api.searchAlbums('专辑', 'wy'), /failed/)
 })
 
-test('QQ 专辑曲目按碟号与曲序排列，拒绝重复分页，详情参数不接受路径', async () => {
-  let repeated = false
-  const api = albumsHarness({
-    '@renderer/utils/musicSdk/tx/utils': { signRequest: async () => ({ body: { code: 0, req: { code: 0, data: {
-      totalNum: repeated ? 3 : 2,
-      songList: [{ mid: 'b', index_cd: 1, index_album: 2 }, { mid: 'a', index_cd: 1, index_album: 1 }].map(songInfo => ({ songInfo })),
-    } } } }) },
-    '@renderer/utils/musicSdk/tx/musicSearch': { handleResult: rows => rows },
-  })
-  assert.deepEqual(Array.from(await api.getAlbumTracks('tx', 'album1'), song => song.mid), ['a', 'b'])
-  repeated = true
-  await assert.rejects(api.getAlbumTracks('tx', 'album1'), /Repeated/)
-  await assert.rejects(api.getAlbumTracks('wy', '../1'), /Invalid/)
-})
-
-test('网易云专辑详情乱序时恢复曲序，缺歌时报告失败', async () => {
+for (const source of ['tx', 'wy', 'kg']) test(`${source} 专辑保持 Service 曲序与完整性错误，不调用本机平台 SDK`, async () => {
   let incomplete = false
-  const api = albumsHarness({
-    '@renderer/utils/musicSdk/wy/utils': { eapiRequest: url => ({ promise: Promise.resolve({ body: url.includes('/album/') ? { code: 200, songs: [{ id: 1 }, { id: 2 }] } : { code: 200, songs: [], privileges: [] } }) }) },
-    '@renderer/utils/musicSdk/wy/musicDetail': { filterList: () => incomplete ? [{ songmid: 1 }] : [{ songmid: 2 }, { songmid: 1 }] },
-  })
-  assert.deepEqual(Array.from(await api.getAlbumTracks('wy', '123'), song => song.songmid), [1, 2])
+  const songs = [{ id: 'first', meta: { service: { endpoint: 'http://server' } } }, { id: 'second', meta: {} }]
+  const api = albumsHarness({ album: async(provider, id) => {
+    assert.equal(provider, source); assert.equal(id, 'album1')
+    if (incomplete) throw Object.assign(Error('Incomplete album'), { code: 'ALBUM_INCOMPLETE' })
+    return songs
+  } })
+  assert.equal(await api.getAlbumTracks(source, 'album1'), songs)
   incomplete = true
-  await assert.rejects(api.getAlbumTracks('wy', '123'), /Incomplete/)
-})
-
-test('酷狗专辑按 hash 恢复顺序，详情缺失不会以部分曲目冒充完整专辑', async () => {
-  let incomplete = false
-  const api = albumsHarness({
-    '@renderer/utils/request': { httpFetch: () => ({ promise: Promise.resolve({ body: { errcode: 0, data: { total: 2, info: [{ hash: 'A' }, { hash: 'B' }] } } }) }) },
-    '@renderer/utils/musicSdk/kg/musicInfo': { getMusicInfosByList: async () => incomplete ? [{ hash: 'a' }] : [{ hash: 'b' }, { hash: 'a' }] },
-  })
-  assert.deepEqual(Array.from(await api.getAlbumTracks('kg', '123'), song => song.hash), ['a', 'b'])
-  incomplete = true
-  await assert.rejects(api.getAlbumTracks('kg', '123'), /Incomplete/)
+  await assert.rejects(api.getAlbumTracks(source, 'album1'), { code: 'ALBUM_INCOMPLETE' })
 })
 
 test('排行榜、专辑和搜索的单曲操作统一交给页面队列入口，不再绕过播放偏好', async () => {

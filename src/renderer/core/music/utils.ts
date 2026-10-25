@@ -14,6 +14,7 @@ import { langS2T, toNewMusicInfo, toOldMusicInfo } from '@renderer/utils'
 import { requestMsg } from '@renderer/utils/message'
 import { apis } from '@renderer/utils/musicSdk/api-source'
 import type { MusicUrlRequestOptions } from './index'
+import { getServiceProvenance } from '@renderer/service/tracks'
 
 
 interface OtherSourceRequestEntry {
@@ -57,6 +58,7 @@ const waitWithSignal = async<T>(promise: Promise<T>, signal?: AbortSignal, onAbo
 }
 
 export const getOtherSource = async(musicInfo: LX.Music.MusicInfo | LX.Download.ListItem, isRefresh = false, signal?: AbortSignal): Promise<LX.Music.MusicInfoOnline[]> => {
+  if (getServiceProvenance(musicInfo)) return []
   // if (!isRefresh && musicInfo.id) {
   //   const cachedInfo = await getOtherSourceFromStore(musicInfo.id)
   //   if (cachedInfo.length) return cachedInfo

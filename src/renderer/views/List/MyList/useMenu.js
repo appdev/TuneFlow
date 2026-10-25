@@ -3,6 +3,7 @@ import { useI18n } from '@renderer/plugins/i18n'
 import { userLists, defaultList, loveList } from '@renderer/store/list/state'
 import musicSdk from '@renderer/utils/musicSdk'
 import { addLocalFile } from './actions'
+import { isReadOnlyList } from '@renderer/service/workspace'
 
 export default ({
   emit,
@@ -78,7 +79,7 @@ export default ({
         action: 'remove',
         disabled: !menuControl.remove,
       },
-    ]
+    ].filter(item => item.action !== 'local_file')
   })
 
   const assertSupportDetail = (source, index) => {
@@ -97,6 +98,7 @@ export default ({
   }
 
   const showMenu = (event, index) => {
+    if (index >= 0 && isReadOnlyList(userLists[index]?.id)) return
     let source
     switch (index) {
       case -1:
@@ -109,7 +111,7 @@ export default ({
         menuControl.rename = true
         menuControl.remove = true
         source = userLists[index].source
-        menuControl.sync = !!source && !!musicSdk[source]?.songList
+        menuControl.sync = !!source && !!musicSdk[source]?.songList && !userLists[index].sourceListId?.startsWith('account:')
         break
     }
     // menuControl.sort = !!getList(this.getTargetListInfo(index)?.id).length

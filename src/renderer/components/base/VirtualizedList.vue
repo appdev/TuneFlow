@@ -22,6 +22,8 @@ import {
   nextTick,
   watch,
   onMounted,
+  onActivated,
+  onDeactivated,
   onBeforeUnmount,
 } from 'vue'
 
@@ -139,6 +141,8 @@ export default {
     let isAutoScrolling = false
     let scrollToValue = 0
     let isMounted = false
+    let isActive = true
+    let savedScrollTop = 0
     let resizeTimer = null
 
     const createList = (startIndex, endIndex) => {
@@ -158,12 +162,12 @@ export default {
       return list
     }
 
-    const updateView = (currentScrollTop) => {
+    const updateView = (currentScrollTop, immediate = false) => {
       const scrollContainer = dom_scrollContainer.value
       // 列表切换或热更新时，待执行的 resize/animation 回调可能晚于组件
       // 卸载触发。此时没有滚动容器，直接读取 scrollTop 会让整个渲染层
       // 抛出异常并显示空白错误页。
-      if (!isMounted || !scrollContainer) return
+      if (!isMounted || !isActive || !scrollContainer) return
       if (currentScrollTop == null) currentScrollTop = scrollContainer.scrollTop
       // const currentScrollTop = this.$refs.dom_scrollContainer.scrollTop
       const itemHeight = props.itemHeight
@@ -192,15 +196,19 @@ export default {
         //   views.value = createList(currentStartRenderIndex, currentEndRenderIndex)
         // } else return
         if (currentScrollTop == scrollTop && endIndex >= currentEndIndex) return
-        requestAnimationFrame(() => {
-          if (!isMounted) return
+        const render = () => {
+          if (!isMounted || !isActive) return
           views.value = createList(currentStartRenderIndex, currentEndRenderIndex)
-        })
+        }
+        if (immediate) render()
+        else requestAnimationFrame(render)
       } else {
-        requestAnimationFrame(() => {
-          if (!isMounted) return
+        const render = () => {
+          if (!isMounted || !isActive) return
           views.value = createList(currentStartRenderIndex, currentEndRenderIndex)
-        })
+        }
+        if (immediate) render()
+        else requestAnimationFrame(render)
       }
       startIndex = currentStartIndex
       endIndex = currentEndIndex
@@ -291,10 +299,8 @@ export default {
       endIndex = -1
       if (cachedList.length) {
         void nextTick(() => {
-          requestAnimationFrame(() => {
-            if (!isMounted) return
-            updateView()
-          })
+          // The DOM is ready after nextTick. Initial rows need no animation delay.
+          updateView(undefined, true)
         })
       } else {
         views.value = []
@@ -319,10 +325,7 @@ export default {
 
       if (props.list.length) {
         void nextTick(() => {
-          requestAnimationFrame(() => {
-            if (!isMounted) return
-            updateView()
-          })
+          updateView(undefined, true)
         })
       }
       window.addEventListener('resize', handleResize)
@@ -336,6 +339,22 @@ export default {
       dom_scrollContainer.value?.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', handleResize)
       if (cancelScroll) cancelScroll()
+    })
+
+    onActivated(() => {
+      isActive = true
+      startIndex = endIndex = -1
+      void nextTick(() => {
+        if (!isMounted || !isActive || !dom_scrollContainer.value) return
+        dom_scrollContainer.value.scrollTop = savedScrollTop
+        updateView(undefined, true)
+      })
+    })
+    onDeactivated(() => {
+      // Moving a cached element out of the layout can clamp its DOM scrollTop.
+      // Keep the last visible offset, before hidden scroll/resize events arrive.
+      savedScrollTop = Math.max(scrollTop, 0)
+      isActive = false
     })
 
     return {

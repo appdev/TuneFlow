@@ -59,13 +59,13 @@
           </div>
           <div class="list-item-cell auto name" :aria-label="item.name">
             <span class="select name">{{ item.name }}</span>
-            <source-icon v-if="isShowSource || item.source != 'local'" class="no-select label-source" :source="item.source" :size="14" />
+            <source-icon v-if="!isServerLibraryTrack(item) && (isShowSource || item.source != 'local')" class="no-select label-source" :source="item.source" :size="14" />
           </div>
           <div class="list-item-cell" :class="$style.singerColumn"><span class="select" :aria-label="item.singer">{{ item.singer }}</span></div>
           <div class="list-item-cell" :class="$style.albumColumn"><span class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span></div>
           <div class="list-item-cell" :class="$style.durationColumn"><span class="no-select">{{ item.interval || '--/--' }}</span></div>
           <div class="list-item-cell" :class="$style.actionColumn" style="padding-left: 0; padding-right: 0;">
-            <material-list-buttons :index="index" :playing="isCurrentMusic(item) && isPlay" :download-btn="assertApiSupport(item.source) && item.source != 'local'" @btn-click="handleListBtnClick" />
+            <material-list-buttons :index="index" :playing="isCurrentMusic(item) && isPlay" :download-btn="!isServerLibraryTrack(item) && assertApiSupport(item.source) && item.source != 'local'" @btn-click="handleListBtnClick" />
           </div>
         </div>
       </base-virtualized-list>
@@ -92,7 +92,7 @@
           </div>
           <div class="list-item-cell auto name">
             <span class="select name" :aria-label="item.name">{{ item.name }}</span>
-            <source-icon v-if="isShowSource || item.source != 'local'" class="no-select label-source" :source="item.source" :size="14" />
+            <source-icon v-if="!isServerLibraryTrack(item) && (isShowSource || item.source != 'local')" class="no-select label-source" :source="item.source" :size="14" />
           </div>
           <div class="list-item-cell" :class="$style.singerColumn"><span class="select" :aria-label="item.singer">{{ item.singer }}</span></div>
           <div class="list-item-cell" :class="$style.albumColumn"><span class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span></div>
@@ -121,6 +121,8 @@
 </template>
 
 <script>
+import { isReadOnlyList } from '@renderer/service/workspace'
+import { isServerLibraryTrack } from '@renderer/service/tracks'
 import { clipboardWriteText } from '@common/utils/electron'
 import { assertApiSupport } from '@renderer/store/utils'
 import SearchList from './components/SearchList.vue'
@@ -207,7 +209,7 @@ export default {
       handleSelectAllData,
       toggleSelectData,
     } = useList({ listRef, list })
-    const canDownloadSelection = computed(() => selectedList.value.length > 0 && selectedList.value.every(item => item.source != 'local' && assertApiSupport(item.source)))
+    const canDownloadSelection = computed(() => selectedList.value.length > 0 && selectedList.value.every(item => !isServerLibraryTrack(item) && item.source != 'local' && assertApiSupport(item.source)))
 
     const {
       handlePlayMusic,
@@ -262,6 +264,7 @@ export default {
       showMenu,
       menuClick,
     } = useMenu({
+      readOnly: computed(() => isReadOnlyList(props.listId)),
       isSelectionMode,
       selectedList,
       selectFromMenu,
@@ -344,6 +347,7 @@ export default {
     }
 
     return {
+      isServerLibraryTrack,
       currentPlaylist,
       route,
       returnToCloud,

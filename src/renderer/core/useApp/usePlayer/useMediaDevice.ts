@@ -16,6 +16,8 @@ const getDevices = async() => {
 let isShowingTipAlert = false
 
 export default () => {
+  // LAN HTTP pages do not expose mediaDevices; default browser output still works.
+  if (!navigator.mediaDevices?.enumerateDevices) return
   let prevDeviceLabel: string | null = null
   let prevDeviceId = ''
 

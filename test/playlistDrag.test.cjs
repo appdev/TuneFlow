@@ -28,8 +28,8 @@ test('拖动先在当前帧更新顺序，保存期间阻止再次拖动，落�
   const f = fixture(() => new Promise(done => { resolve = done }))
   f.options.onDragStart()
   assert.equal(f.api.suppressDragClick(), true)
-  f.options.onUpdate(2, 5, f.event)
-  assert.deepEqual(f.calls, [['restore-dom'], ['optimistic', 0, 'local'], ['disabled', true], ['save', 0]])
+  f.options.onUpdate(4, 7, f.event)
+  assert.deepEqual(f.calls, [['restore-dom'], ['optimistic', 2, 'local'], ['disabled', true], ['save', 2]])
   f.options.onDragEnd(f.event)
   assert.equal(f.api.suppressDragClick(), true)
   resolve()
@@ -39,9 +39,9 @@ test('拖动先在当前帧更新顺序，保存期间阻止再次拖动，落�
 
 test('拖动保存失败重新读取已存顺序；固定列表不可被移入', async() => {
   const f = fixture(async() => { throw Error('disk error') })
-  f.options.onUpdate(1, 4, f.event)
+  f.options.onUpdate(3, 6, f.event)
   assert.deepEqual(f.calls, [['restore-dom']])
-  f.options.onUpdate(2, 4, f.event)
+  f.options.onUpdate(4, 6, f.event)
   await new Promise(done => setImmediate(done))
   assert.deepEqual(f.calls.slice(-3), [['restore'], ['error'], ['disabled', false]])
 })

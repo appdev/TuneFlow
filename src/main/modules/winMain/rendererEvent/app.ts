@@ -9,6 +9,7 @@ import {
   closeWindow,
   showWindow,
   setFullScreen,
+  sendFullScreenState,
   sendEvent,
   clearCache,
   getCacheSize,
@@ -139,6 +140,7 @@ export default () => {
 
   mainOn(WIN_MAIN_RENDERER_EVENT_NAME.inited, () => {
     global.lx.event_app.main_window_inited()
+    sendFullScreenState()
   })
 
   mainHandle<{ themes: LX.Theme[], userThemes: LX.Theme[] }>(WIN_MAIN_RENDERER_EVENT_NAME.get_themes, async() => {

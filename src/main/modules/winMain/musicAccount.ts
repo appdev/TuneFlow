@@ -1,7 +1,8 @@
-import { BrowserWindow, safeStorage, session, shell, type Session, type WebContents } from 'electron'
+import { BrowserWindow, shell, type Session, type WebContents } from 'electron'
+import { readyAccountSession } from './accountSession'
+import { accountStorageAvailable, readAccountCredential, writeAccountData } from './accountStorage'
 import { getProxy } from '@main/utils'
 import { allowOfficialNavigation, setWindowNavigationPolicy } from '@main/utils/navigationPolicy'
-import getStore from '@main/utils/store'
 import { constants, createCipheriv, createHash, publicEncrypt, randomBytes } from 'node:crypto'
 import { getQQCredentials, getQQRequestComm, getQQWebRequestComm } from '@common/utils/qqCredentials'
 import { signQQRequest } from '@common/utils/qqSign'
@@ -16,6 +17,7 @@ export type MusicAccountProvider = 'tx' | 'wy' | 'kg'
 export type MusicAccountConnectionState = 'connected' | 'expired' | 'disconnected' | 'unavailable'
 
 export interface MusicAccountProfile {
+  importOwner?: string
   state: MusicAccountConnectionState
   displayName: string
   avatar: string
@@ -41,6 +43,7 @@ export interface MusicAccountLogoutResult {
 }
 
 export interface MusicAccountDailyResult {
+  importOwner?: string
   provider: MusicAccountProvider
   ids: string[]
   status: 'personalized' | 'login_required' | 'unavailable'
@@ -49,7 +52,7 @@ export interface MusicAccountDailyResult {
 
 export interface QQDailyKeyStatus {
   configured: boolean
-  encryptionAvailable: boolean
+  storageAvailable: boolean
 }
 
 export interface QQDailyKeySaveResult extends QQDailyKeyStatus {
@@ -58,6 +61,7 @@ export interface QQDailyKeySaveResult extends QQDailyKeyStatus {
 }
 
 export interface MusicAccountPlaylist {
+  importOwner?: string
   accountId?: string
   id: string
   name: string
@@ -74,6 +78,7 @@ export interface MusicAccountPlaylistsResult {
 }
 
 export interface MusicAccountPlaylistDetailResult {
+  importOwner?: string
   accountId?: string
   tracks?: Array<Record<string, any>>
   privileges?: Array<Record<string, any>>
@@ -116,19 +121,16 @@ export interface MusicAccountPlaybackReportResult {
 
 const providerConfig = {
   kg: {
-    partition: 'persist:qmusic-account-kugou',
     title: '酷狗音乐账号登录',
     loginUrl: 'https://www.kugou.com/',
     domains: ['kugou.com'],
   },
   tx: {
-    partition: 'persist:qmusic-account-qq',
     title: 'QQ音乐账号登录',
     loginUrl: 'https://y.qq.com/n/ryqq/profile',
     domains: ['qq.com', 'weixin.qq.com', 'weixin.com', 'qcloud.com', 'gtimg.com'],
   },
   wy: {
-    partition: 'persist:qmusic-account-netease',
     title: '网易云音乐账号登录',
     loginUrl: 'https://music.163.com/#/login',
     domains: ['163.com', '126.com', 'netease.com'],
@@ -141,8 +143,6 @@ let qqPlaybackGuid = ''
 let neteasePlaybackDeviceId = ''
 let qqDailyKeyWindow: BrowserWindow | null = null
 let qqDailyKeyTask: Promise<QQDailyKeySaveResult> | null = null
-const qqDailyKeyStoreName = 'music_account_credentials'
-const qqDailyKeyStoreField = 'qqDailyApiKey'
 const qqDailyKeyPage = 'https://y.qq.com/n/ryqq_v2/qqmusic_skills'
 const neteaseIv = Buffer.from('0102030405060708')
 const neteasePresetKey = Buffer.from('0CoJUm6Qyw8W8jud')
@@ -186,13 +186,13 @@ const hasLoginCookie = async(provider: MusicAccountProvider) => {
     const { uin, authst } = await getQQAccountCredentials()
     return Boolean(uin && authst)
   }
-  const cookies = await session.fromPartition(providerConfig[provider].partition).cookies.get({})
+  const cookies = await (await readyAccountSession(provider)).cookies.get({})
   const names = new Set(cookies.map(cookie => cookie.name.toLowerCase()))
   return names.has('music_u') || names.has('music_a')
 }
 
 const configureAccountSessionProxy = async(provider: MusicAccountProvider) => {
-  const accountSession = session.fromPartition(providerConfig[provider].partition)
+  const accountSession = await readyAccountSession(provider)
   const proxy = getProxy()
   let timer: NodeJS.Timeout | undefined
   try {
@@ -207,7 +207,7 @@ const configureAccountSessionProxy = async(provider: MusicAccountProvider) => {
 }
 
 const getQQAccountCredentials = async() => {
-  const accountSession = session.fromPartition(providerConfig.tx.partition)
+  const accountSession = await readyAccountSession('tx')
   const cookies = (await Promise.all(['https://u.y.qq.com/', 'https://y.qq.com/'].map(async url => accountSession.cookies.get({ url })))).flat()
   const cookieMap = Object.fromEntries(cookies.map(cookie => [cookie.name.toLowerCase(), cookie.value]))
   return {
@@ -599,24 +599,16 @@ const configureLoginContents = (
 }
 
 const readQQDailyApiKey = (): string => {
-  if (!safeStorage.isEncryptionAvailable()) return ''
-  const encrypted = getStore(qqDailyKeyStoreName).get<string>(qqDailyKeyStoreField)
-  if (!encrypted) return ''
-  try {
-    return safeStorage.decryptString(Buffer.from(encrypted, 'base64'))
-  } catch (error) {
-    console.warn('[musicAccount] QQ daily API key could not be decrypted', error)
-    return ''
-  }
+  try { return readAccountCredential('qqDailyApiKey') } catch { return '' }
 }
 
 export const getQQDailyKeyStatus = (): QQDailyKeyStatus => ({
   configured: !!readQQDailyApiKey(),
-  encryptionAvailable: safeStorage.isEncryptionAvailable(),
+  storageAvailable: accountStorageAvailable(),
 })
 
 const requestQQOfficialDailySongIds = async(apiKey: string): Promise<string[]> => {
-  const response = await session.fromPartition(providerConfig.tx.partition).fetch('https://a.y.qq.com/discover/daily-mix', {
+  const response = await (await readyAccountSession('tx')).fetch('https://a.y.qq.com/discover/daily-mix', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -637,20 +629,19 @@ const requestQQOfficialDailySongIds = async(apiKey: string): Promise<string[]> =
 export const saveQQDailyApiKey = async(value: string): Promise<QQDailyKeySaveResult> => {
   const apiKey = value.trim()
   if (!/^qmk-[A-Za-z0-9_-]+$/.test(apiKey)) {
-    return { configured: getQQDailyKeyStatus().configured, encryptionAvailable: safeStorage.isEncryptionAvailable(), status: 'invalid', songCount: 0 }
+    return { configured: getQQDailyKeyStatus().configured, storageAvailable: accountStorageAvailable(), status: 'invalid', songCount: 0 }
   }
-  if (!safeStorage.isEncryptionAvailable()) {
-    return { configured: false, encryptionAvailable: false, status: 'unavailable', songCount: 0 }
+  if (!accountStorageAvailable()) {
+    return { configured: false, storageAvailable: false, status: 'unavailable', songCount: 0 }
   }
   try {
     const ids = await requestQQOfficialDailySongIds(apiKey)
-    if (!ids.length) return { configured: getQQDailyKeyStatus().configured, encryptionAvailable: true, status: 'invalid', songCount: 0 }
-    const encrypted = safeStorage.encryptString(apiKey).toString('base64')
-    getStore(qqDailyKeyStoreName).set(qqDailyKeyStoreField, encrypted)
-    return { configured: true, encryptionAvailable: true, status: 'saved', songCount: ids.length }
+    if (!ids.length) return { configured: getQQDailyKeyStatus().configured, storageAvailable: true, status: 'invalid', songCount: 0 }
+    writeAccountData('qqDailyApiKey', apiKey)
+    return { configured: true, storageAvailable: true, status: 'saved', songCount: ids.length }
   } catch (error) {
     console.warn('[musicAccount] QQ daily API key validation failed', error)
-    return { configured: getQQDailyKeyStatus().configured, encryptionAvailable: true, status: 'invalid', songCount: 0 }
+    return { configured: getQQDailyKeyStatus().configured, storageAvailable: accountStorageAvailable(), status: 'invalid', songCount: 0 }
   }
 }
 
@@ -678,8 +669,8 @@ export const openQQDailyKeyPage = async(): Promise<QQDailyKeySaveResult> => {
     qqDailyKeyWindow.focus()
     return qqDailyKeyTask
   }
-  if (!safeStorage.isEncryptionAvailable()) {
-    return { configured: false, encryptionAvailable: false, status: 'unavailable', songCount: 0 }
+  if (!accountStorageAvailable()) {
+    return { configured: false, storageAvailable: false, status: 'unavailable', songCount: 0 }
   }
 
   const task = (async() => {
@@ -753,7 +744,7 @@ export const openQQDailyKeyPage = async(): Promise<QQDailyKeySaveResult> => {
       detectTimer = setInterval(() => { void detectAndSave() }, 1000)
       authorizationWindow.once('ready-to-show', () => { authorizationWindow.show() })
       authorizationWindow.on('closed', () => {
-        finish({ configured: getQQDailyKeyStatus().configured, encryptionAvailable: true, status: 'cancelled', songCount: 0 })
+        finish({ configured: getQQDailyKeyStatus().configured, storageAvailable: true, status: 'cancelled', songCount: 0 })
       })
       void authorizationWindow.loadURL(qqDailyKeyPage)
     })
@@ -808,7 +799,7 @@ const getNeteaseCsrfToken = async(accountSession: Session) => {
 }
 
 const requestNeteaseWeapi = async<T>(path: string, data: Record<string, unknown>): Promise<T> => {
-  const accountSession = session.fromPartition(providerConfig.wy.partition)
+  const accountSession = await readyAccountSession('wy')
   const csrfToken = await getNeteaseCsrfToken(accountSession)
   const response = await accountSession.fetch(`https://music.163.com${path}`, {
     method: 'POST',
@@ -1018,7 +1009,7 @@ const requestNeteasePlaybackLog = async(
 
 const reportNeteasePlayback = async(request: MusicAccountPlaybackReportRequest) => {
   if (!/^\d+$/.test(request.songId)) return 'unavailable' as const
-  const accountSession = session.fromPartition(providerConfig.wy.partition)
+  const accountSession = await readyAccountSession('wy')
   const context = await getNeteasePlaybackContext(accountSession)
   if (!context) return 'login_required' as const
   const songId = Number(request.songId)
@@ -1158,6 +1149,22 @@ const resolveQQAccountFailureStatus = async(): Promise<'login_required' | 'unava
   return validation.state == 'expired' || validation.state == 'disconnected' ? 'login_required' : 'unavailable'
 }
 
+const accountImportOwner = async(provider: MusicAccountProvider) => {
+  let identity: string
+  if (provider == 'tx') {
+    const { cookies } = await getQQAccountCredentials()
+    const { uin, tmeLoginType } = getQQCredentials(cookies)
+    if (!uin) throw new Error('login_required')
+    identity = `qq:${tmeLoginType}:${uin}`
+  } else {
+    const owner = provider == 'kg' ? readKugouSession()?.userId : await getNeteaseUserId()
+    if (!owner) throw new Error('login_required')
+    identity = `${provider}:${owner}`
+  }
+  // Stable non-secret namespace shared with Android; never export a cookie.
+  return createHash('md5').update(identity).digest('hex')
+}
+
 export const getMusicAccountStatus = async(): Promise<MusicAccountStatus> => {
   const inspectAccount = async(provider: MusicAccountProvider): Promise<MusicAccountProfile> => {
     if (provider == 'kg') {
@@ -1188,7 +1195,11 @@ export const getMusicAccountStatus = async(): Promise<MusicAccountStatus> => {
     return { state: 'connected', displayName: profile.displayName, avatar: profile.avatar, accountHint: profile.accountHint, hasSession: true }
   }
 
-  const [txAccount, wyAccount, kgAccount] = await Promise.all([inspectAccount('tx'), inspectAccount('wy'), inspectAccount('kg')])
+  const [txAccount, wyAccount, kgAccount] = await Promise.all((['tx', 'wy', 'kg'] as const).map(async provider => {
+    const profile = await inspectAccount(provider)
+    if (profile.state == 'connected') profile.importOwner = await accountImportOwner(provider).catch(() => undefined)
+    return profile
+  }))
   return {
     tx: txAccount.state == 'connected',
     wy: wyAccount.state == 'connected',
@@ -1197,7 +1208,7 @@ export const getMusicAccountStatus = async(): Promise<MusicAccountStatus> => {
   }
 }
 
-export const getMusicAccountPlaylists = async(provider: MusicAccountProvider): Promise<MusicAccountPlaylistsResult> => {
+const readMusicAccountPlaylists = async(provider: MusicAccountProvider): Promise<MusicAccountPlaylistsResult> => {
   const validation = await validateMusicAccount(provider)
   if (!validation.connected) return { provider, playlists: [], status: validation.state == 'unavailable' ? 'unavailable' : 'login_required' }
   try {
@@ -1352,7 +1363,7 @@ export const getMusicAccountPlaylists = async(provider: MusicAccountProvider): P
   }
 }
 
-export const getMusicAccountPlaylistDetail = async(
+const readMusicAccountPlaylistDetail = async(
   provider: MusicAccountProvider,
   id: string,
 ): Promise<MusicAccountPlaylistDetailResult> => {
@@ -1447,7 +1458,7 @@ export const getMusicAccountPlaylistDetail = async(
   }
 }
 
-export const getMusicAccountDailySongIds = async(provider: MusicAccountProvider): Promise<MusicAccountDailyResult> => {
+const readMusicAccountDailySongIds = async(provider: MusicAccountProvider): Promise<MusicAccountDailyResult> => {
   if (!await verifyMusicAccount(provider)) return { provider, ids: [], status: 'login_required' }
   try {
     if (provider == 'kg') {
@@ -1471,9 +1482,36 @@ export const getMusicAccountDailySongIds = async(provider: MusicAccountProvider)
   }
 }
 
+export const getMusicAccountPlaylists = async(provider: MusicAccountProvider): Promise<MusicAccountPlaylistsResult> => {
+  try {
+    const owner = await accountImportOwner(provider)
+    const result = await readMusicAccountPlaylists(provider)
+    if (owner != await accountImportOwner(provider)) throw new Error('account_changed')
+    return { ...result, playlists: result.playlists.map(item => ({ ...item, importOwner: owner })) }
+  } catch { return { provider, playlists: [], status: 'login_required' } }
+}
+
+export const getMusicAccountPlaylistDetail = async(provider: MusicAccountProvider, id: string): Promise<MusicAccountPlaylistDetailResult> => {
+  try {
+    const owner = await accountImportOwner(provider)
+    const result = await readMusicAccountPlaylistDetail(provider, id)
+    if (owner != await accountImportOwner(provider)) throw new Error('account_changed')
+    return { ...result, importOwner: owner }
+  } catch { return { provider, id, ids: [], status: 'account_changed' } }
+}
+
+export const getMusicAccountDailySongIds = async(provider: MusicAccountProvider): Promise<MusicAccountDailyResult> => {
+  try {
+    const owner = await accountImportOwner(provider)
+    const result = await readMusicAccountDailySongIds(provider)
+    if (owner != await accountImportOwner(provider)) throw new Error('account_changed')
+    return { ...result, importOwner: owner }
+  } catch { return { provider, ids: [], status: 'login_required' } }
+}
+
 export const openMusicAccountLogin = async(provider: MusicAccountProvider): Promise<MusicAccountLoginResult> => {
   if (provider == 'kg') return { provider, status: await openKugouLogin() }
-  const accountSession = session.fromPartition(providerConfig[provider].partition)
+  const accountSession = await readyAccountSession(provider)
   const status = await openOfficialAccountLogin(provider, {
     title: providerConfig[provider].title,
     url: providerConfig[provider].loginUrl,
@@ -1492,7 +1530,7 @@ export const logoutMusicAccount = async(provider: MusicAccountProvider): Promise
     closeOfficialAccountLogin(provider)
     if (provider == 'tx' && qqDailyKeyWindow && !qqDailyKeyWindow.isDestroyed()) qqDailyKeyWindow.close()
 
-    const accountSession = session.fromPartition(providerConfig[provider].partition)
+    const accountSession = await readyAccountSession(provider)
     await accountSession.clearStorageData()
     accountValidationCache.delete(provider)
     for (const cacheKey of officialMusicUrlCache.keys()) {
@@ -1503,7 +1541,7 @@ export const logoutMusicAccount = async(provider: MusicAccountProvider): Promise
     })
     if (provider == 'tx') {
       try {
-        getStore(qqDailyKeyStoreName).set(qqDailyKeyStoreField, '')
+        writeAccountData('qqDailyApiKey', '')
       } catch (error) {
         console.warn('[musicAccount] QQ daily authorization cleanup after logout failed', error)
       }

@@ -34,17 +34,17 @@
         <use xlink:href="#icon-fullscreen-exit" />
       </svg>
     </button>
-    <button type="button" :class="[$style.btn, $style.min]" :aria-label="$t('min')" ignore-tip :title="$t('min')" @pointerdown.stop @mousedown.stop @dblclick.stop @click="minWindow">
+    <button v-if="!isMac" type="button" class="native-only" :class="[$style.btn, $style.min]" :aria-label="$t('min')" ignore-tip :title="$t('min')" @pointerdown.stop @mousedown.stop @dblclick.stop @click="minWindow">
       <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="60%" viewBox="0 0 24 24" space="preserve">
         <use xlink:href="#icon-window-minimize-2" />
       </svg>
     </button>
-    <button type="button" :class="[$style.btn, $style.max]" :aria-label="$t('max')" ignore-tip :title="$t('max')" @pointerdown.stop @mousedown.stop @dblclick.stop @click="maxWindow">
+    <button v-if="!isMac" type="button" class="native-only" :class="[$style.btn, $style.max]" :aria-label="$t('max')" ignore-tip :title="$t('max')" @pointerdown.stop @mousedown.stop @dblclick.stop @click="maxWindow">
       <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="54%" viewBox="0 0 24 24" space="preserve">
         <use xlink:href="#icon-window-max" />
       </svg>
     </button>
-    <button type="button" :class="[$style.btn, $style.close]" :aria-label="$t('close')" ignore-tip :title="$t('close')" @pointerdown.stop @mousedown.stop @dblclick.stop @click="closeWindow">
+    <button v-if="!isMac" type="button" class="native-only" :class="[$style.btn, $style.close]" :aria-label="$t('close')" ignore-tip :title="$t('close')" @pointerdown.stop @mousedown.stop @dblclick.stop @click="closeWindow">
       <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="60%" viewBox="0 0 24 24" space="preserve">
         <use xlink:href="#icon-window-close-2" />
       </svg>
@@ -55,6 +55,7 @@
 <script setup>
 import { onMounted, onBeforeUnmount, ref, useCssModule } from '@common/utils/vueTools'
 import { isFullscreen } from '@renderer/store'
+import { isMac } from '@common/utils'
 import { setShowPlayerDetail } from '@renderer/store/player/action'
 import { closeWindow, maxWindow, minWindow, setFullScreen } from '@renderer/utils/ipc'
 

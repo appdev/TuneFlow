@@ -14,7 +14,7 @@ export default ({ dom_lists_list, handleMenuClick }: {
   const drag = useDrag({
     dom_list: dom_lists_list,
     disabled: false,
-    draggable: '.user-list',
+    draggable: '.user-list:not(.default-list)',
     filter: 'default-list',
     filterSelector: '.default-list, input, .' + styles.editing,
     dragingItemClassName: styles.dragingItem,
@@ -43,7 +43,7 @@ export default ({ dom_lists_list, handleMenuClick }: {
       // 同一帧内还原 DOM 并更新响应式顺序，避免等待 IPC 时先跳回旧位置。
       event.item.remove()
       event.from.insertBefore(event.item, event.from.children[oldIndex] ?? null)
-      if (!id || newIndex < 2 || oldIndex < 2 || newIndex == oldIndex) return
+      if (!id || newIndex < 4 || oldIndex < 4 || newIndex == oldIndex) return
       userListsUpdatePosition(newIndex - 2, [id])
       drag.setDisabled(true)
       void updateUserListPosition({ ids: [id], position: newIndex - 2 }).catch(async() => {

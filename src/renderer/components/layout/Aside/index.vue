@@ -1,6 +1,7 @@
 <template>
-  <div :class="[$style.aside, { [$style.fullscreen]: isFullscreen }]">
-    <ControlBtns v-if="appSetting['common.controlBtnPosition'] == 'left'" />
+  <div :class="[$style.aside, { [$style.fullscreen]: isFullscreen, [$style.nativeMac]: isMac }]">
+    <div v-if="isMac" :class="$style.nativeTitlebar" aria-hidden="true" />
+    <ControlBtns v-else-if="appSetting['common.controlBtnPosition'] == 'left'" />
     <div v-else :class="$style.logo">
       <img :class="$style.logoIcon" :src="appIcon" width="36" height="36" alt="" draggable="false">
       <span :class="$style.logoText">Q-music</span>
@@ -11,6 +12,7 @@
 
 <script setup>
 import appIcon from '@renderer/assets/images/app-icon.png'
+import { isMac } from '@common/utils'
 import { isFullscreen } from '@renderer/store'
 import { appSetting } from '@renderer/store/setting'
 
@@ -56,6 +58,15 @@ import NavBar from './NavBar.vue'
   gap: 11px;
   padding: 0 4px;
   -webkit-app-region: drag;
+}
+
+// Native traffic lights use screen points, independently of the UI font size.
+.nativeTitlebar {
+  height: 24Px;
+  flex: none;
+}
+.nativeMac.fullscreen .nativeTitlebar {
+  display: none;
 }
 
 .logoIcon {

@@ -31,7 +31,7 @@
     </div>
     <div id="setting-panel" ref="dom_content_ref" class="scroll" :class="$style.setting" role="tabpanel" :aria-labelledby="`${avtiveComponentName}-tab`" tabindex="0">
       <dl>
-        <div :key="avtiveComponentName" :class="$style.panel">
+        <div :key="avtiveComponentName">
           <component :is="avtiveComponentName" />
         </div>
         <!-- <SettingBasic />
@@ -56,6 +56,10 @@
 
 <script>
 import { ref, reactive, computed, watch, nextTick, onMounted, onBeforeUnmount } from '@common/utils/vueTools'
+import { h } from 'vue'
+import ServerSettings from '@renderer/service/ServerSettings.vue'
+import MusicAccounts from '@renderer/service/MusicAccounts.vue'
+import WebPreferences from '@renderer/service/WebPreferences.vue'
 // import { currentStting } from './setting'
 import { useI18n } from '@renderer/plugins/i18n'
 import { useRoute } from '@common/utils/vueRouter'
@@ -66,34 +70,31 @@ import SettingPlayDetail from './components/SettingPlayDetail.vue'
 import SettingDesktopLyric from './components/SettingDesktopLyric.vue'
 import SettingSearch from './components/SettingSearch.vue'
 import SettingList from './components/SettingList.vue'
-import SettingDownload from './components/SettingDownload.vue'
-import SettingSync from './components/SettingSync/index.vue'
-import SettingOpenAPI from './components/SettingOpenAPI.vue'
 import SettingHotKey from './components/SettingHotKey.vue'
-import SettingNetwork from './components/SettingNetwork.vue'
 import SettingOdc from './components/SettingOdc.vue'
-import SettingBackup from './components/SettingBackup.vue'
 import SettingOther from './components/SettingOther.vue'
 import SettingUpdate from './components/SettingUpdate.vue'
 import SettingAbout from './components/SettingAbout.vue'
 import { logRendererState } from '@renderer/utils/debugLog'
+const isWeb = process.platform === 'web'
+const webPanel = section => ({ render: () => h(WebPreferences, { section }) })
 
 export default {
   name: 'Setting',
   components: {
-    SettingBasic,
-    SettingPlay,
+    SettingBasic: isWeb ? webPanel('appearance') : SettingBasic,
+    SettingPlay: isWeb ? webPanel('playback') : SettingPlay,
     SettingPlayDetail,
     SettingDesktopLyric,
     SettingSearch,
     SettingList,
-    SettingDownload,
-    SettingSync,
-    SettingOpenAPI,
+    SettingService: isWeb ? webPanel('connection') : { render: () => h(ServerSettings, { section: 'connection' }) },
+    SettingAccounts: isWeb ? webPanel('capabilities') : MusicAccounts,
+    SettingSource: { render: () => h(ServerSettings, { section: 'sources' }) },
+    SettingDownload: { render: () => h(ServerSettings, { section: 'downloads' }) },
+    SettingCompatibility: isWeb ? webPanel('capabilities') : { render: () => h(ServerSettings, { section: 'compatibility' }) },
     SettingHotKey,
-    SettingNetwork,
     SettingOdc,
-    SettingBackup,
     SettingOther,
     SettingUpdate,
     SettingAbout,
@@ -106,23 +107,23 @@ export default {
 
     const tocList = computed(() => {
       return [
-        { id: 'SettingBasic', title: t('setting__basic'), icon: 'setting' },
-        { id: 'SettingPlay', title: t('setting__play'), icon: 'play-outline' },
+        { id: 'SettingService', title: '服务器连接', icon: 'share' },
+        { id: 'SettingAccounts', title: isWeb ? '平台账号与 Web 能力说明' : '音乐平台账号 · 当前设备', icon: 'headphones' },
+        { id: 'SettingSource', title: '音源与解析', icon: 'audio-wave' },
+        { id: 'SettingBasic', title: `${t('setting__basic')} · ${isWeb ? '当前浏览器' : '当前设备'}`, icon: 'setting' },
+        { id: 'SettingPlay', title: `${t('setting__play')} · ${isWeb ? '当前浏览器' : '当前设备'}`, icon: 'play-outline' },
         { id: 'SettingPlayDetail', title: t('setting__play_detail'), icon: 'music' },
         { id: 'SettingDesktopLyric', title: t('setting__desktop_lyric'), icon: 'text' },
         { id: 'SettingSearch', title: t('setting__search'), icon: 'search-2' },
         { id: 'SettingList', title: t('setting__list'), icon: 'love' },
-        { id: 'SettingDownload', title: t('setting__download'), icon: 'download-2' },
+        { id: 'SettingDownload', title: `${t('setting__download')} · 服务器`, icon: 'download-2' },
         { id: 'SettingHotKey', title: t('setting__hot_key'), icon: 'tune-variant' },
-        { id: 'SettingSync', title: t('setting__sync'), icon: 'share' },
-        { id: 'SettingOpenAPI', title: t('setting__open_api'), icon: 'information-slab-circle-outline' },
-        { id: 'SettingNetwork', title: t('setting__network'), icon: 'audio-wave' },
         { id: 'SettingOdc', title: t('setting__odc'), icon: 'headphones' },
-        { id: 'SettingBackup', title: t('setting__backup'), icon: 'sdCard' },
+        { id: 'SettingCompatibility', title: '同步与备份说明', icon: 'information-slab-circle-outline' },
         { id: 'SettingOther', title: t('setting__other'), icon: 'tune-variant' },
         { id: 'SettingUpdate', title: t('setting__update'), icon: 'refresh' },
         { id: 'SettingAbout', title: t('setting__about'), icon: 'information-slab-circle-outline' },
-      ]
+      ].filter(item => !isWeb || !['SettingDesktopLyric', 'SettingHotKey', 'SettingOdc', 'SettingOther', 'SettingUpdate'].includes(item.id))
     })
 
     const avtiveComponentName = ref(route.query.name && tocList.value.some(t => t.id == route.query.name)
@@ -168,7 +169,7 @@ export default {
     const toggleTab = id => {
       avtiveComponentName.value = id
       logRendererState('setting:toggleTab', { id })
-      // 内容整页替换并淡入，直接回到顶部，不再从旧位置平滑滚动
+      // 分类内容立即显示并回到顶部，不从旧位置平滑滚动。
       void nextTick(() => {
         if (dom_content_ref.value) dom_content_ref.value.scrollTop = 0
       })
@@ -280,14 +281,7 @@ export default {
   box-shadow: inset 0 0 0 1px var(--q-border), 0 14px 30px rgba(72, 91, 112, .08);
 }
 .tocIndicatorReady {
-  transition: transform .42s cubic-bezier(.22, 1, .36, 1);
-}
-.panel {
-  animation: q-setting-panel-in .36s cubic-bezier(.22, 1, .36, 1);
-}
-@keyframes q-setting-panel-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  transition: transform .12s ease-out;
 }
 .tocH2 {
   position: relative;

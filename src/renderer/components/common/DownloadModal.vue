@@ -1,5 +1,5 @@
 <template>
-  <material-modal :show="show" :heading="$t('download_track_title')" :bg-close="bgClose" :teleport="teleport" @close="handleClose">
+  <material-modal :show="show" :heading="service ? '下载到服务器' : $t('download_track_title')" :bg-close="bgClose" :teleport="teleport" @close="handleClose">
     <main class="scroll" :class="$style.main">
       <div :class="$style.track">
         <div :class="$style.cover" aria-hidden="true">
@@ -23,6 +23,7 @@ import { qualityList } from '@renderer/store'
 import { createDownloadTasks } from '@renderer/store/download/action'
 import DownloadQualityOptions from './DownloadQualityOptions.vue'
 import EmptyCoverMark from './EmptyCoverMark.vue'
+import { getServiceProvenance } from '@renderer/service/tracks'
 
 export default {
   components: { DownloadQualityOptions, EmptyCoverMark },
@@ -56,13 +57,16 @@ export default {
   },
   data: () => ({ working: false, error: false, coverFailed: false }),
   computed: {
+    service() { return getServiceProvenance(this.musicInfo) },
     info() {
       return this.musicInfo || {}
     },
     sourceQualityList() {
+      if (this.service) return ['128k', '320k', 'flac', 'flac24bit']
       return this.qualityList[this.info.source] || []
     },
     qualitys() {
+      if (this.service) return this.sourceQualityList.map(type => ({ type, size: null }))
       return this.info.meta?.qualitys?.filter(quality => this.checkSource(quality.type)) || []
     },
   },

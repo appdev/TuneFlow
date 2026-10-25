@@ -2,6 +2,7 @@ import '@common/error'
 import { createApp } from 'vue'
 
 import './core/globalData'
+import './service/bridge'
 
 import '@renderer/event'
 

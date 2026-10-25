@@ -89,6 +89,8 @@ app.whenReady().then(async () => {
     }), /ERR_FAILED/)
     assert.equal(receivedWrites, 0)
     const api = load('src/main/modules/winMain/musicAccount.ts', {
+      './accountSession': { readyAccountSession: async() => accountSession },
+      './accountStorage': {},
       electron: { session: { fromPartition: () => accountSession }, safeStorage: {}, shell: {} },
       '@main/utils': { getProxy: () => null }, '@main/utils/store': () => ({}),
       '@main/utils/navigationPolicy': {}, 'node:crypto': require('node:crypto'),

@@ -1,8 +1,8 @@
 <template>
-  <div id="container" :class="['view-container', { 'control-btn-right': appSetting['common.controlBtnPosition'] == 'right', 'show-player-detail': isShowPlayerDetail && appSetting['playDetail.style.layout'] == 'immersive' }]">
+  <div id="container" :class="['view-container', { 'mac-native-window': isMac, 'control-btn-right': !isMac && appSetting['common.controlBtnPosition'] == 'right', 'show-player-detail': isShowPlayerDetail && appSetting['playDetail.style.layout'] == 'immersive' }]">
     <div id="window-drag-bar" aria-hidden="true" />
     <WindowControlBtns
-      v-if="appSetting['common.controlBtnPosition'] == 'right'"
+      v-if="!isMac && appSetting['common.controlBtnPosition'] == 'right'"
       id="window-control-btns"
       :detail-action="isShowPlayerDetail && appSetting['playDetail.style.layout'] == 'immersive' ? 'none' : isShowPlayerDetail ? 'hide' : 'show'"
       fullscreen-exit-enabled
@@ -28,6 +28,7 @@
 
 <script setup>
 import { onMounted, watch } from '@common/utils/vueTools'
+import { isMac } from '@common/utils'
 import { appSetting } from '@renderer/store/setting'
 import { isUrl, encodePath } from '@common/utils/common'
 import { isShowPlayerDetail } from '@renderer/store/player/state'

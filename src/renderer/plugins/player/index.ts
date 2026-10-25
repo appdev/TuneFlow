@@ -351,6 +351,10 @@ const disconnectPitchShifterNode = () => {
 const loadPitchShifterNode = () => {
   pitchShifterNodeLoadStatus = 'loading'
   initAdvancedAudioFeatures()
+  if (!audioContext.audioWorklet) {
+    pitchShifterNodeLoadStatus = 'none'
+    return
+  }
   // source -> analyser -> biquadFilter -> audioWorklet(pitch shifter) -> [(convolver & convolverSource)->convolverDynamicsCompressor] -> panner -> gain
   void audioContext.audioWorklet.addModule(new URL(
     /* webpackChunkName: 'pitch_shifter.audioWorklet' */
@@ -412,6 +416,7 @@ export const setStop = () => {
 }
 
 export const isEmpty = (): boolean => !audio?.src
+export const getResource = (): string => audio?.currentSrc ?? ''
 
 export const setLoopPlay = (isLoop: boolean) => {
   if (audio) audio.loop = isLoop
@@ -451,6 +456,7 @@ export const setCurrentTime = (time: number) => {
 
 export const setMediaDeviceId = async(mediaDeviceId: string): Promise<void> => {
   if (!audio) return
+  if (typeof audio.setSinkId !== 'function' && (!mediaDeviceId || mediaDeviceId === 'default')) return
   return audio.setSinkId(mediaDeviceId)
 }
 

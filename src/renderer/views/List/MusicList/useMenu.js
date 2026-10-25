@@ -2,8 +2,10 @@ import { computed, ref, shallowReactive, reactive, nextTick } from '@common/util
 import musicSdk from '@renderer/utils/musicSdk'
 import { useI18n } from '@renderer/plugins/i18n'
 import { hasDislike } from '@renderer/core/dislikeList'
+import { isServerLibraryTrack } from '@renderer/service/tracks'
 
 export default ({
+  readOnly,
   isSelectionMode,
   selectedList,
   selectFromMenu,
@@ -108,7 +110,7 @@ export default ({
         action: 'remove',
         disabled: !itemMenuControl.remove,
       },
-    ]
+    ].filter(item => !readOnly.value || !['moveTo', 'sort', 'toggleSource', 'remove'].includes(item.action))
   })
 
   const showMenu = (event, musicInfo) => {
@@ -117,7 +119,7 @@ export default ({
     itemMenuControl.sourceDetail = !!musicSdk[musicInfo.source]?.getMusicDetailPageUrl
     // itemMenuControl.play =
     //   itemMenuControl.playLater =
-    itemMenuControl.download = assertApiSupport(musicInfo.source) && musicInfo.source != 'local'
+    itemMenuControl.download = !isServerLibraryTrack(musicInfo) && assertApiSupport(musicInfo.source) && musicInfo.source != 'local'
 
     itemMenuControl.dislike = !hasDislike(musicInfo)
 

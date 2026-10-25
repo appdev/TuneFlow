@@ -49,6 +49,7 @@ export const getOtherSourceCount = async() => {
 export type MusicAccountProvider = 'tx' | 'wy' | 'kg'
 export type MusicAccountConnectionState = 'connected' | 'expired' | 'disconnected' | 'unavailable'
 export interface MusicAccountProfile {
+  importOwner?: string
   state: MusicAccountConnectionState
   displayName: string
   avatar: string
@@ -70,6 +71,7 @@ export interface MusicAccountLogoutResult {
   status: 'disconnected' | 'error'
 }
 export interface MusicAccountDailyResult {
+  importOwner?: string
   provider: MusicAccountProvider
   ids: string[]
   status: 'personalized' | 'login_required' | 'unavailable'
@@ -77,13 +79,14 @@ export interface MusicAccountDailyResult {
 }
 export interface QQDailyKeyStatus {
   configured: boolean
-  encryptionAvailable: boolean
+  storageAvailable: boolean
 }
 export interface QQDailyKeySaveResult extends QQDailyKeyStatus {
   status: 'saved' | 'invalid' | 'unavailable' | 'cancelled'
   songCount: number
 }
 export interface MusicAccountPlaylist {
+  importOwner?: string
   accountId?: string
   id: string
   name: string
@@ -98,6 +101,7 @@ export interface MusicAccountPlaylistsResult {
   status: 'available' | 'login_required' | 'unavailable' | 'verification_required'
 }
 export interface MusicAccountPlaylistDetailResult {
+  importOwner?: string
   accountId?: string
   tracks?: Array<Record<string, any>>
   privileges?: Array<Record<string, any>>
@@ -927,6 +931,13 @@ export const onUpdateHotkey = (listener: LX.IpcRendererEventListenerParams<LX.Ho
  */
 export const setFullScreen = async(isFullscreen: boolean): Promise<boolean> => {
   return rendererInvoke<boolean, boolean>(WIN_MAIN_RENDERER_EVENT_NAME.fullscreen, isFullscreen)
+}
+
+export const onFullScreenChanged = (listener: LX.IpcRendererEventListenerParams<boolean>): RemoveListener => {
+  rendererOn(WIN_MAIN_RENDERER_EVENT_NAME.fullscreen_changed, listener)
+  return () => {
+    rendererOff(WIN_MAIN_RENDERER_EVENT_NAME.fullscreen_changed, listener)
+  }
 }
 
 /**

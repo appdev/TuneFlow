@@ -21,7 +21,6 @@
 </template>
 
 <script lang="ts">
-import { appSetting } from '@renderer/store/setting'
 import { useI18n } from '@root/lang'
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from '@common/utils/vueTools'
 import { useRoute } from '@common/utils/vueRouter'
@@ -80,7 +79,7 @@ export default {
           icon: '#icon-download-2',
           iconSize: '0 0 425.2 425.2',
           size,
-          enable: appSetting['download.enable'],
+          enable: true,
           name: 'Download',
         },
         {
@@ -127,7 +126,6 @@ export default {
     })
 
     return {
-      appSetting,
       menus,
       dom_menu,
       dom_list,
@@ -186,7 +184,7 @@ export default {
   box-shadow: inset 0 0 0 1px rgba(38, 40, 39, .16), 0 8px 20px rgba(35, 38, 36, .07);
 }
 .indicatorReady {
-  transition: transform .42s cubic-bezier(.22, 1, .36, 1);
+  transition: transform .12s ease-out;
 }
 .link {
   position: relative;

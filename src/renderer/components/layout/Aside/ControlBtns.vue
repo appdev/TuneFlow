@@ -1,5 +1,5 @@
 <template>
-  <div v-show="!isFullscreen" ref="dom_btns" :class="$style.controlBtn">
+  <div v-show="!isFullscreen" ref="dom_btns" class="native-only" :class="$style.controlBtn">
     <button type="button" :class="[$style.btn, $style.close]" :aria-label="$t('close')" ignore-tip :title="$t('close')" @click="closeWindow">
       <svg :class="$style.controlBtniIcon" version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 24 24" space="preserve">
         <use xlink:href="#icon-window-close" />

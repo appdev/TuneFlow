@@ -15,8 +15,10 @@ import { isShowChangeLog, versionInfo } from '@renderer/store'
 import { getVersionInfo } from '@renderer/utils/update'
 import { dialog } from '@renderer/plugins/Dialog'
 import { appSetting } from '@renderer/store/setting'
+import { SERVICE_PREVIEW } from '@common/servicePreview'
 
 export default () => {
+  if (SERVICE_PREVIEW) return
   let isShowedChangeLog = false
   const isPackageManagerInstall = process.platform === 'linux' && process.env.Q_MUSIC_PACKAGE_TYPE === 'pacman'
 

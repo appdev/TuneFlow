@@ -67,7 +67,7 @@ export const DEFAULT_SETTING = {
   },
 
   viewPrevState: {
-    url: '/search',
+    url: '/service',
     query: {},
   },
 }

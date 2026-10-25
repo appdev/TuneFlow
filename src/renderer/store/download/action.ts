@@ -17,6 +17,8 @@ import { arrPush, arrUnshift, joinPath } from '@renderer/utils'
 import { DOWNLOAD_STATUS } from '@common/constants'
 import { proxy } from '../index'
 import { buildSavePath } from './utils'
+import { getServiceProvenance } from '@renderer/service/tracks'
+import { ServiceClient } from '@renderer/service/client'
 
 const waitingUpdateTasks = new Map<string, LX.Download.ListItem>()
 let timer: NodeJS.Timeout | null = null
@@ -357,6 +359,13 @@ const filterTask = (list: LX.Download.ListItem[]) => {
  * @param quality 下载音质
  */
 export const createDownloadTasks = async(list: LX.Music.MusicInfoOnline[], quality: LX.Quality, listId?: string) => {
+  const remote = list.filter(item => getServiceProvenance(item))
+  // Never create filesystem tasks for server-owned tracks or signed streams.
+  for (const item of remote) {
+    const service = getServiceProvenance(item)!
+    if (!service.streamPath) await new ServiceClient(service.endpoint).download(service.track, quality)
+  }
+  list = list.filter(item => !getServiceProvenance(item))
   if (!list.length) return
   // 歌曲可能来自 ref/reactive，嵌套元数据也可能是 Proxy；在线程边界创建纯数据快照。
   const musicInfos: LX.Music.MusicInfoOnline[] = JSON.parse(JSON.stringify(list))

@@ -1,0 +1,12 @@
+<!doctype html>
+<html class="web disableTransparent" lang="zh-Hans">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Q-music Web</title></head>
+<body id="body"><div id="root" style="display:none"></div>
+<script>
+window.setLang = (lang = navigator.language.toLowerCase()) => { document.documentElement.lang = lang === 'zh-cn' ? 'zh-Hans' : lang === 'zh-tw' ? 'zh-Hant' : lang.split('-')[0] }
+window.setLang()
+window.dt = true
+window.shouldUseDarkColors = matchMedia('(prefers-color-scheme: dark)').matches
+window.dom_style = document.createElement('style')
+window.setTheme = colors => { if (colors && typeof colors === 'object') { window.dom_style.textContent = ':root {' + Object.entries(colors).map(([key, value]) => key + ':' + value + ';').join('') + '}'; document.body.appendChild(window.dom_style) } }
+</script></body></html>

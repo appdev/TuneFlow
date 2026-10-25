@@ -344,11 +344,12 @@ export const loadAccountPlaylistMusic = async(
   playlistId: string,
   onProgress?: (progress: ExternalImportProgress) => void,
   shouldCancel?: ShouldCancel,
-  options: { existingMusic?: LX.Music.MusicInfo[], accountId?: string, onAccount?: (accountId: string) => void } = {},
+  options: { existingMusic?: LX.Music.MusicInfo[], accountId?: string, importOwner?: string, onAccount?: (accountId: string) => void } = {},
 ) => {
   const result = await getMusicAccountPlaylistDetail(provider, playlistId)
   assertNotCancelled(shouldCancel)
   if (result.status != 'available') throw new ExternalImportError(result.status == 'unavailable' ? 'account_unavailable' : result.status)
+  if (options.importOwner && options.importOwner !== result.importOwner) throw new ExternalImportError('account_changed')
   if (provider == 'tx') {
     if (!result.accountId || (options.accountId && options.accountId != result.accountId)) throw new ExternalImportError('account_changed')
     const cached = new Map<string, LX.Music.MusicInfo>()

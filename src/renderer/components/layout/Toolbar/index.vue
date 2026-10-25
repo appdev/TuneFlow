@@ -1,17 +1,18 @@
 <template>
-  <div :class="[$style.toolbar, { [$style.fullscreen]: isFullscreen }, appSetting['common.controlBtnPosition'] == 'left' ? $style.controlBtnLeft : $style.controlBtnRight]">
+  <div :class="[$style.toolbar, { [$style.fullscreen]: isFullscreen }, isMac || appSetting['common.controlBtnPosition'] == 'left' ? $style.controlBtnLeft : $style.controlBtnRight]">
     <div :class="$style.dragArea" aria-hidden="true" />
     <router-link v-if="lastSearch && route.fullPath != lastSearch" :to="lastSearch" :class="$style.resumeSearch" :aria-label="$t('search__resume')">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6" /></svg>
       <span>{{ $t('search__resume') }}</span>
     </router-link>
     <SearchInput />
-    <div v-if="appSetting['common.controlBtnPosition'] == 'left'" :class="$style.logo">Q-music</div>
+    <div v-if="isMac || appSetting['common.controlBtnPosition'] == 'left'" :class="$style.logo">Q-music</div>
   </div>
 </template>
 
 <script setup>
 import { isFullscreen } from '@renderer/store'
+import { isMac } from '@common/utils'
 import { appSetting } from '@renderer/store/setting'
 import SearchInput from './SearchInput.vue'
 import { ref, watch } from '@common/utils/vueTools'

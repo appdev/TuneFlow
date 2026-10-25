@@ -65,12 +65,10 @@ const preloadNextMusicUrl = async(curTime: number) => {
     preloadMusicInfo.info = info
     const url = await getMusicUrl({ musicInfo: info.musicInfo }).catch(() => '')
     if (url) {
-      console.log('preload url', url)
       const result = await checkMusicUrl(url)
       if (!result) {
         const url = await getMusicUrl({ musicInfo: info.musicInfo, isRefresh: true }).catch(() => '')
         void checkMusicUrl(url)
-        console.log('preload url refresh', url)
       }
     }
   }

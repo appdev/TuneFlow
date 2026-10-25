@@ -2,7 +2,6 @@
   <material-modal :show="show" :bg-close="bgClose && !busy && !creating" :close-btn="!busy && !creating" :teleport="teleport" width="620px" max-width="calc(100% - 32px)" min-width="0" @close="handleClose">
     <main :class="$style.main">
       <h2>{{ $t('list_add__' + (isMove ? 'title_first_move' : 'title_first_add')) }} <span :class="$style.name">{{ currentMusicInfo.name }}</span> {{ $t('list_add__title_last') }}</h2>
-      <QQFavoriteTarget v-if="show && !isMove && currentMusicInfo.id" :music-info="currentMusicInfo" :disabled="busy || creating" @busy="busy = $event" />
       <ListTargetPicker :lists="lists" :active="show" :disabled="busy" @select="handleSelect" @creating="creating = $event" />
       <p v-if="error" :class="$style.error" role="alert">{{ error }}</p>
     </main>
@@ -16,10 +15,10 @@ import { addListMusics, moveListMusics, getMusicExistListIds } from '@renderer/s
 import useKeyDown from '@renderer/utils/compositions/useKeyDown'
 import { useI18n } from '@root/lang'
 import ListTargetPicker from './ListTargetPicker.vue'
-import QQFavoriteTarget from './QQFavoriteTarget.vue'
+import { isReadOnlyList } from '@renderer/service/workspace'
 
 export default {
-  components: { ListTargetPicker, QQFavoriteTarget },
+  components: { ListTargetPicker },
   props: {
     show: { type: Boolean, default: false },
     musicInfo: { type: [Object, null], required: true },
@@ -49,7 +48,7 @@ export default {
         { ...defaultList, name: t(defaultList.name) },
         { ...loveList, name: t(loveList.name) },
         ...userLists,
-      ].filter(list => !props.excludeListId.includes(list.id)).map(list => ({ ...list, isExist: addedListIds.has(list.id) }))
+      ].filter(list => !isReadOnlyList(list.id) && !props.excludeListId.includes(list.id)).map(list => ({ ...list, isExist: addedListIds.has(list.id) }))
       void getMusicExistListIds(musicId).then(ids => {
         if (id != requestId || !props.show || currentMusicInfo.value.id != musicId) return
         for (const list of lists.value) list.isExist = ids.includes(list.id) || addedListIds.has(list.id)

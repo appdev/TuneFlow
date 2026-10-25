@@ -7,6 +7,10 @@ const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     {
+      path: '/service',
+      redirect: '/search',
+    },
+    {
       path: '/search',
       name: 'Search',
       component: require('./views/Search/index.vue').default,
@@ -49,7 +53,7 @@ const router = createRouter({
     {
       path: '/download',
       name: 'Download',
-      component: require('./views/Download/index.vue').default,
+      component: require('./service/ServerDownloads.vue').default,
       meta: {
         name: 'Download',
       },

@@ -15,6 +15,18 @@ function load(file, dependencies, extra = {}) {
   return context.exports
 }
 const sources = load('src/common/utils/updateSources.ts', { './updateMirror.json': { baseUrl: '' } })
+test('Docker preview cannot register upstream update/download/install handlers', () => {
+  const handlers = []
+  const updater = new EventEmitter()
+  const init = load('src/main/modules/winMain/autoUpdate.ts', {
+    '@common/servicePreview': { SERVICE_PREVIEW: true }, 'electron-updater': { autoUpdater: updater },
+    'builder-util-runtime': {}, '@common/utils': { log: {} }, '@common/mainIpc': { mainOn: name => handlers.push(name) },
+    './index': {}, '@common/ipcNames': {}, '@common/utils/updateSources': {}, './updateProvider': {},
+  }).default
+  init()
+  assert.equal(handlers.length, 0)
+  assert.equal(updater.eventNames().length, 0)
+})
 test('更新检查跨线路、排除另一平台和预发布，并选择新版本而非先到的 CDN 缓存', async() => {
   let started = 0
   const result = await sources.getUpdateVersion(async url => {
@@ -80,6 +92,7 @@ test('PC 首条线路失败后自动切换，不提前报错，重复点击不�
     },
   })
   load('src/main/modules/winMain/autoUpdate.ts', {
+    '@common/servicePreview': { SERVICE_PREVIEW: false },
     'electron-updater': { autoUpdater: updater },
     'builder-util-runtime': require('builder-util-runtime'),
     '@common/utils': { log: { warn() {} }, isWin: true },

@@ -8,7 +8,7 @@
         <path d="M16 19h4" />
       </svg>
     </button>
-    <button :class="$style.titleBtn" :aria-label="toggleDesktopLyricBtnTitle" @click="toggleDesktopLyric" @contextmenu="toggleLockDesktopLyric">
+    <button class="native-only" :class="$style.titleBtn" :aria-label="toggleDesktopLyricBtnTitle" @click="toggleDesktopLyric" @contextmenu="toggleLockDesktopLyric">
       <svg v-show="appSetting['desktopLyric.enable']" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M5 6h14" />
         <path d="M5 11h9" />

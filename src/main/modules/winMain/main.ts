@@ -1,11 +1,12 @@
 import { BrowserWindow, dialog, screen, session } from 'electron'
 import path from 'node:path'
 import { createTaskBarButtons, getWindowSizeInfo } from './utils'
-import { getPlatform, isLinux, isNativeWayland, isWin } from '@common/utils'
+import { getPlatform, isLinux, isMac, isNativeWayland, isWin } from '@common/utils'
 import { getProxy, openDevTools as handleOpenDevTools } from '@main/utils'
 import { mainSend } from '@common/mainIpc'
 import { sendFocus, sendTaskbarButtonClick } from './rendererEvent'
 import { encodePath } from '@common/utils/electron'
+import { WIN_MAIN_RENDERER_EVENT_NAME } from '@common/ipcNames'
 
 let browserWindow: Electron.BrowserWindow | null = null
 let isWindowMaximized = false
@@ -70,6 +71,13 @@ const winEvent = () => {
     global.lx.event_app.main_window_blur()
   })
 
+  const handleFullScreenChange = () => {
+    global.lx.event_app.main_window_fullscreen(browserWindow!.isFullScreen())
+    sendFullScreenState()
+  }
+  browserWindow.on('enter-full-screen', handleFullScreenChange)
+  browserWindow.on('leave-full-screen', handleFullScreenChange)
+
   browserWindow.once('ready-to-show', () => {
     if (!global.envParams.cmdParams.hidden) {
       showWindow()
@@ -107,7 +115,9 @@ export const createWindow = () => {
     height: windowSizeInfo.height,
     useContentSize: true,
     width: windowSizeInfo.width,
-    frame: false,
+    // Keep AppKit's traffic lights, including hover, fullscreen and accessibility.
+    frame: isMac,
+    titleBarStyle: isMac ? 'hiddenInset' : undefined,
     transparent: !global.envParams.cmdParams.dt,
     hasShadow: global.envParams.cmdParams.dt,
     // enableRemoteModule: false,
@@ -118,7 +128,7 @@ export const createWindow = () => {
     thickFrame: true,
     maximizable: true,
     fullscreenable: true,
-    roundedCorners: global.envParams.cmdParams.dt,
+    roundedCorners: isMac || global.envParams.cmdParams.dt,
     show: false,
     webPreferences: {
       session: ses,
@@ -183,6 +193,11 @@ export const setProxy = () => {
 export const sendEvent = <T = any>(name: string, params?: T) => {
   if (!browserWindow) return
   mainSend(browserWindow, name, params)
+}
+
+export const sendFullScreenState = () => {
+  if (!browserWindow) return
+  sendEvent(WIN_MAIN_RENDERER_EVENT_NAME.fullscreen_changed, browserWindow.isFullScreen())
 }
 
 export const showSelectDialog = async(options: Electron.OpenDialogOptions) => {

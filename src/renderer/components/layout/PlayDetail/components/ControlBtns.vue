@@ -8,7 +8,7 @@ div(:class="[$style.footerLeftControlBtns, { [$style.detail]: detail }]")
       line(x1="301.5" y1="384" x2="434.5" y2="384")
       path(d="M281.3,112S257,206,199,277,80,384,80,384")
       path(d="M256,336s-35-27-72-75-56-85-56-85")
-  button(:class="[$style.footerLeftControlBtn, $style.lrcBtn, { [$style.active]: appSetting['desktopLyric.enable'] }]" :aria-label="toggleDesktopLyricBtnTitle" @click="toggleDesktopLyric" @contextmenu="toggleLockDesktopLyric")
+  button.native-only(:class="[$style.footerLeftControlBtn, $style.lrcBtn, { [$style.active]: appSetting['desktopLyric.enable'] }]" :aria-label="toggleDesktopLyricBtnTitle" @click="toggleDesktopLyric" @contextmenu="toggleLockDesktopLyric")
     svg(viewBox="0 0 24 24" aria-hidden="true")
       path(d="M5 6h14")
       path(d="M5 11h9")
@@ -31,7 +31,7 @@ div(:class="[$style.footerLeftControlBtns, { [$style.detail]: detail }]")
       path(d="M6 7h12")
       path(d="M6 12h12")
       path(d="M6 17h8")
-  button(:class="[$style.footerLeftControlBtn, {[$style.active]: isShowPlayComment}]" :aria-label="$t('comment__show')" @click="toggleVisibleComment")
+  button(v-if="!isServicePlayback" :class="[$style.footerLeftControlBtn, {[$style.active]: isShowPlayComment}]" :aria-label="$t('comment__show')" @click="toggleVisibleComment")
     svg(viewBox="0 0 24 24" aria-hidden="true")
       path(d="M6.5 6.5h11a2 2 0 0 1 2 2v6.5a2 2 0 0 1-2 2h-6l-4.2 3v-3h-.8a2 2 0 0 1-2-2V8.5a2 2 0 0 1 2-2z")
       path(d="M8 10h8")
@@ -110,6 +110,8 @@ import { loveList } from '@renderer/store/list/state'
 import PlayerAppearanceMenu from './PlayerAppearanceMenu.vue'
 import PlayerQualityMenu from './PlayerQualityMenu.vue'
 import PlayerFavoriteMenu from './PlayerFavoriteMenu.vue'
+import { getServiceProvenance } from '@renderer/service/tracks'
+import { ServiceClient } from '@renderer/service/client'
 
 export default {
   components: { PlayerAppearanceMenu, PlayerQualityMenu, PlayerFavoriteMenu },
@@ -165,11 +167,12 @@ export default {
       if (!info) return null
       return 'progress' in info ? info.metadata.musicInfo : info
     })
+    const isServicePlayback = computed(() => !!getServiceProvenance(currentMusicInfo.value))
     const isLoveDisabled = computed(() => !currentMusicInfo.value)
     const downloadVisible = ref(false)
     const downloadOpening = ref(false)
     const downloadMusicInfo = ref(null)
-    const isLocalPlayback = computed(() => currentMusicInfo.value?.source == 'local' || (!!playMusicInfo.musicInfo && 'progress' in playMusicInfo.musicInfo))
+    const isLocalPlayback = computed(() => currentMusicInfo.value?.source == 'local' || getServiceProvenance(currentMusicInfo.value)?.track.source === 'local' || (!!playMusicInfo.musicInfo && 'progress' in playMusicInfo.musicInfo))
     const isDownloadDisabled = computed(() => !currentMusicInfo.value || isLocalPlayback.value)
     const downloadTitle = computed(() => t(isLocalPlayback.value ? 'player_download_local' : 'player_download_current'))
     const showCurrentDownload = async() => {
@@ -178,7 +181,7 @@ export default {
       const selected = JSON.parse(JSON.stringify(currentMusicInfo.value))
       downloadOpening.value = true
       try {
-        if (!appSetting['download.enable']) {
+        if (!isServicePlayback.value && !appSetting['download.enable']) {
           if (!await dialog.confirm({ message: t('player_download_enable'), confirmButtonText: t('player_download_enable_confirm') })) return
           updateSetting({ 'download.enable': true })
         }
@@ -195,7 +198,10 @@ export default {
         return
       }
 
-      const status = await checkListExistMusic(loveList.id, musicInfo.id).catch(() => false)
+      const service = getServiceProvenance(musicInfo)
+      const status = service
+        ? await new ServiceClient(service.endpoint).playlist('love').then(list => list.tracks.some(track => track.id === service.track.id && track.source === service.track.source)).catch(() => false)
+        : await checkListExistMusic(loveList.id, musicInfo.id).catch(() => false)
       if (checkId != loveCheckId || currentMusicInfo.value?.id != musicInfo.id) return
       isLoveMusic.value = status
     }
@@ -207,6 +213,7 @@ export default {
     }
     const showFavoriteMenu = event => {
       if (!currentMusicInfo.value) return
+      if (isServicePlayback.value) { listMusicInfo.value = currentMusicInfo.value; isShowAddMusicTo.value = true; return }
       if (favoriteMenuVisible.value) { closeFavoriteMenu(); return }
       appearanceMenuVisible.value = false
       qualityMenuVisible.value = false
@@ -240,9 +247,11 @@ export default {
 
     onMounted(() => {
       window.app_event.on('myListUpdate', handleMyListUpdate)
+      window.addEventListener('service-playlists-changed', refreshLoveStatus)
     })
     onBeforeUnmount(() => {
       window.app_event.off('myListUpdate', handleMyListUpdate)
+      window.removeEventListener('service-playlists-changed', refreshLoveStatus)
       cancelQualityResume?.()
       if (qualityResumeTimeout) clearTimeout(qualityResumeTimeout)
     })
@@ -346,6 +355,7 @@ export default {
     }
 
     return {
+      isServicePlayback,
       appSetting,
       downloadVisible,
       downloadOpening,

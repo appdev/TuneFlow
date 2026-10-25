@@ -1,27 +1,26 @@
-import { BrowserWindow, safeStorage, session } from 'electron'
+import { BrowserWindow } from 'electron'
 import { createHash } from 'node:crypto'
-import getStore from '@main/utils/store'
+import { accountStorageAvailable, readAccountCredential, writeAccountData } from './accountStorage'
+import { getAccountSession, readyAccountSession } from './accountSession'
 import { getProxy } from '@main/utils'
 import { createKugouApi, parseKugouSession, type KugouSession, type KugouQr } from '@common/utils/kugouAccount'
 
-const storeName = 'music_account_credentials'
-const storeField = 'kugouSession'
-const accountSession = () => session.fromPartition('persist:qmusic-account-kugou')
-const api = createKugouApi(async(url, init) => accountSession().fetch(url, init), value => createHash('md5').update(value).digest('hex'))
+const accountSession = () => getAccountSession('kg')
+const api = createKugouApi(async(url, init) => (await readyAccountSession('kg')).fetch(url, init), value => createHash('md5').update(value).digest('hex'))
 export const readKugouSession = (): KugouSession | null => {
   try {
-    const value = getStore(storeName).get<string>(storeField)
-    if (!value || !safeStorage.isEncryptionAvailable()) return null
-    return parseKugouSession(JSON.parse(safeStorage.decryptString(Buffer.from(value, 'base64'))))
+    const value = readAccountCredential('kugouSession')
+    return value ? parseKugouSession(JSON.parse(value)) : null
   } catch { return null }
 }
 let loginWindow: BrowserWindow | null = null
 let loginTask: Promise<'connected' | 'cancelled'> | null = null
 export const logoutKugou = () => {
   loginWindow?.close()
-  getStore(storeName).set(storeField, '')
+  writeAccountData('kugouSession', '')
 }
 const configureProxy = async() => {
+  await readyAccountSession('kg')
   const proxy = getProxy()
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
@@ -67,7 +66,7 @@ const loginHtml = `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta
 <h1>酷狗音乐登录</h1><p>使用酷狗音乐 App 扫码，在手机上确认授权</p><img id="qr" alt="正在获取登录二维码"><p id="status" role="status">正在获取二维码…</p><button onclick="window.open('about:blank#refresh')">刷新二维码</button><p>登录后可选择歌单导入 Q-music</p></html>`
 export const openKugouLogin = async(): Promise<'connected' | 'cancelled'> => {
   if (loginTask && loginWindow && !loginWindow.isDestroyed()) { loginWindow.show(); loginWindow.focus(); return loginTask }
-  if (!safeStorage.isEncryptionAvailable()) throw new Error('credential_storage')
+  if (!accountStorageAvailable()) throw new Error('credential_storage')
   loginTask = new Promise(resolve => {
     const parent = BrowserWindow.getFocusedWindow() ?? undefined
     const window = new BrowserWindow({
@@ -128,7 +127,7 @@ export const openKugouLogin = async(): Promise<'connected' | 'cancelled'> => {
           if (attempt != generation || settled) return
           if (result.status == 'expired') { await display('二维码已过期，请刷新'); return }
           if (result.session) {
-            try { getStore(storeName).set(storeField, safeStorage.encryptString(JSON.stringify(result.session)).toString('base64')) } catch {
+            try { writeAccountData('kugouSession', JSON.stringify(result.session)) } catch {
               await display('登录凭证保存失败，请检查本机存储后刷新重试')
               return
             }

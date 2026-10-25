@@ -3,7 +3,6 @@ import { getEnvParams, getViewPrevState, sendInited } from '@renderer/utils/ipc'
 import { proxy, isFullscreen, themeId } from '@renderer/store'
 import { appSetting } from '@renderer/store/setting'
 
-import useSync from './useSync'
 import useOpenAPI from './useOpenAPI'
 import useStatusbarLyric from './useStatusbarLyric'
 import useUpdate from './useUpdate'
@@ -14,7 +13,6 @@ import useDeeplink from './useDeeplink'
 import usePlayer from './usePlayer'
 import useSettingSync from './useSettingSync'
 import { useRouter } from '@common/utils/vueRouter'
-import handleListAutoUpdate from './listAutoUpdate'
 import { parseProxy } from '@common/utils/proxy'
 
 
@@ -27,7 +25,6 @@ export default () => {
   themeId.value = appSetting['theme.id']
 
   const router = useRouter()
-  const initSyncService = useSync()
   const initOpenAPI = useOpenAPI()
   const initStatusbarLyric = useStatusbarLyric()
   useEventListener()
@@ -63,12 +60,10 @@ export default () => {
       initPlayer()
       handleEnvParams(envParams) // 处理传入的启动参数
       void initDeeplink(envParams)
-      void initSyncService()
+      // Service is the list authority; legacy peer sync must not overwrite it.
       void initOpenAPI()
       void initStatusbarLyric()
       sendInited()
-
-      handleListAutoUpdate()
     })
   })
 }

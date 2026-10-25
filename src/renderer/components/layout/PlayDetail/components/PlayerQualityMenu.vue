@@ -13,7 +13,8 @@
           </span>
         </div>
       </div>
-      <div v-if="musicInfo && musicInfo.source != 'local'" :class="$style.sourceSwitch">
+      <p v-if="musicInfo?.meta?.service" :class="$style.hint">由 Docker 服务器解析并自动切换可用平台</p>
+      <div v-else-if="musicInfo && musicInfo.source != 'local'" :class="$style.sourceSwitch">
         <div :class="$style.sectionTitle">
           <span>{{ $t('search__source_select') }}</span>
           <small v-if="isSourceLoading">{{ $t('search__hot_search_loading') }}</small>
@@ -164,7 +165,7 @@ const loadOtherSources = async() => {
   const musicInfo = props.musicInfo
   const requestId = ++sourceRequestId
   otherSources.value = []
-  if (!props.modelValue || !musicInfo || musicInfo.source == 'local') return
+  if (!props.modelValue || !musicInfo || musicInfo.source == 'local' || musicInfo.meta?.service) return
   isSourceLoading.value = true
   try {
     const list = await getOtherSource(musicInfo)
@@ -191,6 +192,7 @@ const getCustomApiName = source => {
 const playbackModeText = computed(() => {
   const info = activePlaybackSourceInfo.value
   if (!info) return ''
+  if (info.mode == 'service') return `Docker 服务器 · ${info.quality ?? ''}`
   const quality = info.quality ? ` · ${info.quality == 'flac24bit' ? 'Hi-Res' : info.quality.toUpperCase()}` : ''
   const fallback = info.isFallback ? ` · ${t('player__quality_route_fallback')}` : ''
   // API/缓存结果会带上 provider id；有旧状态没有该字段时，仅对 API
@@ -201,6 +203,7 @@ const playbackModeText = computed(() => {
   return `${t(`player__quality_route_${info.mode}`)}${customApiText}${fallback}${quality}`
 })
 const needsMembershipHint = computed(() => {
+  if (props.musicInfo?.meta?.service) return false
   const mode = activePlaybackSourceInfo.value?.mode
   // 自定义源优先时，尚未解析出线路前不显示官方会员提示；只有实际回退到
   // 官方直连后再提示，避免面板信息与当前首选线路相互矛盾。

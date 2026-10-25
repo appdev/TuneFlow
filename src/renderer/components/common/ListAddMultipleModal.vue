@@ -15,6 +15,7 @@ import { addListMusics, moveListMusics } from '@renderer/store/list/action'
 import useKeyDown from '@renderer/utils/compositions/useKeyDown'
 import { useI18n } from '@root/lang'
 import ListTargetPicker from './ListTargetPicker.vue'
+import { isReadOnlyList } from '@renderer/service/workspace'
 
 export default {
   components: { ListTargetPicker },
@@ -39,7 +40,7 @@ export default {
       { ...defaultList, name: t(defaultList.name) },
       { ...loveList, name: t(loveList.name) },
       ...userLists,
-    ].filter(list => !props.excludeListId.includes(list.id)).map(list => ({ ...list, isExist: addedListIds.value.includes(list.id) })))
+    ].filter(list => !isReadOnlyList(list.id) && !props.excludeListId.includes(list.id)).map(list => ({ ...list, isExist: addedListIds.value.includes(list.id) })))
     watch(() => props.show, show => {
       if (show) { error.value = ''; addedListIds.value = [] }
     })

@@ -23,6 +23,7 @@ import { addListMusics, removeListMusics } from '@renderer/store/list/action'
 import { loveList } from '@renderer/store/list/state'
 import { addDislikeInfo } from '@renderer/core/dislikeList'
 import { removeMusicUrl as removeStoreMusicUrl } from '@renderer/utils/ipc'
+import { getServiceProvenance } from '@renderer/service/tracks'
 // import { checkMusicFileAvailable } from '@renderer/utils/music'
 
 let gettingUrlId = ''
@@ -43,7 +44,7 @@ const applyLyricInfo = (musicInfo: LX.Music.MusicInfo | LX.Download.ListItem, ly
     rawlrc: lyricInfo.rawlrcInfo.lyric,
   })
   window.app_event.lyricUpdated()
-  if ('progress' in musicInfo || musicInfo.source == 'local' || lyricInfo.tlyric) return
+  if (getServiceProvenance(musicInfo) || 'progress' in musicInfo || musicInfo.source == 'local' || lyricInfo.tlyric) return
   void findMatchedTranslation(musicInfo, lyricInfo).then(translation => {
     if (!translation || musicInfo.id != playMusicInfo.musicInfo?.id || _musicInfo.tlrc) return
     setMusicInfo({ tlrc: translation })
@@ -273,7 +274,9 @@ const getMusicPlayUrl = async(musicInfo: LX.Music.MusicInfo | LX.Download.ListIt
     }
     attempts.push({ musicInfo: primaryMusicInfo, allowToggleSource: true, routeStrategy: 'all' })
   }
-  if ('progress' in musicInfo) {
+  if (getServiceProvenance(musicInfo)) {
+    attempts.push({ musicInfo, allowToggleSource: false, routeStrategy: 'all' })
+  } else if ('progress' in musicInfo) {
     attempts.push({ musicInfo, allowToggleSource: false, routeStrategy: 'all', directOnly: true })
     addOnlineAttempts(originalMusicInfo as LX.Music.MusicInfoOnline)
   } else if (originalMusicInfo.source == 'local') {
