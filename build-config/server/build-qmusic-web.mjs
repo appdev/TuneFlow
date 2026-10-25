@@ -10,7 +10,7 @@ const stage = mkdtempSync(path.join(root, 'dist/web-qmusic-stage-'))
 // Build only in staging. Existing Web, Flutter, native outputs and data stay intact.
 execFileSync('npm', ['run', 'build:web'], { cwd: client, stdio: 'inherit', env: { ...process.env, Q_WEB_OUTPUT: stage } })
 execFileSync('npm', ['run', 'build:web'], { cwd: root, stdio: 'inherit', env: { ...process.env, TUNEFLOW_LEGACY_WEB_OUTPUT: path.join(stage, 'V2'), TUNEFLOW_LEGACY_WEB_BASE: '/V2/' } })
-writeFileSync(path.join(stage, 'qmusic-web.json'), JSON.stringify({ client: 'Q-music Web', version: '0.4.23-service.6-web', legacy: '/V2/', api: '/api/v1/', platformLogin: 'native-clients-only' }, null, 2) + '\n')
+writeFileSync(path.join(stage, 'qmusic-web.json'), JSON.stringify({ client: 'Q-music Web', version: JSON.parse(readFileSync(path.join(client, 'package.json'))).version, legacy: '/V2/', api: '/api/v1/', platformLogin: 'native-clients-only' }, null, 2) + '\n')
 const destination = path.join(root, 'dist/web-qmusic')
 if (existsSync(destination)) renameSync(destination, `${destination}-backup-${Date.now()}`)
 renameSync(stage, destination)
