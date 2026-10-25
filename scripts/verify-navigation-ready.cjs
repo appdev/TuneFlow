@@ -116,7 +116,7 @@ const endpoints = url => {
     await nav.nth(4).click()
     const first=page.locator('#view article').filter({has:page.locator('strong').filter({hasText:/^QA song 0$/})})
     await first.getByRole('button',{name:'暂停',exact:true}).click()
-    await first.getByRole('button',{name:'继续 / 重试',exact:true}).click()
+    await first.getByRole('button',{name:'继续',exact:true}).click()
     await first.getByRole('button',{name:'暂停',exact:true}).waitFor()
     await page.waitForFunction(()=>document.querySelector('#view article')?.textContent.includes('下载中'))
     await nav.nth(0).click()
