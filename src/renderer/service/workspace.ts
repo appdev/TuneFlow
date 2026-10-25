@@ -12,8 +12,9 @@ export const scopeClientDataKey = (key: string, endpoint: string) => scopedDataK
 
 // Only these settings describe shared server work. Presentation, audio output,
 // queues and credentials must never be copied into the shared settings store.
-export const isServerSetting = (key: string) => key.startsWith('download.') || key === 'common.apiSource'
+export const isServerSetting = (key: string) => key.startsWith('download.') || key === 'common.apiSource' || key === 'player.autoDownloadOnPlay'
 export const downloadSettingLabels: Record<string, string> = {
+  'player.autoDownloadOnPlay': '边听边存（播放时自动下载）',
   'download.enable': '启用下载',
   'download.maxDownloadNum': '同时下载任务数',
   'download.savePath': '服务器保存目录',

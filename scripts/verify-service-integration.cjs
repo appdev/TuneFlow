@@ -146,6 +146,50 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, { sources: { kw: { type
   await client.deleteDownload(job.id)
   assert.equal((await client.downloads()).length, 0)
   assert.equal((await client.library()).length, library.length, 'Removing task preserves server media')
+
+  // The same server setting drives native desktop, Web and Android playback.
+  // Use real history adapters: selection/resolve alone must not create a task.
+  const autoTrack = { ...track, id: 'auto-save-contract', name: 'Automatic save fixture' }
+  await android.client.patchSettings({ 'player.autoDownloadOnPlay': true, 'download.enable': false })
+  assert.equal((await client.settings())['player.autoDownloadOnPlay'], true)
+  await client.resolve(autoTrack, '128k')
+  assert.equal((await client.downloads()).length, 0, 'Resolve/preload alone does not download')
+  const errors = []
+  const DesktopHistory = load('src/renderer/service/history.ts', { './client': api }).ServicePlaybackHistory
+  const AndroidHistory = load('../qmusic-client/src/service/history.ts', { './client': androidApi }).ServicePlaybackHistory
+  const desktopHistory = new DesktopHistory(() => errors.push('desktop'))
+  const androidHistory = new AndroidHistory(() => errors.push('android'))
+  const provenance = { endpoint: client.endpoint, track: autoTrack }
+  desktopHistory.playing('auto-desktop', provenance)
+  desktopHistory.playing('auto-desktop', provenance)
+  androidHistory.playing('auto-android', provenance)
+  let autoJob
+  for (let i = 0; i < 160; i++) {
+    autoJob = (await client.downloads()).find(item => item.musicInfo.id === autoTrack.id)
+    if (autoJob?.status === 'error') throw Error('Automatic download failed: ' + autoJob.error)
+    if (autoJob?.status === 'completed') break
+    await delay(100)
+  }
+  assert.equal(autoJob?.status, 'completed', 'Playback creates a real server file even with manual downloads disabled')
+  assert.equal((await client.downloads()).length, 1, 'Repeated and cross-client starts reuse one download')
+  const autoLibrary = (await client.library()).find(item => item.name === autoTrack.name)
+  assert.ok(autoLibrary)
+  assert.equal((await fetch(client.resourceUrl(autoLibrary.streamUrl), { headers: { Range: 'bytes=0-43' } })).status, 206)
+  const localHistory = await client.request('/api/v1/playback/history', 'POST', { track: { id: autoLibrary.id, source: 'local' }, platform: 'web' })
+  await delay(100)
+  assert.equal((await client.downloads()).length, 1, 'Server library playback does not download again')
+  await client.patchSettings({ 'player.autoDownloadOnPlay': false })
+  assert.equal((await android.client.settings())['player.autoDownloadOnPlay'], false)
+  androidHistory.playing('disabled', { ...provenance, track: { ...autoTrack, id: 'disabled-auto-save', name: 'Disabled auto save' } })
+  await delay(100)
+  assert.equal((await client.downloads()).length, 1, 'Disabling the shared setting stops future automatic downloads')
+  desktopHistory.end(false); androidHistory.end(false)
+  await client.request(`/api/v1/playback/history/${localHistory.playbackId}`, 'PATCH', { completed: false, lastPositionSeconds: 1, durationSeconds: 12 })
+  await delay(100)
+  assert.deepEqual(errors, [])
+  await client.deleteDownload(autoJob.id)
+  await client.request(`/api/v1/library/tracks/${encodeURIComponent(autoLibrary.id)}`, 'DELETE')
+  await client.patchSettings({ 'download.enable': settings['download.enable'] })
   await client.removeTracks('qmusic_contract', [track.id])
   assert.equal((await client.playlist('qmusic_contract')).tracks.length, 0)
   await client.deletePlaylist('qmusic_contract')

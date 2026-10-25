@@ -81,6 +81,15 @@ test('server data round-trips canonical IDs; library paths are public Service ro
   assert.equal(domain.isServerSetting('download.maxDownloadNum'), true)
 })
 
+test('desktop, Web and Android expose playback auto-download as one shared setting without sharing device playback preferences', () => {
+  const android = load('../qmusic-client/src/service/workspace.ts')
+  for (const workspace of [domain, android]) {
+    assert.equal(workspace.isServerSetting('player.autoDownloadOnPlay'), true)
+    assert.equal(workspace.downloadSettingLabels['player.autoDownloadOnPlay'], '边听边存（播放时自动下载）')
+    for (const key of ['player.volume', 'player.playQuality', 'player.mediaDeviceId']) assert.equal(workspace.isServerSetting(key), false)
+  }
+})
+
 test('catalog adapters reject stale responses after server changes instead of repopulating native caches', async() => {
   let complete
   let workspace = { search: async() => new Promise(resolve => { complete = resolve }) }
