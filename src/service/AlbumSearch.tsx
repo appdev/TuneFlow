@@ -33,7 +33,7 @@ export default forwardRef<MusicListType>((props, ref) => {
       const results = await Promise.allSettled(sources.map(async source => workspace.search(source, info.text, page, 20, 'albums')))
       if (!active.current || revision !== request.current.revision || workspace !== getWorkspace()) return
       const successful = results.filter(result => result.status === 'fulfilled').map(result => result.value)
-      if (!successful.length) throw new Error('专辑搜索失败，请检查服务器连接')
+      if (!successful.length) throw new Error('专辑搜索失败，请检查连接状态')
       const rows = successful.flatMap(result => result.list as unknown as CollectionDto[])
       setAlbums(previous => page === 1 ? rows : [...previous, ...rows])
       setHasMore(successful.some(result => page * result.limit < (result.total ?? 0)))

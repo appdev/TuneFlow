@@ -28,7 +28,7 @@ export const SETTING_SCREENS = [
 ] as const
 
 export type SettingScreenIds = typeof SETTING_SCREENS[number]
-export const settingTitle = (id: string, translate: (key: any) => string) => ({ service: '服务器连接', accounts: '音乐平台账号', sources: '音源与解析', downloads: '下载 · 服务器', compatibility: '同步与备份说明', basic: '基本 · 当前设备', player: '播放 · 当前设备' }[id] ?? translate(`setting_${id}`))
+export const settingTitle = (id: string, translate: (key: any) => string) => ({ service: '连接设置', accounts: '音乐平台账号', sources: '音源与解析', downloads: '下载', compatibility: '同步与备份说明' }[id] ?? translate(`setting_${id}`))
 
 // interface MainProps {
 //   onUpdateActiveId: (id: string) => void

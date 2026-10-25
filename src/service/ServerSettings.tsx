@@ -36,16 +36,16 @@ export default ({ section = 'connection' }: { section?: 'connection' | 'sources'
   const enabled = ordered.filter(item => item.enabled).map(item => item.id)
   return <View style={{ gap: 12, paddingBottom: 20 }}>
     {section === 'connection' ? <>
-      <Text size={18}>服务器连接</Text>
-      <Text size={13}>曲库、歌单、收藏、历史和下载由服务器统一保存。更换服务器不会迁移或删除数据。</Text>
-      {input('服务器地址', address, setAddress)}
+      <Text size={18}>连接设置</Text>
+      <Text size={13}>音乐库、歌单、收藏、播放记录与下载在各设备间保持一致。更改连接地址不会删除数据。</Text>
+      {input('连接地址', address, setAddress)}
       {action('连接并使用', () => { void run(async() => { await connectService(address, stop); setAddress(getWorkspace().client.endpoint) }) })}
       {action('重新连接 / 刷新', () => { void run(async() => checkService(true)) })}
       <Text size={12}>{status.connected ? '已连接' : '连接不可用'} · {status.endpoint}</Text>
       <Text size={14}>设置归属</Text>
-      <Text size={13}>音源和下载设置对所有客户端共同生效。外观、播放音质、音频输出、后台播放和歌词显示仅影响当前设备。</Text>
+      <Text size={13}>在这里管理连接、音源和下载；外观、播放与歌词可按自己的习惯调整。</Text>
     </> : section === 'sources' ? <>
-      <Text size={18}>音源与解析 · 服务器</Text>
+      <Text size={18}>音源与解析</Text>
       <Text size={13}>按启用顺序尝试音源；可恢复的解析失败继续尝试其他平台。安全拦截和取消不会被重试绕过。</Text>
       {input('音源脚本地址', sourceUrl, setSourceUrl)}
       {action('从地址导入音源', () => { void run(async() => { await client.importSource(sourceUrl); await load() }) })}
@@ -55,12 +55,12 @@ export default ({ section = 'connection' }: { section?: 'connection' | 'sources'
         <Text>{source.name} {source.version}</Text><Text size={12}>{source.enabled ? `已启用 · 第 ${(source.priority ?? 0) + 1} 位` : '未启用'}</Text>
         {action(source.enabled ? '停用' : '启用', () => { void run(async() => { setSources(await client.enableSources(source.enabled ? enabled.filter(id => id !== source.id) : [...enabled, source.id])) }) })}
         {source.enabled && source.priority !== 0 ? action('移至首位', () => { void run(async() => { setSources(await client.enableSources([source.id, ...enabled.filter(id => id !== source.id)])) }) }) : null}
-        {action('移除此音源', () => { Alert.alert('移除服务器音源？', '所有客户端都会使用更新后的音源链。', [{ text: '取消', style: 'cancel' }, { text: '移除', style: 'destructive', onPress: () => { void run(async() => { await client.request(`/api/v1/sources/${encodeURIComponent(source.id)}`, 'DELETE'); await load() }) } }]) })}
+        {action('移除此音源', () => { Alert.alert('移除此音源？', '移除后将使用更新后的音源顺序。', [{ text: '取消', style: 'cancel' }, { text: '移除', style: 'destructive', onPress: () => { void run(async() => { await client.request(`/api/v1/sources/${encodeURIComponent(source.id)}`, 'DELETE'); await load() }) } }]) })}
       </View>)}
     </> : section === 'downloads' ? <>
-      <Text size={18}>下载设置 · 服务器</Text>
-      <Text size={13}>下载在 Docker 中执行，完成后进入“我的音乐 → 音乐库”。保存目录属于服务器。</Text>
-      <Text size={13}>边听边存在在线歌曲开始播放后触发，按最高可用音质自动保存到服务器，跳过已有音频；它独立于手动下载的“启用下载”开关，对连接这台服务器的客户端共同生效。</Text>
+      <Text size={18}>下载设置</Text>
+      <Text size={13}>下载完成后可在“我的音乐 → 音乐库”中播放。</Text>
+      <Text size={13}>开启边听边存后，在线播放的歌曲会按最高可用音质自动保存，已有音频会跳过。此功能独立于手动下载开关。</Text>
       {action('刷新设置', () => { void run(load) })}
       {Object.entries(downloadSettingLabels).filter(([key]) => key in settings).map(([key, label]) => <View key={key} style={{ gap: 6 }}>
         <Text size={13}>{label}</Text>
@@ -71,8 +71,8 @@ export default ({ section = 'connection' }: { section?: 'connection' | 'sources'
       </View>)}
     </> : <>
       <Text size={18}>同步与备份说明</Text>
-      <Text size={13}>平台登录在“音乐平台账号”中管理，凭证仅保存在当前设备。账号歌单可显式导入服务器；个人推荐在首页选择。旧版点对点同步、云盘和远程备份不会覆盖现有数据。</Text>
-      <Text size={13}>已有本机数据仍保留。共享曲库、收藏、歌单与历史直接使用服务器，无需另开同步。</Text>
+      <Text size={13}>在“音乐平台账号”中登录，即可浏览账号歌单与个人推荐。导入歌单会保留已有内容，旧版同步与备份不会自动覆盖数据。</Text>
+      <Text size={13}>已有数据保持不变，音乐库、收藏、歌单与播放记录无需额外开启同步。</Text>
     </>}
     {error || status.error ? <Text accessibilityRole="alert" size={13}>{error || status.error}</Text> : null}
   </View>

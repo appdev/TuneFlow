@@ -22,7 +22,7 @@ export interface LyricsDto { lyric: string, tlyric?: string | null, rlyric?: str
 export interface ProviderDto { id: string, name: string, searchKinds: string[], leaderboards: boolean, playlistDiscovery?: { browse: boolean, detail: boolean } }
 
 export class ServiceError extends Error {
-  constructor(public code: string, public status = 0) { super(`服务器请求失败（${code}）`) }
+  constructor(public code: string, public status = 0) { super(`请求失败（${code}）`) }
 }
 
 // Avoid the incomplete URL implementation shipped with this React Native version.

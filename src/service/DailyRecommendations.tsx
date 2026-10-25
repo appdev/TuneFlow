@@ -24,7 +24,8 @@ import useAdaptiveLayout from '@/utils/hooks/useAdaptiveLayout'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { getWorkspace, serviceStatus, subscribeService, subscribeRecommendations } from './session'
 import { loadMobileAccountDaily } from './accounts'
-import { loadDailyFeed, dailyFeedNotice, dailyKindNames, type DailySource, type DailyFeed } from './recommendations'
+import { loadDailyFeed, dailyFeedNotice, dailyKindNames, readDailyFeedCache, cacheDailyFeed, clearDailyFeedCache, type DailySource, type DailyFeed } from './recommendations'
+import { getDailyAccountKey } from './dailyIdentity'
 const MODE_KEY = '@qmusic_service_daily_mode'
 
 export default () => {
@@ -52,7 +53,18 @@ export default () => {
 
   const feedRef = useRef<DailyFeed>()
   const pendingUpdate = useRef(false)
-  const load = useCallback(async(source: DailySource, force = false): Promise<void> => {
+  const identity = useRef('')
+  const preferenceRevision = useRef(0)
+  const load = useCallback(async(source: DailySource, force = false, reload = false): Promise<void> => {
+    const workspace = getWorkspace()
+    const owner = identity.current
+    const cached = !force && !reload ? readDailyFeedCache(workspace, source, owner) : undefined
+    if (cached) {
+      request.current?.abort(); request.current = undefined; requestIdRef.current++
+      pendingSource.current = undefined; shownSource.current = source
+      feedRef.current = cached.feed; setResult(cached.feed); setList(cached.feed.list)
+      setLoadError(false); setLoading(false); return
+    }
     if (!force && pendingSource.current == source && request.current && !request.current.signal.aborted) return
     request.current?.abort()
     const controller = new AbortController()
@@ -62,7 +74,6 @@ export default () => {
     setLoading(true)
     setLoadError(false)
     if (shownSource.current != source) { setResult(undefined); setList([]) }
-    const workspace = getWorkspace()
     let timeout: ReturnType<typeof setTimeout> | undefined
     try {
       const next = await Promise.race([
@@ -73,6 +84,7 @@ export default () => {
       ])
       if (isUnmountedRef.current || requestId != requestIdRef.current || workspace !== getWorkspace()) return
       shownSource.current = source
+      cacheDailyFeed(workspace, source, owner, next)
       setList(next.list)
       feedRef.current = next
       setResult(next)
@@ -86,20 +98,27 @@ export default () => {
         pendingSource.current = undefined
         if (!isUnmountedRef.current) {
           setLoading(false)
-          if (pendingUpdate.current) { pendingUpdate.current = false; void load(sourceRef.current) }
+          if (pendingUpdate.current) { pendingUpdate.current = false; void load(sourceRef.current, false, true) }
         }
       }
     }
   }, [])
   const preferences = useCallback(async() => {
+    const revision = ++preferenceRevision.current
     const saved = await getDailyProvider()
     const mode = await AsyncStorage.getItem(MODE_KEY)
-    if (isUnmountedRef.current) return
     const selected = mode === 'server' ? 'server' : saved
+    const owner = await getDailyAccountKey(selected)
+    if (isUnmountedRef.current || revision !== preferenceRevision.current) return
+    if (ready.current && identity.current !== owner && sourceRef.current === selected) {
+      clearDailyFeedCache(getWorkspace())
+      request.current?.abort(); requestIdRef.current++
+      shownSource.current = undefined; feedRef.current = undefined; setResult(undefined); setList([])
+    }
+    identity.current = owner
     sourceRef.current = selected; setProvider(selected); ready.current = true
-    // Returning from account settings must not retain the previous account's UI.
-    shownSource.current = undefined; feedRef.current = undefined; setResult(undefined); setList([])
-    void load(selected)
+    const reload = pendingUpdate.current; pendingUpdate.current = false
+    void load(selected, false, reload)
   }, [load])
   useEffect(() => {
     isUnmountedRef.current = false; void preferences()
@@ -107,15 +126,16 @@ export default () => {
       if (state == 'active' && ready.current && commonState.navActiveId == 'nav_search') void preferences()
     })
     const update = () => {
-      if (!ready.current || feedRef.current?.origin === 'account' || commonState.navActiveId != 'nav_search') return
-      if (request.current) pendingUpdate.current = true
-      else void load(sourceRef.current)
+      clearDailyFeedCache(getWorkspace(), 'server')
+      if (!ready.current || feedRef.current?.origin !== 'server') return
+      if (request.current != null || commonState.navActiveId != 'nav_search') pendingUpdate.current = true
+      else void load(sourceRef.current, false, true)
     }
     const unsubscribeRecommendations = subscribeRecommendations(update)
     let endpoint = getWorkspace().client.endpoint
     const unsubscribe = subscribeService(() => {
       if (!ready.current || serviceStatus.busy || !serviceStatus.connected) return
-      if (endpoint !== serviceStatus.endpoint) { endpoint = serviceStatus.endpoint; void preferences() } else if (['warming', 'generating', 'stale'].includes(feedRef.current?.status ?? '') && !request.current) update()
+      if (endpoint !== serviceStatus.endpoint) { endpoint = serviceStatus.endpoint; shownSource.current = undefined; feedRef.current = undefined; setResult(undefined); setList([]); void preferences() } else if (['warming', 'generating', 'stale'].includes(feedRef.current?.status ?? '') && !request.current) update()
     })
     return () => { isUnmountedRef.current = true; ready.current = false; request.current?.abort(); listener.remove(); unsubscribe(); unsubscribeRecommendations() }
   }, [load, preferences])
@@ -124,12 +144,17 @@ export default () => {
   }, [preferences])
   useNavigationComponentDidAppear(commonState.componentIds.home ?? '', resume)
 
-  const changeProvider = (source: DailySource) => {
+  const changeProvider = async(source: DailySource) => {
     if (!ready.current || source == sourceRef.current || playbackPending.current) return
+    const revision = ++preferenceRevision.current
+    request.current?.abort(); requestIdRef.current++
     sourceRef.current = source
     setProvider(source)
     void AsyncStorage.setItem(MODE_KEY, source === 'server' ? 'server' : 'account').catch(() => { toast(t('daily_preference_failed')) })
     if (source !== 'server') void setDailyProvider(source).catch(() => { toast(t('daily_preference_failed')) })
+    const owner = await getDailyAccountKey(source)
+    if (isUnmountedRef.current || sourceRef.current !== source || revision !== preferenceRevision.current) return
+    identity.current = owner
     void load(source)
   }
   const refresh = useCallback(() => { void load(sourceRef.current, true) }, [load])
@@ -171,7 +196,7 @@ export default () => {
       }}
     >
       <View style={styles.providerBar}>
-        {(['tx', 'wy', 'kg', 'server'] as const).map(source => <Button key={source} ripple={null} disabled={startingPlayback} accessibilityRole="tab" accessibilityState={{ selected: provider == source }} onPress={() => { changeProvider(source) }} style={[styles.providerChip, { backgroundColor: provider == source ? theme['q-surface-tint'] : 'transparent' }]}><Text size={12} color={provider == source ? theme['q-accent-text'] : theme['q-text-secondary']}>{source === 'server' ? 'Docker 推荐' : t(source == 'tx' ? 'setting_music_account_qq' : source == 'kg' ? 'setting_music_account_kugou' : 'setting_music_account_netease')}</Text></Button>)}
+        {(['tx', 'wy', 'kg', 'server'] as const).map(source => <Button key={source} ripple={null} disabled={startingPlayback} accessibilityRole="tab" accessibilityState={{ selected: provider == source }} onPress={() => { void changeProvider(source) }} style={[styles.providerChip, { backgroundColor: provider == source ? theme['q-surface-tint'] : 'transparent' }]}><Text size={12} color={provider == source ? theme['q-accent-text'] : theme['q-text-secondary']}>{source === 'server' ? '推荐' : t(source == 'tx' ? 'setting_music_account_qq' : source == 'kg' ? 'setting_music_account_kugou' : 'setting_music_account_netease')}</Text></Button>)}
         <Button accessibilityLabel={t('daily_settings')} style={styles.settingsButton} onPress={() => { setSettingsVisible(true) }}><Icon name="slider" rawSize={19} color={theme['q-text-secondary']} /></Button>
       </View>
       <Button accessibilityLabel={t('search_daily_open')} style={styles.feature} onPress={() => { setDetailVisible(true) }}>

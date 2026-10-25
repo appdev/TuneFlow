@@ -22,7 +22,7 @@ const MusicAccountEntry = memo(() => {
 
   return (
     <View style={styles.content}>
-      <Text size={13}>通过官方页面登录，凭证保存在本设备。账号歌单导入同一服务器，重复导入只补充歌曲，保留服务器已有编辑；个人推荐和播放仍使用 Docker 后台。</Text>
+      <Text size={13}>使用官方页面登录后，即可浏览账号歌单和个人推荐。导入只补充歌曲，保留已有内容。</Text>
       <TouchableOpacity
         style={styles.row}
         activeOpacity={0.6}

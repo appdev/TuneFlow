@@ -69,7 +69,7 @@ export const checkService = async(refresh = false) => {
     serviceStatus.connected = true; serviceStatus.error = ''
   } catch (error) {
     if (current !== workspace) return
-    serviceStatus.connected = false; serviceStatus.error = error instanceof Error ? error.message : '服务器连接失败'
+    serviceStatus.connected = false; serviceStatus.error = error instanceof Error ? error.message : '连接失败'
   } finally { serviceStatus.busy = false; changed() }
 }
 
