@@ -1,14 +1,47 @@
 html.web .native-only { display: none !important; }
-html.web, html.web body { background: var(--color-content-background, #f6f8fa); }
-html.web #container { -webkit-app-region: no-drag; }
+html.web, html.web body {
+  background: var(--color-content-background, #f6f8fa);
+  background: color-mix(in srgb, var(--color-content-background) 96%, var(--color-font));
+}
+
+/* The browser supplies the window frame. Keep one quiet app surface inside it. */
+html.web.disableTransparent #body { border: 0; }
+html.web #container {
+  -webkit-app-region: no-drag;
+  border: 0;
+  box-shadow: none;
+}
+html.web.disableTransparent #right {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  margin-bottom: 0;
+}
+html.web #right::after { display: none; }
 
 /* Keep the player, navigation and content on the same centered Web canvas. */
 @media (min-width: 1100px) {
+  html.web body {
+    /* One continuous backdrop across the canvas and gutters: no edge overlay. */
+    background:
+      radial-gradient(ellipse at calc(50% - 520px) 0, var(--color-primary-alpha-800), transparent 65%),
+      radial-gradient(ellipse at calc(50% + 400px) 90%, var(--color-primary-alpha-900), transparent 65%),
+      var(--background-image) var(--background-image-position) / var(--background-image-size) no-repeat,
+      var(--color-content-background);
+  }
   html.web #root {
     width: calc(100% - 64px);
     max-width: 1440px;
     margin-inline: auto;
+    background-color: transparent;
   }
+  html.web #root:not([style*="--q-user-bg-image"]) { background: none; }
+  html.web #container,
+  html.web.disableTransparent #right,
+  html.web #view > div > .view-container,
+  html.web #toolbar { background: transparent; box-shadow: none; }
+  html.web.disableTransparent #right { backdrop-filter: none; }
+  html.web #right::before { display: none; }
 }
 
 html.web:fullscreen #root,
@@ -17,4 +50,5 @@ html.web #root:fullscreen {
   width: 100%;
   max-width: none;
   margin-inline: 0;
+  box-shadow: none;
 }
