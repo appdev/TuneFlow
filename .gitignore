@@ -35,6 +35,13 @@ build/Release
 
 # Dependency directories
 node_modules/
+**/node_modules
+**/docs/superpowers/
+**/AGENTS.md
+apps/*/.codex/
+apps/*/artifacts/
+apps/*/dist/
+apps/*/build/
 node_modules.bak*/
 jspm_packages/
 
