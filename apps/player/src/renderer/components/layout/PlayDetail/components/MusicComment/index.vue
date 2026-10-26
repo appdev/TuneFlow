@@ -1,0 +1,538 @@
+<template lang="pug">
+div.comment(ref="dom_container" :class="$style.comment")
+  div(:class="$style.commentHeader")
+    h3 {{ $t('comment__title', { name: currentMusicInfo.name }) }}
+    div(:class="$style.commentHeaderBtns")
+      div(:class="$style.commentHeaderBtn" :aria-label="$t('comment__refresh')" @click="handleShowComment")
+        svg(viewBox="0 0 24 24" aria-hidden="true")
+          path(d="M20 12a8 8 0 0 1-13.6 5.7")
+          path(d="M4 12A8 8 0 0 1 17.6 6.3")
+          path(d="M17 3v4h4")
+          path(d="M7 21v-4H3")
+      div(:class="$style.commentHeaderBtn" @click="$emit('close')")
+        svg(viewBox="0 0 24 24" aria-hidden="true")
+          path(d="M6 6l12 12")
+          path(d="M18 6L6 18")
+
+  div(:class="$style.commentMain")
+    template(v-if="available")
+      header(:class="$style.tab_header")
+        button(type="button" :class="[$style.commentType, { [$style.active]: tabActiveId == 'hot' }]" @click="handleToggleTab('hot')") {{ $t('comment__hot_title') }} ({{ hotComment.total }})
+        button(type="button" :class="[$style.commentType, { [$style.active]: tabActiveId == 'new' }]" @click="handleToggleTab('new')") {{ $t('comment__new_title') }} ({{ newComment.total }})
+      main(ref="dom_tabMain" :class="$style.tab_main")
+        div(:class="$style.tab_content")
+          div.scroll(ref="dom_commentHot" :class="$style.tab_content_scroll")
+            p(v-if="hotComment.isLoadError" :class="$style.commentLabel" style="cursor: pointer;" @click="handleGetHotComment(currentMusicInfo, hotComment.nextPage, hotComment.limit)") {{ $t('comment__hot_load_error') }}
+            p(v-else-if="hotComment.isLoading && !hotComment.list.length" :class="$style.commentLabel") {{ $t('comment__hot_loading') }}
+            comment-floor(v-if="!hotComment.isLoadError && hotComment.list.length" :class="[$style.commentFloor, hotComment.isLoading ? $style.loading : null]" :comments="hotComment.list")
+            p(v-else-if="!hotComment.isLoadError && !hotComment.isLoading" :class="$style.commentLabel") {{ $t('comment__no_content') }}
+            div(:class="$style.pagination")
+              material-pagination(:count="hotComment.total" :btn-length="5" :limit="hotComment.limit" :page="hotComment.page" @btn-click="handleToggleHotCommentPage")
+        div(:class="$style.tab_content")
+          div.scroll(ref="dom_commentNew" :class="$style.tab_content_scroll")
+            p(v-if="newComment.isLoadError" :class="$style.commentLabel" style="cursor: pointer;" @click="handleGetNewComment(currentMusicInfo, newComment.nextPage, newComment.limit)") {{ $t('comment__new_load_error') }}
+            p(v-else-if="newComment.isLoading && !newComment.list.length" :class="$style.commentLabel") {{ $t('comment__new_loading') }}
+            comment-floor(v-if="!newComment.isLoadError && newComment.list.length" :class="[$style.commentFloor, newComment.isLoading ? $style.loading : null]" :comments="newComment.list")
+            p(v-else-if="!newComment.isLoadError && !newComment.isLoading" :class="$style.commentLabel") {{ $t('comment__no_content') }}
+            div(:class="$style.pagination")
+              material-pagination(:count="newComment.total" :btn-length="5" :limit="newComment.limit" :page="newComment.page" @btn-click="handleToggleCommentPage")
+    div(v-else :class="$style.unavailable")
+      p {{ $t('comment__unavailable') }}
+</template>
+
+<script>
+import { toOldMusicInfo } from '@renderer/utils'
+import music from '@renderer/utils/musicSdk'
+import CommentFloor from './CommentFloor.vue'
+
+const normalizeCommentResult = (result, page, limit) => {
+  const comments = Array.isArray(result?.comments) ? result.comments : []
+  const loadedTotal = (page - 1) * limit + comments.length
+  const responseTotal = Number(result?.total)
+  const total = Number.isFinite(responseTotal) && responseTotal > 0
+    ? Math.max(responseTotal, loadedTotal)
+    : loadedTotal
+  const responseMaxPage = Number(result?.maxPage)
+
+  return {
+    comments,
+    total,
+    maxPage: Number.isFinite(responseMaxPage) && responseMaxPage > 0
+      ? Math.max(responseMaxPage, Math.ceil(total / limit))
+      : Math.max(1, Math.ceil(total / limit)),
+  }
+}
+
+export default {
+  name: 'MusicComment',
+  components: {
+    CommentFloor,
+  },
+  props: {
+    show: Boolean,
+    musicInfo: {
+      type: Object,
+      required: true,
+    },
+  },
+  emits: ['close'],
+  data() {
+    return {
+      available: false,
+      currentMusicInfo: {
+        name: '',
+        singer: '',
+      },
+      tabActiveId: 'hot',
+      newComment: {
+        isLoading: false,
+        isLoadError: false,
+        page: 1,
+        total: 0,
+        maxPage: 1,
+        nextPage: 1,
+        limit: 20,
+        list: [
+        // {
+        //   text: ['123123hhh'],
+        //   userName: 'dsads',
+        //   avatar: 'http://img4.kuwo.cn/star/userhead/39/52/1602393411654_512039239s.jpg',
+        //   time: '2020-10-22 22:14:17',
+        //   timeStr: '2020-10-22 22:14:17',
+        //   likedCount: 100,
+        //   reply: [],
+        // },
+        ],
+      },
+      hotComment: {
+        isLoading: true,
+        isLoadError: true,
+        page: 1,
+        total: 0,
+        maxPage: 1,
+        nextPage: 1,
+        limit: 20,
+        list: [
+        // {
+        //   text: ['123123hhh'],
+        //   userName: 'dsads',
+        //   avatar: 'http://img4.kuwo.cn/star/userhead/39/52/1602393411654_512039239s.jpg',
+        //   time: '2020-10-22 22:14:17',
+        //   timeStr: '2020-10-22 22:14:17',
+        //   likedCount: 100,
+        //   reply: [
+        //     {
+        //       text: ['123123hhh'],
+        //       userName: 'dsads',
+        //       avatar: 'http://img4.kuwo.cn/star/userhead/39/52/1602393411654_512039239s.jpg',
+        //       time: '2020-10-22 22:14:17',
+        //       timeStr: '2020-10-22 22:14:17',
+        //       likedCount: 100,
+        //     },
+        //   ],
+        // },
+        ],
+      },
+    }
+  },
+  watch: {
+    show(n) {
+      if (n) this.handleShowComment()
+    },
+  },
+  mounted() {
+    this.setWidth()
+    window.addEventListener('resize', this.setWidth)
+  },
+  beforeUnmount() {
+    window.removeEventListener('resize', this.setWidth)
+  },
+  methods: {
+    setWidth() {
+      setTimeout(() => {
+        this.$refs.dom_container.style.width = ''
+
+        setTimeout(() => {
+          this.handleToggleTab(this.tabActiveId, true)
+        })
+      })
+    },
+    async getComment(musicInfo, page, limit, retryNum = 0) {
+      let resp
+      try {
+        resp = await music[musicInfo.source].comment.getComment(musicInfo, page, limit)
+      } catch (error) {
+        if (error.message == '取消请求' || ++retryNum > 2) throw error
+        resp = await this.getComment(musicInfo, page, limit, retryNum)
+      }
+      return resp
+    },
+    async getHotComment(musicInfo, page, limit, retryNum = 0) {
+      let resp
+      try {
+        resp = await music[musicInfo.source].comment.getHotComment(musicInfo, page, limit)
+      } catch (error) {
+        if (error.message == '取消请求') throw error
+        if (++retryNum <= 2) return this.getHotComment(musicInfo, page, limit, retryNum)
+
+        // 部分音源的热门评论接口会独立失效，此时使用最新评论并按点赞数排序，
+        // 避免一个非关键接口让整个热门页变成错误状态。
+        const fallback = await this.getComment(musicInfo, page, limit)
+        resp = {
+          ...fallback,
+          comments: [...fallback.comments].sort((a, b) => (b.likedCount ?? 0) - (a.likedCount ?? 0)),
+        }
+      }
+      return resp
+    },
+    handleGetNewComment(musicInfo, page, limit) {
+      this.newComment.isLoadError = false
+      this.newComment.isLoading = true
+      this.getComment(toOldMusicInfo(musicInfo), page, limit).then(comment => {
+        const result = normalizeCommentResult(comment, page, limit)
+        this.newComment.isLoading = false
+        this.newComment.total = result.total
+        this.newComment.maxPage = result.maxPage
+        this.newComment.page = page
+        this.newComment.list = result.comments
+        this.$nextTick(() => {
+          this.$refs.dom_commentNew.scrollTo(0, 0)
+        })
+      }).catch(err => {
+        console.log(err)
+        if (err.message == '取消请求') return
+        this.newComment.isLoadError = true
+        this.newComment.isLoading = false
+      })
+    },
+    handleGetHotComment(musicInfo, page, limit) {
+      this.hotComment.isLoadError = false
+      this.hotComment.isLoading = true
+      this.getHotComment(toOldMusicInfo(musicInfo), page, limit).then(hotComment => {
+        const result = normalizeCommentResult(hotComment, page, limit)
+        this.hotComment.isLoading = false
+        this.hotComment.total = result.total
+        this.hotComment.maxPage = result.maxPage
+        this.hotComment.page = page
+        this.hotComment.list = result.comments
+        this.$nextTick(() => {
+          this.$refs.dom_commentHot.scrollTo(0, 0)
+        })
+      }).catch(err => {
+        console.log(err)
+        if (err.message == '取消请求') return
+        this.hotComment.isLoadError = true
+        this.hotComment.isLoading = false
+      })
+    },
+    handleShowComment() {
+      this.currentMusicInfo = 'progress' in this.musicInfo ? this.musicInfo.metadata.musicInfo : this.musicInfo
+
+      if (this.currentMusicInfo.source == 'local' || !music[this.currentMusicInfo.source].comment) {
+        this.available = false
+        return
+      }
+      this.available = true
+      // if (this.musicInfo.songmid != this.currentMusicInfo.songmid) {
+      this.hotComment.page = 1
+      this.hotComment.total = 0
+      this.hotComment.maxPage = 1
+      this.hotComment.nextPage = 1
+
+      this.newComment.page = 1
+      this.newComment.total = 0
+      this.newComment.maxPage = 1
+      this.newComment.nextPage = 1
+      // }
+      this.isShowComment = true
+
+      this.handleGetHotComment(this.currentMusicInfo, this.hotComment.page, this.hotComment.limit)
+      this.handleGetNewComment(this.currentMusicInfo, this.newComment.page, this.newComment.limit)
+    },
+    handleToggleHotCommentPage(page) {
+      this.hotComment.nextPage = page
+      this.handleGetHotComment(this.currentMusicInfo, page, this.hotComment.limit)
+    },
+    handleToggleCommentPage(page) {
+      this.newComment.nextPage = page
+      this.handleGetNewComment(this.currentMusicInfo, page, this.newComment.limit)
+    },
+    handleToggleTab(id, force) {
+      if (!this.available || (!force && this.tabActiveId == id)) return
+      switch (id) {
+        case 'hot':
+          this.$refs.dom_tabMain.scrollLeft = 0
+          break
+        case 'new':
+          this.$refs.dom_tabMain.scrollLeft = this.$refs.dom_tabMain.clientWidth
+          break
+      }
+      this.tabActiveId = id
+    },
+  },
+}
+</script>
+
+<style lang="less" module>
+@import '@renderer/assets/styles/layout.less';
+
+.comment {
+  display: flex;
+  flex-flow: column nowrap;
+  transition: @transition-normal;
+  transition-property: transform,opacity;
+  transform-origin: 100%;
+  overflow: hidden;
+  // 外层布局已经为评论栏预留上下安全区，这里只负责面板内部排版，
+  // 避免 100% 高度叠加 padding 后把底部圆角和最后一条评论裁掉。
+  padding: 0;
+}
+.commentHeader {
+  flex: none;
+  padding: 0 10px 12px;
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  // border-bottom: 1px solid #eee;
+  h3 {
+    font-size: 15px;
+    .mixin-ellipsis-1();
+    line-height: 1.2;
+  }
+}
+.commentHeaderBtns {
+  flex: 1 0 auto;
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-end;
+  color: var(--color-primary);
+}
+.commentHeaderBtn {
+  height: 22px;
+  width: 22px;
+  cursor: pointer;
+  transition: opacity @transition-normal;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  +.commentHeaderBtn {
+    margin-left: 5px;
+  }
+
+  &:hover {
+    opacity: .7;
+  }
+}
+.commentMain {
+  flex: 1 1 0;
+  background-color: rgba(255, 255, 255, .54);
+  border-radius: 22px;
+  box-shadow: none;
+  backdrop-filter: blur(16px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  clip-path: inset(0 round 22px);
+}
+.tab_header {
+  display: flex;
+  flex-flow: row nowrap;
+  gap: 16px;
+  padding: 9px 22px 1px;
+}
+.tab_main {
+  flex: 1 1 0;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-flow: row nowrap;
+  overflow: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+}
+.tab_content {
+  flex-shrink: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+.tab_content_scroll {
+  position: absolute;
+  inset: 0 6px 0 0;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0 20px 28px 22px;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, .22) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-track {
+    margin: 8px 0 12px;
+    border-radius: 999px;
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    min-height: 44px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .2);
+    background-clip: padding-box;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, .34);
+    background-clip: padding-box;
+  }
+}
+
+// 全局 .scroll 会注入主题色滚动条；播放详情使用中性的沉浸式滚动条。
+:global(.scroll).tab_content_scroll {
+  scrollbar-color: rgba(255, 255, 255, .22) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    background-color: transparent;
+  }
+
+  &::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border: 1px solid transparent;
+    background-color: rgba(255, 255, 255, .2);
+    background-clip: padding-box;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, .34);
+    background-clip: padding-box;
+  }
+}
+.commentLabel {
+  padding: 15px;
+  color: var(--color-font-label);
+  font-size: 14px;
+}
+.commentType {
+  padding: 5px 0;
+  margin: 0;
+  font-size: 13px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: @transition-normal;
+  transition-property: opacity, color;
+  &:hover {
+    opacity: .7;
+  }
+  &.active {
+    color: var(--color-primary);
+  }
+}
+.commentFloor {
+  opacity: 1;
+  transition: opacity @transition-normal;
+  // 列表加载完成挂载时淡入，避免内容突然填充
+  animation: qCommentListIn .32s ease both;
+
+  &.loading {
+    opacity: .4;
+  }
+}
+
+@keyframes qCommentListIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.pagination {
+  padding: 10px 0;
+}
+
+.unavailable {
+  flex: auto;
+  padding-top: 10%;
+  text-align: center;
+  font-size: 14px;
+  color: var(--color-font-label);
+}
+
+:global(body:has(#container.show-player-detail)) .comment {
+  color: rgba(255, 255, 255, .9);
+
+  .commentHeaderBtns {
+    color: rgba(255, 255, 255, .66);
+  }
+
+  .commentHeaderBtn {
+    border-radius: 50%;
+    transition: color @transition-fast, background-color @transition-fast, transform @transition-fast;
+
+    &:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, .1);
+      opacity: 1;
+    }
+
+    &:active {
+      transform: scale(.94);
+    }
+  }
+
+  .commentMain {
+    border: 1px solid rgba(255, 255, 255, .12);
+    color: rgba(255, 255, 255, .84);
+    background: rgba(25, 30, 34, .72);
+    box-shadow: none;
+    backdrop-filter: blur(28px) saturate(1.12);
+  }
+
+  .tab_header {
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
+  }
+
+  .commentType {
+    color: rgba(255, 255, 255, .58);
+
+    &.active {
+      color: rgba(255, 255, 255, .96);
+    }
+  }
+
+  .commentLabel,
+  .unavailable {
+    color: rgba(255, 255, 255, .48);
+  }
+}
+
+</style>

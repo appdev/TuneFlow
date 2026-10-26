@@ -6,10 +6,11 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates g++ git make python3 \
  && rm -rf /var/lib/apt/lists/*
 
-COPY package.json package-lock.json ./
+COPY apps/service/package.json apps/service/package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
 
-COPY . .
+COPY apps/service/ .
+COPY LICENSE NOTICE ./
 ARG TUNEFLOW_WEB_VARIANT=legacy
 RUN if [ "$TUNEFLOW_WEB_VARIANT" = "integrated" ]; then \
       node build-config/server/install-integrated-web.mjs && npm run prepare:service; \

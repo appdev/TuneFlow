@@ -1,0 +1,203 @@
+import { installDefaultAudioOutput } from '../../tests/helpers/browserAudio'
+import { rmSync, mkdtempSync } from 'node:fs'
+import { spawn, type ChildProcess } from 'node:child_process'
+import http from 'node:http'
+import net from 'node:net'
+import os from 'node:os'
+import path from 'node:path'
+import { chromium } from '@playwright/test'
+import AdmZip from 'adm-zip'
+import { afterAll, describe, expect, it } from 'vitest'
+
+const fixtureSource = `/*
+ * @name UI smoke source
+ * @description Source used only by the prepared Service browser smoke test
+ * @version 1.0.0
+ */
+window.tuneflow.on(window.tuneflow.EVENT_NAMES.request, async ({ source, action }) => {
+  if (source !== 'fixture') throw new Error('unexpected source')
+  if (action === 'lyric') return { lyric: 'fixture lyric' }
+  throw new Error('unexpected action')
+})
+window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
+  sources: { fixture: { type: 'music', actions: ['lyric'], qualitys: [] } },
+})`
+
+const providerResult = JSON.stringify({
+  TOTAL: '1',
+  SHOW: '1',
+  abslist: [{
+    MUSICRID: 'MUSIC_fixture-ui',
+    SONGNAME: 'Fixture provider UI',
+    ARTIST: 'Fixture artist',
+    ALBUMID: 'fixture-album',
+    ALBUM: 'Fixture album',
+    DURATION: '180',
+    N_MINFO: 'level:320k,bitrate:320,format:mp3,size:8m',
+  }],
+})
+
+const listen = async(server: net.Server | http.Server): Promise<number> => await new Promise((resolve, reject) => {
+  server.once('error', reject)
+  server.listen(0, '127.0.0.1', () => {
+    server.off('error', reject)
+    resolve((server.address() as net.AddressInfo).port)
+  })
+})
+
+const close = async(server: net.Server | http.Server | undefined): Promise<void> => {
+  if (server?.listening) await new Promise<void>(resolve => server.close(() => { resolve() }))
+}
+
+const waitForHealth = async(origin: string): Promise<void> => {
+  let lastError: unknown
+  for (let attempt = 0; attempt < 80; attempt++) {
+    try {
+      if ((await fetch(`${origin}/api/v1/health`)).ok) return
+    } catch (error) { lastError = error }
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+  if (lastError instanceof Error) throw lastError
+  throw new Error('prepared Service did not become healthy')
+}
+
+describe('Task 4 prepared Service UI smoke', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-task4-ui-'))
+  let sourceServer: http.Server | undefined
+  let proxyServer: http.Server | undefined
+  let service: ChildProcess | undefined
+
+  afterAll(async() => {
+    if (service != null && service.exitCode == null) {
+      service.kill('SIGTERM')
+      await new Promise<void>(resolve => service!.once('exit', () => { resolve() }))
+    }
+    await close(proxyServer)
+    await close(sourceServer)
+    rmSync(root, { recursive: true, force: true })
+  })
+
+  it('imports, activates, and searches through the original UI and a CONNECT provider fixture', async() => {
+    sourceServer = http.createServer((request, response) => {
+      if (request.url !== '/source.js') {
+        response.statusCode = 404
+        response.end()
+        return
+      }
+      response.setHeader('content-type', 'application/javascript')
+      response.end(fixtureSource)
+    })
+    const sourcePort = await listen(sourceServer)
+
+    proxyServer = http.createServer((_request, response) => {
+      response.statusCode = 502
+      response.end()
+    })
+    proxyServer.on('connect', (_request, socket) => {
+      socket.write('HTTP/1.1 200 Connection Established\r\n\r\n')
+      socket.once('data', () => {
+        socket.end(`HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(providerResult)}\r\nConnection: close\r\n\r\n${providerResult}`)
+      })
+    })
+    const proxyPort = await listen(proxyServer)
+
+    const portServer = net.createServer()
+    const servicePort = await listen(portServer)
+    await close(portServer)
+    const origin = `http://127.0.0.1:${servicePort}`
+    service = spawn(process.execPath, ['dist/server/index.cjs'], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        NODE_ENV: 'test',
+        TUNEFLOW_TEST_ALLOW_PRIVATE_SOURCE_TARGETS: '1',
+        HTTP_PROXY: `http://127.0.0.1:${proxyPort}`,
+        TUNEFLOW_HOST: '127.0.0.1',
+        TUNEFLOW_PORT: String(servicePort),
+        TUNEFLOW_STORAGE_ROOT: path.join(root, 'storage'),
+        TUNEFLOW_WEB_ROOT: path.join(process.cwd(), 'dist/web'),
+        TUNEFLOW_SERVICE_NODE_MODULES: path.join(process.cwd(), 'dist/server/node_modules'),
+      },
+      stdio: 'ignore',
+    })
+    await waitForHealth(origin)
+    expect((await fetch(`${origin}/api/v1/settings`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ 'common.isAgreePact': true, 'common.langId': 'en-us' }),
+    })).ok).toBe(true)
+
+    const browser = await chromium.launch()
+    const page = await browser.newPage()
+    await installDefaultAudioOutput(page)
+    let activationRequests = 0
+    page.on('request', request => {
+      if (request.method() === 'PUT' && new URL(request.url()).pathname === '/api/v1/sources/active') activationRequests++
+    })
+    try {
+      await page.goto(`${origin}/`, { waitUntil: 'networkidle' })
+      await page.getByRole('tab', { name: 'Settings' }).click()
+      const manage = page.getByRole('button', { name: 'Music API Management' })
+      await manage.waitFor({ state: 'visible' })
+      await manage.click()
+      const exportButton = page.getByTestId('user-api-export')
+      await exportButton.waitFor({ state: 'visible' })
+      expect(await exportButton.isDisabled()).toBe(true)
+      await page.getByRole('button', { name: 'Import from Network' }).click()
+      await page.locator('input[type="url"]').fill(`http://127.0.0.1:${sourcePort}/source.js`)
+      await page.getByRole('button', { name: 'Import', exact: true }).click()
+      await page.getByRole('heading', { name: /^UI smoke source/ }).waitFor({ state: 'visible' })
+      await page.locator('input[type="file"]').setInputFiles({
+        name: 'local-source.js',
+        mimeType: 'application/javascript',
+        buffer: Buffer.from(fixtureSource.replace('@name UI smoke source', '@name Local UI smoke source')),
+      })
+      await page.getByRole('heading', { name: /^Local UI smoke source/ }).waitFor({ state: 'visible' })
+      expect(await exportButton.isEnabled()).toBe(true)
+      const downloadPromise = page.waitForEvent('download')
+      const exportResponsePromise = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/sources/export')
+      await exportButton.click()
+      const exportResponse = await exportResponsePromise
+      expect(exportResponse.status()).toBe(200)
+      expect(exportResponse.headers()['content-type']).toBe('application/zip')
+      const download = await downloadPromise
+      expect(download.suggestedFilename()).toMatch(/^tuneflow-sources-\d{8}-\d{6}\.zip$/)
+      const downloadPath = await download.path()
+      expect(downloadPath).not.toBeNull()
+      const exportedScripts = new AdmZip(downloadPath).getEntries().map(entry => entry.getData().toString('utf8'))
+      expect(exportedScripts).toEqual([
+        fixtureSource,
+        fixtureSource.replace('@name UI smoke source', '@name Local UI smoke source'),
+      ])
+      await page.route('**/api/v1/sources/export', async route => {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: { code: 'SOURCE_EXPORT_FAILED', message: 'Unable to export installed sources' } }),
+        })
+      })
+      await exportButton.click()
+      await page.getByText('Source export failed: Unable to export installed sources', { exact: true }).waitFor({ state: 'visible' })
+      expect(await exportButton.isEnabled()).toBe(true)
+      await page.getByRole('button', { name: 'OK', exact: true }).click()
+      const closeSourceManager = page.getByRole('heading', { name: /^UI smoke source/ }).locator('xpath=ancestor::main/preceding-sibling::header/button')
+      await closeSourceManager.click()
+      await page.getByRole('heading', { name: /^UI smoke source/ }).waitFor({ state: 'detached' })
+      await page.getByRole('radio', { name: /^UI smoke source/ }).press('Enter')
+      await expect.poll(async() => {
+        const data = await (await fetch(`${origin}/api/v1/settings`)).json() as { data: { 'common.apiSource': string } }
+        return data.data['common.apiSource']
+      }, { timeout: 15_000 }).toMatch(/^user_api_/)
+      await expect.poll(async() => {
+        const data = await (await fetch(`${origin}/api/v1/sources`)).json() as { data: Array<{ active: boolean }> }
+        return data.data.some(source => source.active)
+      }, { timeout: 15_000 }).toBe(true)
+      expect(activationRequests).toBeGreaterThan(0)
+
+      await page.goto(`${origin}/#/search?source=kw&type=music&text=fixture`, { waitUntil: 'networkidle' })
+      await page.getByText('Fixture provider UI').waitFor({ state: 'visible', timeout: 15_000 })
+    } finally {
+      await browser.close()
+    }
+  }, 45_000)
+})

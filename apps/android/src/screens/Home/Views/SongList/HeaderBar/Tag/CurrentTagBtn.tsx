@@ -1,0 +1,57 @@
+import Button from '@/components/common/Button'
+import Text from '@/components/common/Text'
+import { Icon } from '@/components/common/Icon'
+import { useI18n } from '@/lang'
+import { createStyle } from '@/utils/tools'
+import { forwardRef, useImperativeHandle, useState } from 'react'
+
+
+export interface CurrentTagBtnProps {
+  onShowList: () => void
+}
+
+export interface CurrentTagBtnType {
+  setCurrentTagInfo: (name: string) => void
+}
+
+export default forwardRef<CurrentTagBtnType, CurrentTagBtnProps>(({ onShowList }, ref) => {
+  const t = useI18n()
+  const [name, setName] = useState('')
+
+  useImperativeHandle(ref, () => ({
+    setCurrentTagInfo(name) {
+      if (!name) name = t('songlist_tag_default')
+      setName(name)
+    },
+  }))
+
+  return (
+    <Button style={styles.btn} onPress={onShowList}>
+      <Text size={13} style={styles.sourceMenu} numberOfLines={1}>{name}</Text>
+      <Icon accessible={false} name="chevron-down" rawSize={14} />
+    </Button>
+  )
+})
+
+
+const styles = createStyle({
+  btn: {
+    minHeight: 48,
+    maxWidth: '70%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingLeft: 15,
+    paddingRight: 15,
+    justifyContent: 'center',
+  },
+  sourceMenu: {
+    flexShrink: 1,
+    // height: 38,
+    // lineHeight: 38,
+    textAlign: 'center',
+    // minWidth: 70,
+    // paddingTop: 10,
+    // paddingBottom: 10,
+  },
+})

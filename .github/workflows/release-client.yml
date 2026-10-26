@@ -1,0 +1,241 @@
+name: Build and release clients from monorepo
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths: ['apps/player/**', 'apps/android/**', 'apps/service/**', 'packages/**', 'scripts/**', '.github/workflows/release-client.yml']
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Frozen TuneFlow commit or client tag
+        type: string
+        required: true
+      component:
+        description: Client component
+        type: choice
+        options: [all, desktop, web, android]
+        default: all
+  workflow_call:
+    inputs:
+      source_ref:
+        type: string
+        required: true
+      component:
+        type: string
+        default: all
+      publish:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: client-build-${{ github.repository }}-${{ github.event.pull_request.number || inputs.source_ref || github.sha }}-${{ inputs.component || 'all' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      source: ${{ steps.metadata.outputs.source }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: appdev/TuneFlow
+          ref: ${{ inputs.source_ref || github.event.pull_request.head.sha || github.sha }}
+      - id: metadata
+        env:
+          COMPONENT: ${{ inputs.component || 'all' }}
+          PUBLISH: ${{ inputs.publish || false }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs'), cp = require('node:child_process')
+          if (!['all', 'desktop', 'web', 'android'].includes(process.env.COMPONENT)) throw Error('Invalid component')
+          if (process.env.PUBLISH === 'true' && process.env.GITHUB_REPOSITORY !== 'appdev/Q-music') throw Error('Publish through the Q-music compatibility caller')
+          const desktop = require('./apps/player/package.json'), android = require('./apps/android/package.json')
+          if (process.env.COMPONENT === 'all' && desktop.version !== android.version) throw Error('All-client release requires matching versions')
+          const version = process.env.COMPONENT === 'android' ? android.version : desktop.version
+          if (!/^\d+\.\d+\.\d+$/.test(version)) throw Error('Invalid client version')
+          const source = cp.execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, 'version=' + version + '\nsource=' + source + '\n')
+          NODE
+
+  verify:
+    needs: metadata
+    defaults:
+      run:
+        working-directory: apps/player
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: appdev/TuneFlow
+          ref: ${{ needs.metadata.outputs.source }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/player/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: node --test test/releaseBundle.test.cjs
+
+  desktop:
+    needs: metadata
+    if: inputs.component == '' || inputs.component == 'all' || inputs.component == 'desktop'
+    defaults:
+      run:
+        working-directory: apps/player
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-latest, target: darwin-arm64 }
+          - { runner: macos-latest, target: darwin-x64 }
+          - { runner: windows-latest, target: win32-x64 }
+          - { runner: windows-latest, target: win32-arm64 }
+          - { runner: ubuntu-latest, target: linux-x64 }
+          - { runner: ubuntu-latest, target: linux-arm64 }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    env:
+      Q_PREVIEW_OUTPUT_ROOT: artifacts/release
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: appdev/TuneFlow
+          ref: ${{ needs.metadata.outputs.source }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/player/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm run pack:service -- ${{ matrix.target }}
+      - uses: actions/upload-artifact@v6
+        with:
+          name: qmusic-release-${{ matrix.target }}
+          path: |
+            apps/player/artifacts/release/${{ matrix.target }}/*.zip
+            apps/player/artifacts/release/${{ matrix.target }}/*.tar.gz
+          if-no-files-found: error
+
+  web:
+    needs: metadata
+    if: inputs.component == '' || inputs.component == 'all' || inputs.component == 'web'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: appdev/TuneFlow
+          ref: ${{ needs.metadata.outputs.source }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            apps/player/package-lock.json
+            apps/service/package-lock.json
+      - run: npm ci
+        working-directory: apps/player
+      - run: npm ci --ignore-scripts
+        working-directory: apps/service
+      - run: npm run build:web:qmusic
+      - name: Archive Web
+        env:
+          VERSION: ${{ needs.metadata.outputs.version }}
+        run: tar -czf "Q-music-Web-$VERSION.tar.gz" -C apps/service/dist/web-qmusic .
+      - uses: actions/upload-artifact@v6
+        with:
+          name: qmusic-release-web
+          path: Q-music-Web-*.tar.gz
+          if-no-files-found: error
+
+  android:
+    needs: metadata
+    if: inputs.component == '' || inputs.component == 'all' || inputs.component == 'android'
+    defaults:
+      run:
+        working-directory: apps/android
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: appdev/TuneFlow
+          ref: ${{ needs.metadata.outputs.source }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/android/package-lock.json
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - run: sdkmanager "platforms;android-36" "build-tools;35.0.0" "ndk;26.1.10909125" "cmake;3.22.1"
+      - run: npm ci
+      - name: Verify shared functionality
+        run: |
+          npm run test:update
+          npm run test:accounts
+          npm run test:account-transfer
+          npm run test:qq-sync
+          npm run test:browse
+          npm run test:downloads
+          npm run test:download-selection
+          npm run test:playback-preferences
+          npm run test:background
+      - run: npm run pack:android:standalone
+      - name: Verify preview identity and APK signatures
+        shell: bash
+        env:
+          VERSION: ${{ needs.metadata.outputs.version }}
+        run: |
+          for apk in android/app/build/outputs/apk/standalone/*.apk; do
+            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify "$apk"
+            "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$apk" > /tmp/qmusic-apk-badging.txt
+            grep -q "name='io.github.nshpiter.qmusic.mobile.preview'" /tmp/qmusic-apk-badging.txt
+            grep -q "versionName='$VERSION-preview'" /tmp/qmusic-apk-badging.txt
+          done
+      - uses: actions/upload-artifact@v6
+        with:
+          name: qmusic-release-android
+          path: apps/android/android/app/build/outputs/apk/standalone/*.apk
+          if-no-files-found: error
+
+  publish:
+    if: always() && inputs.publish && needs.metadata.result == 'success' && needs.verify.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    needs: [metadata, verify, desktop, web, android]
+    runs-on: ubuntu-latest
+    concurrency:
+      group: client-publication-${{ needs.metadata.outputs.version }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: appdev/Q-music
+      RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
+      RELEASE_SOURCE: ${{ needs.metadata.outputs.source }}
+      RELEASE_COMPONENT: ${{ inputs.component || 'all' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: appdev/TuneFlow
+          ref: ${{ needs.metadata.outputs.source }}
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: qmusic-release-*
+          path: release-assets
+          merge-multiple: true
+      - run: node scripts/publish-client.cjs release-assets

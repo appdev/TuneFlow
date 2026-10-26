@@ -1,0 +1,7 @@
+{
+  "name": "@tuneflow/service-client",
+  "version": "0.0.0",
+  "private": true,
+  "main": "src/client.ts",
+  "types": "src/client.ts"
+}

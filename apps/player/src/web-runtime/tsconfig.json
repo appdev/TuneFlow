@@ -1,0 +1,12 @@
+{
+  "extends": "../renderer/tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@common/*": ["../common/*"],
+      "@renderer/*": ["../renderer/*"],
+      "@root/*": ["../*"],
+      "@web-runtime/*": ["./*"]
+    }
+  },
+  "include": ["./**/*.ts", "../renderer/types/**/*.d.ts", "../types/**/*.d.ts"]
+}

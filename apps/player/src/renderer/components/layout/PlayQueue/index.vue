@@ -1,0 +1,759 @@
+<template>
+  <transition enter-active-class="q-play-queue-enter-active" leave-active-class="q-play-queue-leave-active">
+    <div v-if="isShowPlayQueue" :class="[$style.layer, { [$style.immersive]: isImmersiveDetail, 'q-play-queue-immersive': isImmersiveDetail }]">
+      <aside
+        ref="panelRef"
+        :class="$style.panel"
+        tabindex="-1"
+        role="region"
+        aria-labelledby="play_queue_title"
+        @click.stop
+        @keydown.esc.stop.prevent="closeQueue"
+      >
+        <header :class="$style.header">
+          <div :class="$style.heading">
+            <h2 id="play_queue_title">{{ $t('play_queue__title') }}</h2>
+            <p v-if="currentTrackText">
+              <span>{{ $t('play_queue__now_playing') }}</span>
+              {{ currentTrackText }}
+            </p>
+          </div>
+          <button
+            type="button"
+            :class="$style.closeBtn"
+            :aria-label="$t('btn_close')"
+            :title="$t('btn_close')"
+            @click="closeQueue"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12" />
+              <path d="M18 6L6 18" />
+            </svg>
+          </button>
+        </header>
+
+        <div :class="$style.tabs">
+          <button
+            type="button"
+            :class="{ [$style.activeTab]: activeTab == 'playlist' }"
+            :aria-pressed="activeTab == 'playlist'"
+            @click="activeTab = 'playlist'"
+          >
+            {{ $t('play_queue__playlist') }}
+            <span>{{ currentList.length }}</span>
+          </button>
+          <button
+            type="button"
+            :class="{ [$style.activeTab]: activeTab == 'later' }"
+            :aria-pressed="activeTab == 'later'"
+            @click="activeTab = 'later'"
+          >
+            {{ $t('list__play_later') }}
+            <span>{{ tempPlayList.length }}</span>
+          </button>
+        </div>
+
+        <section v-show="activeTab == 'playlist'" :class="$style.tabPanel">
+          <div :class="$style.listMeta">
+            <strong>{{ currentListName }}</strong>
+            <button v-if="currentIndex >= 0 && !isListLoading && !listError" type="button" :class="$style.locateBtn" @click="scrollToCurrent(true)">{{ $t('play_queue__locate') }}</button>
+            <span v-else>{{ $t('play_queue__songs', { num: currentList.length }) }}</span>
+          </div>
+          <div v-if="isListLoading && !currentList.length" :class="$style.empty" role="status">{{ $t('loading') }}</div>
+          <div v-else-if="listError" :class="$style.empty" role="alert">
+            <p>{{ listError }}</p>
+            <button type="button" :class="$style.locateBtn" @click="loadCurrentList">{{ $t('play_queue__retry') }}</button>
+          </div>
+          <base-virtualized-list
+            v-else-if="currentList.length"
+            ref="listRef"
+            v-slot="{ item, index }"
+            :class="$style.list"
+            :list="currentList"
+            :item-height="56"
+            key-name="id"
+            container-class="scroll"
+          >
+            <QueueItem
+              :music-info="item"
+              :index="index"
+              :active="currentIndex == index"
+              :playing="isPlay && currentIndex == index"
+              @play="handlePlayCurrent(index, item)"
+            />
+          </base-virtualized-list>
+          <div v-else :class="$style.empty">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 18V5l10-2v13" />
+              <circle cx="6" cy="18" r="3" />
+              <circle cx="16" cy="16" r="3" />
+            </svg>
+            <p>{{ $t('play_queue__empty') }}</p>
+          </div>
+          <p v-if="playError" :class="$style.feedback" role="alert">{{ playError }}</p>
+        </section>
+
+        <section v-show="activeTab == 'later'" :class="$style.tabPanel">
+          <div :class="$style.listMeta">
+            <strong>{{ $t('list__play_later') }}</strong>
+            <button
+              v-if="tempPlayList.length"
+              type="button"
+              :class="$style.clearBtn"
+              :aria-label="$t('play_queue__clear_later')"
+              :title="$t('play_queue__clear_later')"
+              @click="clearTempPlayeList"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 7h16" />
+                <path d="M9 7V4h6v3" />
+                <path d="M7 7l1 13h8l1-13" />
+                <path d="M10 11v5" />
+                <path d="M14 11v5" />
+              </svg>
+            </button>
+          </div>
+          <transition-group v-if="tempPlayList.length" tag="div" name="q-queue-item" :class="['scroll', $style.laterList]">
+            <QueueItem
+              v-for="(item, index) in tempPlayList"
+              :key="item.tempId ?? `${item.musicInfo.id}_${index}`"
+              :music-info="item.musicInfo"
+              :index="index"
+              removable
+              @play="handlePlayLater(index)"
+              @remove="removeTempPlayList(index)"
+            />
+          </transition-group>
+          <div v-else :class="$style.empty">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 6h12" />
+              <path d="M4 11h12" />
+              <path d="M4 16h8" />
+              <path d="M17 14v6" />
+              <path d="M17 14l4 2.5-4 2.5" />
+            </svg>
+            <p>{{ $t('play_queue__empty_later') }}</p>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </transition>
+</template>
+
+<script setup>
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from '@common/utils/vueTools'
+import { LIST_IDS } from '@common/constants'
+import { play, pause, playList, playTempListByIndex } from '@renderer/core/player'
+import { useI18n } from '@renderer/plugins/i18n'
+import { getListMusics } from '@renderer/store/list/action'
+import { defaultList, loveList, userLists } from '@renderer/store/list/state'
+import { downloadList } from '@renderer/store/download/state'
+import {
+  isShowPlayerDetail,
+  isPlay,
+  isShowPlayQueue,
+  musicInfo,
+  playInfo,
+  playMusicInfo,
+  tempPlayList,
+} from '@renderer/store/player/state'
+import {
+  clearTempPlayeList,
+  removeTempPlayList,
+  setShowPlayQueue,
+} from '@renderer/store/player/action'
+import { appSetting } from '@renderer/store/setting'
+import QueueItem from './QueueItem.vue'
+
+// 列表元信息区（header + tabs + meta bar）的总高度，滚动定位时用于让当前歌曲露出在可视区顶部下方
+const SCROLL_TOP_OFFSET = -112
+
+const t = useI18n()
+const activeTab = ref('playlist')
+const currentList = ref([])
+const isListLoading = ref(false)
+const listError = ref('')
+const playError = ref('')
+const listRef = ref(null)
+const panelRef = ref(null)
+let loadId = 0
+let loadedListId = null
+let playRequestId = 0
+let showId = 0
+let previousFocus = null
+
+const isImmersiveDetail = computed(() => {
+  return isShowPlayerDetail.value && appSetting['playDetail.style.layout'] == 'immersive'
+})
+
+const currentTrackText = computed(() => {
+  if (!musicInfo.name) return ''
+  return musicInfo.singer ? `${musicInfo.name} · ${musicInfo.singer}` : musicInfo.name
+})
+
+const currentListName = computed(() => {
+  switch (playInfo.playerListId) {
+    case LIST_IDS.DEFAULT:
+      return t(defaultList.name)
+    case LIST_IDS.LOVE:
+      return t(loveList.name)
+    case LIST_IDS.TEMP:
+      return t('play_queue__temporary_list')
+    case LIST_IDS.DOWNLOAD:
+      return t('download')
+    default:
+      return userLists.find(list => list.id == playInfo.playerListId)?.name ?? t('play_queue__current_list')
+  }
+})
+
+const currentIndex = computed(() => {
+  if (playMusicInfo.isTempPlay || !playMusicInfo.musicInfo) return -1
+  // playerPlayIndex 是 store 维护的权威播放位置，列表内有重复歌曲时按 id 查找会定位到第一个匹配项
+  return playInfo.playerPlayIndex
+})
+
+const loadCurrentList = async() => {
+  const requestId = ++loadId
+  const listId = playInfo.playerListId
+  listError.value = ''
+  playError.value = ''
+  if (loadedListId != listId) currentList.value = []
+  loadedListId = listId
+  if (!listId) {
+    isListLoading.value = false
+    return
+  }
+
+  isListLoading.value = true
+  try {
+    const list = listId == LIST_IDS.DOWNLOAD
+      ? [...downloadList]
+      : [...await getListMusics(listId)]
+    if (requestId != loadId || listId != playInfo.playerListId) return
+    currentList.value = list
+  } catch (err) {
+    if (requestId != loadId || listId != playInfo.playerListId) return
+    currentList.value = []
+    listError.value = t('play_queue__load_error')
+    console.error('load play queue list failed:', err)
+  } finally {
+    if (requestId == loadId) isListLoading.value = false
+  }
+}
+
+const scrollToCurrent = async(animate = false) => {
+  if (!isShowPlayQueue.value || activeTab.value != 'playlist' || currentIndex.value < 0) return
+  await nextTick()
+  if (!isShowPlayQueue.value || activeTab.value != 'playlist') return
+  listRef.value?.scrollToIndex(currentIndex.value, SCROLL_TOP_OFFSET, animate)
+}
+
+const closeQueue = () => {
+  setShowPlayQueue(false)
+}
+
+const handlePlayCurrent = async(index, item) => {
+  const requestId = ++playRequestId
+  const listId = playInfo.playerListId
+  if (!listId) return
+  playError.value = ''
+  try {
+    // 本地快照可能落后于源列表，播放前按来源与歌曲身份校正索引。
+    const list = listId == LIST_IDS.DOWNLOAD ? downloadList : await getListMusics(listId)
+    if (requestId != playRequestId || listId != playInfo.playerListId || !isShowPlayQueue.value) return
+    const matches = music => music?.id == item.id && music?.source == item.source
+    const targetIndex = matches(list[index]) ? index : list.findIndex(matches)
+    if (targetIndex < 0) {
+      await loadCurrentList()
+      return
+    }
+    if (targetIndex == currentIndex.value) {
+      if (isPlay.value) pause()
+      else play()
+    } else playList(listId, targetIndex)
+  } catch {
+    if (requestId == playRequestId) playError.value = t('play_queue__play_error')
+  }
+}
+
+const handlePlayLater = index => {
+  playTempListByIndex(index)
+}
+
+const handleMyListUpdate = listIds => {
+  if (playInfo.playerListId && listIds.includes(playInfo.playerListId)) void loadCurrentList()
+}
+
+const handleDocumentClick = () => {
+  closeQueue()
+}
+
+watch(() => playInfo.playerListId, () => {
+  void loadCurrentList()
+}, { immediate: true })
+
+const handleDownloadListUpdate = () => {
+  if (playInfo.playerListId == LIST_IDS.DOWNLOAD) void loadCurrentList()
+}
+
+watch(isShowPlayQueue, async(visible) => {
+  const requestId = ++showId
+  if (!visible) {
+    ++playRequestId
+    if (panelRef.value?.contains(document.activeElement) && previousFocus?.isConnected) previousFocus.focus({ preventScroll: true })
+    return
+  }
+  previousFocus = document.activeElement
+  await nextTick()
+  if (requestId != showId || !isShowPlayQueue.value) return
+  panelRef.value?.focus({ preventScroll: true })
+  await loadCurrentList()
+  if (requestId != showId || !isShowPlayQueue.value) return
+  await scrollToCurrent()
+})
+
+watch([activeTab, currentIndex], () => {
+  void scrollToCurrent(true)
+})
+
+onMounted(() => {
+  window.app_event.on('myListUpdate', handleMyListUpdate)
+  window.app_event.on('downloadListUpdate', handleDownloadListUpdate)
+  document.addEventListener('click', handleDocumentClick)
+})
+
+onBeforeUnmount(() => {
+  ++loadId
+  ++playRequestId
+  ++showId
+  window.app_event.off('myListUpdate', handleMyListUpdate)
+  window.app_event.off('downloadListUpdate', handleDownloadListUpdate)
+  document.removeEventListener('click', handleDocumentClick)
+})
+</script>
+
+<style lang="less" module>
+@import '@renderer/assets/styles/layout.less';
+
+.layer {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.panel {
+  position: absolute;
+  right: 24px;
+  bottom: calc(@height-player + 8px);
+  width: min(410px, calc(100vw - 40px));
+  height: clamp(340px, 58vh, 620px);
+  max-height: calc(100vh - @height-player - 30px);
+  display: flex;
+  flex-flow: column nowrap;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid var(--q-outline);
+  border-radius: 18px;
+  color: var(--color-font);
+  background:
+    linear-gradient(180deg, var(--q-surface-strong), var(--q-surface-strong)),
+    var(--color-main-background);
+  box-shadow: 0 22px 56px rgba(31, 45, 39, .22), inset 0 1px 0 var(--q-border);
+  backdrop-filter: blur(24px) saturate(1.12);
+  outline: none;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+
+.immersive {
+  .panel {
+    right: clamp(30px, 4.4vw, 68px);
+    bottom: 108px;
+    width: min(400px, calc(100vw - 48px));
+    height: clamp(360px, 60vh, 640px);
+    max-height: calc(100vh - 156px);
+    border-color: rgba(255, 255, 255, .15);
+    border-radius: 20px;
+    color: rgba(255, 255, 255, .9);
+    background:
+      linear-gradient(145deg, rgba(35, 41, 46, .9), rgba(17, 22, 26, .84)),
+      rgba(18, 22, 26, .88);
+    box-shadow:
+      0 28px 76px rgba(0, 0, 0, .44),
+      inset 0 1px 0 rgba(255, 255, 255, .12);
+    backdrop-filter: blur(30px) saturate(1.22);
+  }
+
+  .header,
+  .tabs,
+  .listMeta {
+    border-color: rgba(255, 255, 255, .08);
+  }
+
+  .heading {
+    h2 {
+      color: rgba(255, 255, 255, .96);
+    }
+
+    p {
+      color: rgba(255, 255, 255, .48);
+
+      span {
+        color: rgba(255, 255, 255, .86);
+      }
+    }
+  }
+
+  .closeBtn,
+  .clearBtn {
+    color: rgba(255, 255, 255, .58);
+
+    &:hover {
+      color: #fff;
+      background-color: rgba(255, 255, 255, .1);
+    }
+  }
+
+  .tabs {
+    margin: 0 12px;
+    padding: 4px;
+    height: 42px;
+    gap: 3px;
+    border: none;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, .06);
+
+    button {
+      border-radius: 9px;
+      color: rgba(255, 255, 255, .48);
+      transition: color @transition-fast, background-color @transition-fast;
+
+      &:after {
+        display: none;
+      }
+    }
+
+    .activeTab {
+      color: rgba(255, 255, 255, .96);
+      background: rgba(255, 255, 255, .12);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
+    }
+  }
+
+  .listMeta {
+    margin-top: 5px;
+    color: rgba(255, 255, 255, .4);
+
+    strong {
+      color: rgba(255, 255, 255, .62);
+    }
+  }
+
+  .empty {
+    color: rgba(255, 255, 255, .36);
+  }
+
+  .panel :global(.scroll) {
+    &::-webkit-scrollbar {
+      width: 7px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      border: 2px solid transparent;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .22);
+      background-clip: padding-box;
+
+      &:hover {
+        background: rgba(255, 255, 255, .34);
+        background-clip: padding-box;
+      }
+    }
+  }
+}
+
+.header {
+  flex: none;
+  min-height: 70px;
+  padding: 14px 14px 12px 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--q-outline);
+}
+
+.heading {
+  min-width: 0;
+
+  h2 {
+    margin: 0;
+    color: var(--color-font);
+    font-size: 17px;
+    line-height: 24px;
+    font-weight: 700;
+  }
+
+  p {
+    max-width: 320px;
+    margin: 4px 0 0;
+    overflow: hidden;
+    color: var(--color-font-label);
+    font-size: 11px;
+    line-height: 16px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+
+    span {
+      margin-right: 6px;
+      color: var(--color-primary);
+      font-weight: 600;
+    }
+  }
+}
+
+.closeBtn,
+.clearBtn {
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  color: var(--color-font-label);
+  background: transparent;
+  cursor: pointer;
+  transition: color @transition-fast, background-color @transition-fast;
+
+  &:hover {
+    color: var(--color-font);
+    background-color: var(--q-outline);
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+
+.locateBtn {
+  flex: none;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  &:hover { background: rgba(128, 128, 128, .12); }
+  &:focus-visible { outline: 2px solid var(--color-primary); }
+}
+.feedback {
+  padding: 10px 18px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.closeBtn {
+  width: 30px;
+  height: 30px;
+  flex: none;
+}
+
+.tabs {
+  flex: none;
+  height: 44px;
+  padding: 0 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  border-bottom: 1px solid var(--q-outline);
+
+  button {
+    position: relative;
+    min-width: 0;
+    padding: 0 8px;
+    border: none;
+    color: var(--color-font-label);
+    background: transparent;
+    font-size: 13px;
+    cursor: pointer;
+
+    &:after {
+      content: '';
+      position: absolute;
+      left: 24%;
+      right: 24%;
+      bottom: -1px;
+      height: 2px;
+      border-radius: 2px 2px 0 0;
+      background-color: transparent;
+    }
+
+    span {
+      margin-left: 5px;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  .activeTab {
+    color: var(--color-primary);
+    font-weight: 700;
+
+    &:after {
+      background-color: var(--color-primary);
+    }
+  }
+}
+
+.tabPanel {
+  min-height: 0;
+  flex: auto;
+  display: flex;
+  flex-flow: column nowrap;
+}
+
+.listMeta {
+  flex: none;
+  height: 38px;
+  padding: 0 14px 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--q-outline);
+  color: var(--color-font-label);
+  font-size: 11px;
+
+  strong {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--color-font-label);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+.clearBtn {
+  width: 28px;
+  height: 28px;
+
+  &:hover {
+    color: #d65555;
+    background-color: rgba(214, 85, 85, .09);
+  }
+}
+
+.list,
+.laterList {
+  min-height: 0;
+  flex: auto;
+  // 底部渐隐，避免最后一行被硬裁切
+  -webkit-mask-image: linear-gradient(180deg, #fff calc(100% - 24px), transparent 100%);
+}
+
+.laterList {
+  overflow-y: auto;
+}
+
+:global(.q-queue-item-enter-active) {
+  transition: opacity .2s ease, transform .2s ease;
+}
+
+:global(.q-queue-item-enter-from) {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+:global(.q-queue-item-leave-active) {
+  overflow: hidden;
+  transition: opacity .18s ease, height .22s ease, transform .18s ease;
+}
+
+:global(.q-queue-item-leave-to) {
+  height: 0 !important;
+  opacity: 0;
+  transform: translateX(12px);
+}
+
+:global(.q-queue-item-move) {
+  transition: transform .25s ease;
+}
+
+.empty {
+  min-height: 0;
+  flex: auto;
+  display: flex;
+  flex-flow: column nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--color-font-label);
+
+  svg {
+    width: 34px;
+    height: 34px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 18px;
+  }
+}
+
+:global(.q-play-queue-enter-active) {
+  animation: qPlayQueueEnter .24s cubic-bezier(.2, .8, .2, 1);
+}
+
+:global(.q-play-queue-leave-active) {
+  animation: qPlayQueueLeave .18s ease forwards;
+}
+
+@keyframes qPlayQueueEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes qPlayQueueLeave {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(.985);
+  }
+}
+
+@media (max-width: 980px) {
+  .panel {
+    right: 18px;
+    width: min(380px, calc(100vw - 30px));
+  }
+}
+</style>

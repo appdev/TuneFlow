@@ -1,0 +1,807 @@
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { createServer as createHttpServer } from 'node:http'
+import { once } from 'node:events'
+import type { AddressInfo } from 'node:net'
+import os from 'node:os'
+import path from 'node:path'
+import { afterEach, describe, expect, it } from 'vitest'
+import defaultSetting from '../common/defaultSetting'
+import { getDB } from './db/core/db'
+import { createServer } from './app'
+import { dateFormat2 } from './tuneFlowSdk/rendererUtilsShim'
+import { resolveStorageLayout } from './config'
+
+process.env.TUNEFLOW_SERVICE_NODE_MODULES = path.join(process.cwd(), 'dist/server/node_modules')
+
+const roots: string[] = []
+const apps: Array<Awaited<ReturnType<typeof createServer>>> = []
+const upstreams: Array<ReturnType<typeof createHttpServer>> = []
+
+const createTestServer = async() => {
+  const storageRoot = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-service-'))
+  const webRoot = path.join(storageRoot, 'web')
+  mkdirSync(webRoot)
+  writeFileSync(path.join(webRoot, 'index.html'), '<!doctype html><title>TuneFlow · 音流</title>')
+  roots.push(storageRoot)
+  const app = await createServer({ storageRoot, webRoot, host: '127.0.0.1', port: 0 })
+  apps.push(app)
+  return { app, storageRoot, webRoot }
+}
+
+afterEach(async() => {
+  for (const app of apps.splice(0)) await app.close()
+  await Promise.all(upstreams.splice(0).map(async server => {
+    await new Promise<void>(resolve => {
+      server.close(() => { resolve() })
+    })
+  }))
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
+})
+
+describe('TuneFlow service', () => {
+  it('serves Flutter at root and preserves the legacy SPA under /V2/', async() => {
+    const { app, webRoot } = await createTestServer()
+    mkdirSync(path.join(webRoot, 'V2'))
+    writeFileSync(path.join(webRoot, 'V2/index.html'), '<title>Legacy Web</title>')
+    writeFileSync(path.join(webRoot, 'V2/renderer.js'), 'window.legacy = true')
+    expect((await app.inject('/')).body).toContain('TuneFlow')
+    expect((await app.inject('/V2')).headers.location).toBe('/V2/')
+    expect((await app.inject('/V2/')).body).toContain('Legacy Web')
+    expect((await app.inject('/V2/nested')).body).toContain('Legacy Web')
+    expect((await app.inject('/V2/renderer.js')).body).toBe('window.legacy = true')
+    expect((await app.inject('/api/v1/missing')).statusCode).toBe(404)
+  })
+
+  it('keeps split durable state out of the user media root', async() => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-service-split-'))
+    roots.push(root)
+    const webRoot = path.join(root, 'web')
+    mkdirSync(webRoot)
+    writeFileSync(path.join(webRoot, 'index.html'), '<!doctype html>')
+    const storage = resolveStorageLayout({
+      TUNEFLOW_CONFIG_ROOT: path.join(root, 'config'),
+      TUNEFLOW_MEDIA_ROOT: path.join(root, 'music'),
+      TUNEFLOW_CACHE_ROOT: path.join(root, 'cache'),
+      TUNEFLOW_TEMP_ROOT: path.join(root, 'tmp'),
+    })
+
+    const app = await createServer({ storage, webRoot, host: '127.0.0.1', port: 0 })
+    apps.push(app)
+
+    expect(existsSync(path.join(storage.databaseRoot, 'tuneflow.data.db'))).toBe(true)
+    expect((await app.inject({ method: 'GET', url: '/api/v1/settings' })).json().data['download.savePath']).toBe(storage.mediaRoot)
+    expect(readdirSync(storage.mediaRoot)).toEqual([])
+    expect(existsSync(path.join(storage.mediaRoot, 'sources'))).toBe(false)
+  })
+
+  it('exposes health, capabilities, and server-safe default settings', async() => {
+    const { app, storageRoot } = await createTestServer()
+
+    expect((await app.inject({ method: 'GET', url: '/api/v1/health' })).json()).toEqual({
+      data: { status: 'ok', lanOrigin: '', externalOrigin: '' },
+    })
+    expect((await app.inject({ method: 'GET', url: '/api/v1/capabilities' })).json()).toMatchObject({
+      data: { runtime: 'service', apiVersion: 'v1', features: { settings: true, playback: true, library: true } },
+    })
+    const settings = (await app.inject({ method: 'GET', url: '/api/v1/settings' })).json()
+    expect(settings.data['theme.id']).toBe(defaultSetting['theme.id'])
+    expect(settings.data['download.savePath']).toBe(path.join(realpathSync(storageRoot), 'audio'))
+    expect(settings.data).toMatchObject({
+      'service.lanOrigin': '',
+      'service.externalOrigin': '',
+      'download.enable': true,
+      'download.fileName': '歌名 - 歌手',
+      'download.isUseOtherSource': true,
+      'download.isEmbedPic': true,
+      'download.isEmbedLyric': true,
+      'download.isEmbedVerbatimLyric': true,
+      'download.isEmbedLyricT': true,
+      'download.isEmbedLyricR': true,
+      'download.isDownloadLrc': true,
+      'download.isDownloadVerbatimLyric': true,
+      'download.isDownloadTLrc': true,
+      'download.isDownloadRLrc': true,
+    })
+    expect(settings.data['desktopLyric.enable']).toBe(false)
+  })
+
+  it('persists settings across a server restart', async() => {
+    const { app, storageRoot, webRoot } = await createTestServer()
+    const patched = await app.inject({ method: 'PATCH', url: '/api/v1/settings', payload: { 'player.volume': 0.35, 'player.autoDownloadOnPlay': true } })
+    expect(patched.statusCode).toBe(200)
+    expect(patched.json().data['player.volume']).toBe(0.35)
+    expect(patched.json().data['player.autoDownloadOnPlay']).toBe(true)
+    await app.close()
+    apps.splice(apps.indexOf(app), 1)
+
+    const restarted = await createServer({ storageRoot, webRoot, host: '127.0.0.1', port: 0 })
+    apps.push(restarted)
+    expect((await restarted.inject({ method: 'GET', url: '/api/v1/settings' })).json().data['player.volume']).toBe(0.35)
+    expect((await restarted.inject({ method: 'GET', url: '/api/v1/settings' })).json().data['player.autoDownloadOnPlay']).toBe(true)
+  })
+
+  it('normalizes and persists Service access origins', async() => {
+    const { app, storageRoot, webRoot } = await createTestServer()
+    const patched = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/settings',
+      payload: {
+        'service.lanOrigin': 'http://192.168.1.20:3124/',
+        'service.externalOrigin': 'https://music.example.com/',
+      },
+    })
+    expect(patched.statusCode).toBe(200)
+    expect(patched.json().data).toMatchObject({
+      'service.lanOrigin': 'http://192.168.1.20:3124',
+      'service.externalOrigin': 'https://music.example.com',
+    })
+    expect((await app.inject({ method: 'GET', url: '/api/v1/health' })).json()).toEqual({
+      data: {
+        status: 'ok',
+        lanOrigin: 'http://192.168.1.20:3124',
+        externalOrigin: 'https://music.example.com',
+      },
+    })
+    await app.close()
+    apps.splice(apps.indexOf(app), 1)
+
+    const restarted = await createServer({ storageRoot, webRoot, host: '127.0.0.1', port: 0 })
+    apps.push(restarted)
+    expect((await restarted.inject({ method: 'GET', url: '/api/v1/settings' })).json().data).toMatchObject({
+      'service.lanOrigin': 'http://192.168.1.20:3124',
+      'service.externalOrigin': 'https://music.example.com',
+    })
+  })
+
+  it('rejects invalid Service access origins atomically', async() => {
+    const { app } = await createTestServer()
+    for (const value of [
+      'ftp://192.168.1.20',
+      'http://user:pass@192.168.1.20',
+      'http://192.168.1.20/base',
+      'http://192.168.1.20?mode=lan',
+    ]) {
+      const rejected = await app.inject({
+        method: 'PATCH',
+        url: '/api/v1/settings',
+        payload: {
+          'player.volume': 0.35,
+          'service.lanOrigin': value,
+        },
+      })
+      expect(rejected.statusCode).toBe(400)
+      expect((await app.inject({ method: 'GET', url: '/api/v1/settings' })).json().data).toMatchObject({
+        'player.volume': 1,
+        'service.lanOrigin': '',
+      })
+    }
+  })
+
+  it('preserves persisted disabled download settings when defaults are enabled', async() => {
+    const { app, storageRoot, webRoot } = await createTestServer()
+    const patched = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/settings',
+      payload: {
+        'download.enable': false,
+        'download.isUseOtherSource': false,
+        'download.isEmbedPic': false,
+        'download.isEmbedLyric': false,
+        'download.isEmbedVerbatimLyric': false,
+        'download.isEmbedLyricT': false,
+        'download.isEmbedLyricR': false,
+        'download.isDownloadLrc': false,
+        'download.isDownloadVerbatimLyric': false,
+        'download.isDownloadTLrc': false,
+        'download.isDownloadRLrc': false,
+      },
+    })
+    expect(patched.statusCode).toBe(200)
+    await app.close()
+    apps.splice(apps.indexOf(app), 1)
+
+    const restarted = await createServer({ storageRoot, webRoot, host: '127.0.0.1', port: 0 })
+    apps.push(restarted)
+    expect((await restarted.inject({ method: 'GET', url: '/api/v1/settings' })).json().data).toMatchObject({
+      'download.enable': false,
+      'download.isUseOtherSource': false,
+      'download.isEmbedPic': false,
+      'download.isEmbedLyric': false,
+      'download.isEmbedVerbatimLyric': false,
+      'download.isEmbedLyricT': false,
+      'download.isEmbedLyricR': false,
+      'download.isDownloadLrc': false,
+      'download.isDownloadVerbatimLyric': false,
+      'download.isDownloadTLrc': false,
+      'download.isDownloadRLrc': false,
+    })
+  })
+
+  it('migrates legacy branded setting keys without losing their values', async() => {
+    const { app, storageRoot, webRoot } = await createTestServer()
+    const insert = getDB().prepare('INSERT INTO web_settings (key, value) VALUES (?, ?)')
+    const legacyMarker = ['L', 'x'].join('')
+    insert.run(`player.isPlay${legacyMarker}lrc`, JSON.stringify(false))
+    insert.run(`download.isDownload${legacyMarker}Lrc`, JSON.stringify(false))
+    insert.run(`download.isEmbedLyric${legacyMarker}`, JSON.stringify(false))
+    await app.close()
+    apps.splice(apps.indexOf(app), 1)
+
+    const restarted = await createServer({ storageRoot, webRoot, host: '127.0.0.1', port: 0 })
+    apps.push(restarted)
+    const settings = (await restarted.inject({ method: 'GET', url: '/api/v1/settings' })).json().data
+    expect(settings['player.isPlayVerbatimLyric']).toBe(false)
+    expect(settings['download.isDownloadVerbatimLyric']).toBe(false)
+    expect(settings['download.isEmbedVerbatimLyric']).toBe(false)
+    expect(getDB().prepare('SELECT key FROM web_settings').all()).toEqual(expect.not.arrayContaining([
+      { key: `player.isPlay${legacyMarker}lrc` },
+      { key: `download.isDownload${legacyMarker}Lrc` },
+      { key: `download.isEmbedLyric${legacyMarker}` },
+    ]))
+  })
+
+  it('projects legacy download paths to the Service audio root and rejects their updates atomically', async() => {
+    const { app, storageRoot, webRoot } = await createTestServer()
+    getDB().prepare('INSERT INTO web_settings (key, value) VALUES (?, ?)').run(
+      'download.savePath',
+      JSON.stringify(path.join(storageRoot, 'legacy-downloads')),
+    )
+    await app.close()
+    apps.splice(apps.indexOf(app), 1)
+
+    const restarted = await createServer({ storageRoot, webRoot, host: '127.0.0.1', port: 0 })
+    apps.push(restarted)
+    expect((await restarted.inject({ method: 'GET', url: '/api/v1/settings' })).json().data['download.savePath'])
+      .toBe(path.join(realpathSync(storageRoot), 'audio'))
+
+    const volumeBefore = (await restarted.inject({ method: 'GET', url: '/api/v1/settings' })).json().data['player.volume']
+    expect((await restarted.inject({
+      method: 'PATCH',
+      url: '/api/v1/settings',
+      payload: { 'download.savePath': path.join(storageRoot, 'other'), 'player.volume': 0.35 },
+    })).json()).toEqual({
+      error: { code: 'IMMUTABLE_SETTING', message: 'Download path is managed by the Service' },
+    })
+    expect((await restarted.inject({ method: 'GET', url: '/api/v1/settings' })).json().data['player.volume']).toBe(volumeBefore)
+  })
+
+  it('keeps provider relative dates aligned with the renderer language setting', async() => {
+    const { app } = await createTestServer()
+    const patched = await app.inject({ method: 'PATCH', url: '/api/v1/settings', payload: { 'common.langId': 'zh-cn' } })
+    expect(patched.statusCode).toBe(200)
+    expect(dateFormat2(Date.now() - 60_000)).toBe('1 分钟前')
+  })
+
+  it('persists renderer app data and exposes Web environment and event snapshots', async() => {
+    const { app } = await createTestServer()
+
+    expect((await app.inject({ method: 'GET', url: '/api/v1/runtime' })).json()).toEqual({
+      data: { cmdParams: {}, deeplink: null },
+    })
+    expect((await app.inject({ method: 'GET', url: '/api/v1/client-data/viewPrevState' })).json()).toEqual({ data: null })
+    expect((await app.inject({
+      method: 'PUT',
+      url: '/api/v1/client-data/viewPrevState',
+      payload: { value: { url: '/search', query: { text: 'jazz' } } },
+    })).json()).toEqual({ data: { url: '/search', query: { text: 'jazz' } } })
+    expect((await app.inject({ method: 'GET', url: '/api/v1/client-data/viewPrevState' })).json()).toEqual({
+      data: { url: '/search', query: { text: 'jazz' } },
+    })
+    expect((await app.inject({ method: 'GET', url: '/api/v1/events/snapshot' })).json()).toEqual({
+      data: { sequence: 1, events: [{ type: 'downloads.updated', data: [], sequence: 1 }] },
+    })
+  })
+
+  it('creates independent playback sessions and ends one idempotently', async() => {
+    const { app } = await createTestServer()
+    const track = {
+      id: 'song-1',
+      source: 'kw',
+      name: 'Night Wind',
+      singer: 'Artist',
+      providerOnly: { albumId: 'album-1' },
+    }
+    const before = Date.now()
+
+    const recorded = await app.inject({
+      method: 'POST',
+      url: '/api/v1/playback/history',
+      payload: { track, platform: 'web' },
+    })
+    const replayed = await app.inject({
+      method: 'POST',
+      url: '/api/v1/playback/history',
+      payload: { track: { ...track, name: 'Night Wind replay' }, platform: 'android' },
+    })
+
+    expect(recorded.statusCode).toBe(200)
+    expect(recorded.json().data.track).toEqual(track)
+    expect(recorded.json().data.startedAt).toBeGreaterThanOrEqual(before)
+    expect(recorded.json().data.startedAt).toBeLessThanOrEqual(Date.now())
+    expect(recorded.json().data).toMatchObject({ platform: 'web', endedAt: null, completed: false })
+    expect(replayed.json().data.playbackId).not.toBe(recorded.json().data.playbackId)
+
+    const playbackId = recorded.json().data.playbackId
+    const ended = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/playback/history/${encodeURIComponent(playbackId)}`,
+      payload: { completed: false, lastPositionSeconds: 37.5, durationSeconds: 180 },
+    })
+    const repeated = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/playback/history/${encodeURIComponent(playbackId)}`,
+      payload: { completed: true, lastPositionSeconds: 180, durationSeconds: 180 },
+    })
+
+    expect(ended.statusCode).toBe(200)
+    expect(ended.json().data).toMatchObject({ playbackId, completed: false, lastPositionSeconds: 37.5, durationSeconds: 180 })
+    expect(repeated.json().data).toEqual(ended.json().data)
+    const entries = (await app.inject({ method: 'GET', url: '/api/v1/playback/history' })).json().data
+    expect(entries).toHaveLength(2)
+    expect(entries.map((entry: { playbackId: string }) => entry.playbackId))
+      .toEqual([replayed.json().data.playbackId, playbackId])
+  })
+
+  it('rejects invalid playback sessions and returns not found for an unknown id', async() => {
+    const { app } = await createTestServer()
+
+    for (const track of [{ id: '', source: 'kw' }, { id: 'song-1', source: '' }, { id: 'song-1' }]) {
+      const response = await app.inject({ method: 'POST', url: '/api/v1/playback/history', payload: { track, platform: 'web' } })
+      expect(response.statusCode).toBe(400)
+      expect(response.json().error.code).toBe('VALIDATION_ERROR')
+    }
+    expect((await app.inject({
+      method: 'POST', url: '/api/v1/playback/history', payload: { track: { id: 'song-1', source: 'kw' }, platform: 'docker' },
+    })).statusCode).toBe(400)
+    expect((await app.inject({
+      method: 'PATCH', url: '/api/v1/playback/history/missing', payload: { completed: false, lastPositionSeconds: -1, durationSeconds: 10 },
+    })).statusCode).toBe(400)
+    const missing = await app.inject({
+      method: 'PATCH', url: '/api/v1/playback/history/missing', payload: { completed: false, lastPositionSeconds: 0, durationSeconds: 10 },
+    })
+    expect(missing.statusCode).toBe(404)
+    expect(missing.json().error.code).toBe('NOT_FOUND')
+    expect((await app.inject({ method: 'GET', url: '/api/v1/playback/history' })).json()).toEqual({ data: [] })
+  })
+
+  it('persists independent playback sessions across restart', async() => {
+    const { app, storageRoot, webRoot } = await createTestServer()
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/playback/history',
+      payload: { track: { id: 'same', source: 'kw', name: 'Old' }, platform: 'ios' },
+    })
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/playback/history',
+      payload: { track: { id: 'same', source: 'kw', name: 'New' }, platform: 'macos' },
+    })
+    await app.close()
+    apps.splice(apps.indexOf(app), 1)
+
+    const restarted = await createServer({ storageRoot, webRoot, host: '127.0.0.1', port: 0 })
+    apps.push(restarted)
+    const entries = (await restarted.inject({ method: 'GET', url: '/api/v1/playback/history' })).json().data
+    expect(entries).toHaveLength(2)
+    expect(entries.map((entry: { playbackId: string }) => entry.playbackId))
+      .toEqual([second.json().data.playbackId, first.json().data.playbackId])
+  })
+
+  it('uses the Service setting to create automatic downloads after playback starts', async() => {
+    const { app } = await createTestServer()
+    const track = { id: 'auto-save', source: 'kw', name: 'Auto save', singer: 'Artist', meta: {} }
+
+    await app.inject({ method: 'POST', url: '/api/v1/playback/history', payload: { track, platform: 'web' } })
+    expect((await app.inject({ method: 'GET', url: '/api/v1/downloads' })).json().data).toEqual([])
+
+    await app.inject({ method: 'PATCH', url: '/api/v1/settings', payload: { 'player.autoDownloadOnPlay': true } })
+    await app.inject({ method: 'POST', url: '/api/v1/playback/history', payload: { track, platform: 'android' } })
+    await new Promise(resolve => setImmediate(resolve))
+    expect((await app.inject({ method: 'GET', url: '/api/v1/downloads' })).json().data).toHaveLength(1)
+
+    await app.inject({ method: 'POST', url: '/api/v1/playback/history', payload: { track: { id: 'local', source: 'local' }, platform: 'web' } })
+    await new Promise(resolve => setImmediate(resolve))
+    expect((await app.inject({ method: 'GET', url: '/api/v1/downloads' })).json().data).toHaveLength(1)
+  })
+
+  it('proactively resolves missing artwork while an asynchronous download proceeds', async() => {
+    const audio = readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3'))
+    const picture = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z9aQAAAAASUVORK5CYII=', 'base64')
+    let pictureRequests = 0
+    const upstream = createHttpServer((request, response) => {
+      if (request.url === '/picture') {
+        pictureRequests++
+        if (pictureRequests === 1) {
+          response.writeHead(503).end()
+          return
+        }
+        response.writeHead(200, { 'content-type': 'image/png', 'content-length': picture.length }).end(picture)
+        return
+      }
+      const range = typeof request.headers.range === 'string' ? /^bytes=(\d+)-(\d*)$/.exec(request.headers.range) : null
+      const start = range == null ? 0 : Number(range[1])
+      const end = range == null || range[2] === '' ? audio.length - 1 : Math.min(Number(range[2]), audio.length - 1)
+      response.writeHead(range == null ? 200 : 206, {
+        'accept-ranges': 'bytes',
+        'content-length': end - start + 1,
+        ...(range == null ? {} : { 'content-range': `bytes ${start}-${end}/${audio.length}` }),
+        'content-type': 'audio/mpeg',
+      }).end(audio.subarray(start, end + 1))
+    })
+    upstreams.push(upstream)
+    upstream.listen(0, '127.0.0.1')
+    await once(upstream, 'listening')
+    const origin = `http://127.0.0.1:${(upstream.address() as AddressInfo).port}`
+    const previousPrivateTargets = process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS
+    process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS = '1'
+    try {
+      const { app } = await createTestServer()
+      const script = `/*
+ * @name Download artwork retry fixture
+ * @description Returns deterministic audio while canonical artwork is resolved separately
+ * @version 1.0.0
+ */
+window.tuneflow.on(window.tuneflow.EVENT_NAMES.request, async ({ source, action }) => {
+  if (source !== 'kw') throw new Error('unexpected source')
+  if (action === 'musicUrl') return '${origin}/audio'
+  throw new Error('unexpected action')
+})
+window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
+  sources: { kw: { type: 'music', actions: ['musicUrl'], qualitys: ['128k'] } },
+})`
+      const installed = await app.inject({ method: 'POST', url: '/api/v1/sources', payload: { script } })
+      expect(installed.statusCode).toBe(200)
+      expect((await app.inject({
+        method: 'PUT',
+        url: '/api/v1/sources/active',
+        payload: { sourceId: installed.json().data.id },
+      })).statusCode).toBe(200)
+      await app.inject({
+        method: 'PATCH',
+        url: '/api/v1/settings',
+        payload: { 'download.isEmbedPic': true, 'download.isEmbedLyric': false, 'download.isDownloadLrc': false },
+      })
+      const created = await app.inject({
+        method: 'POST',
+        url: '/api/v1/downloads',
+        payload: {
+          musicInfo: {
+            id: 'download-artwork-retry',
+            source: 'kw',
+            name: 'Artwork retry',
+            singer: 'Artist',
+            interval: '00:02',
+            pic: `${origin}/picture`,
+            meta: { songId: 'download-artwork-retry', albumName: '', _qualitys: { '128k': {} } },
+          },
+          quality: '128k',
+        },
+      })
+      expect(created.statusCode).toBe(201)
+
+      let local: { id: string, pictureUrl?: string | null } | undefined
+      // Includes the scheduler and a deliberate first-request 503 retry on CI.
+      for (let attempt = 0; attempt < 500; attempt++) {
+        const tracks = (await app.inject({ method: 'GET', url: '/api/v1/library/tracks' })).json().data as Array<{ id: string, name: string, pictureUrl?: string | null }>
+        local = tracks.find(track => track.name === 'Artwork retry')
+        if (local?.pictureUrl != null) break
+        await new Promise(resolve => setTimeout(resolve, 20))
+      }
+      expect(local?.pictureUrl).toMatch(/^\/api\/v1\/library\/tracks\/[a-f0-9]{64}\/picture$/)
+      expect((await app.inject({ method: 'GET', url: local!.pictureUrl! })).statusCode).toBe(200)
+    } finally {
+      if (previousPrivateTargets == null) delete process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS
+      else process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS = previousPrivateTargets
+    }
+  }, 15_000)
+
+  it('clears download history through one idempotent collection route', async() => {
+    const { app } = await createTestServer()
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/downloads/history/records',
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({ data: { cleared: 0 } })
+  })
+
+  it('coalesces simultaneous playback starts into one Service download task', async() => {
+    const { app } = await createTestServer()
+    const track = { id: 'simultaneous-save', source: 'kw', name: 'Simultaneous save', singer: 'Artist', meta: {} }
+    await app.inject({ method: 'PATCH', url: '/api/v1/settings', payload: { 'player.autoDownloadOnPlay': true } })
+
+    await Promise.all([
+      app.inject({ method: 'POST', url: '/api/v1/playback/history', payload: { track, platform: 'web' } }),
+      app.inject({ method: 'POST', url: '/api/v1/playback/history', payload: { track, platform: 'android' } }),
+    ])
+    await new Promise(resolve => setImmediate(resolve))
+
+    expect((await app.inject({ method: 'GET', url: '/api/v1/downloads' })).json().data).toHaveLength(1)
+  })
+
+  it('persists created lists and tracks across a server restart', async() => {
+    const { app, storageRoot, webRoot } = await createTestServer()
+    const list = await app.inject({ method: 'POST', url: '/api/v1/playlists', payload: { position: -1, playlists: [{ id: 'roadtrip', name: 'Road trip' }] } })
+    expect(list.statusCode).toBe(201)
+    const track = { id: 'track-1', name: 'Test song', singer: 'Test artist', source: 'kw', interval: '03:00', meta: { songId: '1', albumName: 'Test' } }
+    expect((await app.inject({ method: 'POST', url: '/api/v1/playlists/roadtrip/tracks', payload: { tracks: [track] } })).statusCode).toBe(201)
+    await app.close()
+    apps.splice(apps.indexOf(app), 1)
+
+    const restarted = await createServer({ storageRoot, webRoot, host: '127.0.0.1', port: 0 })
+    apps.push(restarted)
+    expect((await restarted.inject({ method: 'GET', url: '/api/v1/playlists/roadtrip' })).json()).toMatchObject({
+      data: { id: 'roadtrip', name: 'Road trip', locationUpdateTime: null, tracks: [track] },
+    })
+  })
+
+  it('derives download group directories from server-owned list data only', async() => {
+    const { app } = await createTestServer()
+    expect((await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/settings',
+      payload: { 'download.isSavePathGroupByListName': true },
+    })).statusCode).toBe(200)
+    expect((await app.inject({
+      method: 'POST',
+      url: '/api/v1/playlists',
+      payload: { position: -1, playlists: [{ id: 'server-list', name: '../Server:/Road?*' }] },
+    })).statusCode).toBe(201)
+
+    const createDownload = async(trackId: string, listId: string) => {
+      const interval = {
+        'grouped-original': '00:02',
+        'grouped-renamed': '00:10',
+        'grouped-missing': '00:20',
+      }[trackId] ?? '00:02'
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/v1/downloads',
+        payload: {
+          musicInfo: {
+            id: trackId,
+            name: 'Grouped song',
+            singer: 'Artist',
+            source: 'kw',
+            interval,
+            meta: { songId: trackId, albumName: '', _qualitys: { '128k': {} } },
+          },
+          quality: '128k',
+          listId,
+        },
+      })
+      expect(response.statusCode).toBe(201)
+      return response.json().data.id as string
+    }
+    const relativePath = (id: string) => {
+      const row = getDB().prepare('SELECT record FROM web_downloads WHERE id = ?').get(id) as { record: string }
+      return (JSON.parse(row.record) as { finalRelativePath: string }).finalRelativePath
+    }
+
+    const original = await createDownload('grouped-original', 'server-list')
+    expect(relativePath(original)).toMatch(/^audio\/\.\.ServerRoad\/Grouped song - Artist\.mp3$/)
+    expect(relativePath(original)).not.toContain('Browser Owned Escape')
+
+    expect((await app.inject({
+      method: 'POST',
+      url: '/api/v1/downloads',
+      payload: { musicInfo: { id: 'x', source: 'kw' }, quality: '128k', listName: 'Browser Owned Escape' },
+    })).json()).toMatchObject({ error: { code: 'VALIDATION_ERROR' } })
+
+    expect((await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/playlists/server-list',
+      payload: { name: 'Renamed List' },
+    })).statusCode).toBe(200)
+    const renamed = await createDownload('grouped-renamed', 'server-list')
+    expect(relativePath(renamed)).toMatch(/^audio\/Renamed List\/Grouped song - Artist\.mp3$/)
+
+    const missing = await createDownload('grouped-missing', 'missing-list')
+    expect(relativePath(missing)).toMatch(/^audio\/Default\/Grouped song - Artist\.mp3$/)
+  })
+
+  it('filters local path-bearing records from browser list DTOs', async() => {
+    const { app, storageRoot } = await createTestServer()
+    await app.inject({ method: 'POST', url: '/api/v1/playlists', payload: { position: -1, playlists: [{ id: 'privacy', name: 'Privacy' }] } })
+    const privatePath = path.join(storageRoot, 'audio', 'private.mp3')
+    const local = { id: privatePath, name: 'Private', singer: '', source: 'local', interval: '01:00', meta: { songId: privatePath, filePath: privatePath, albumName: '' } }
+    const online = { id: 'online-1', name: 'Online', singer: 'Artist', source: 'kw', interval: '01:00', meta: { songId: 'online-1', albumName: '' } }
+    await app.inject({ method: 'POST', url: '/api/v1/playlists/privacy/tracks', payload: { tracks: [local, online] } })
+
+    const response = await app.inject({ method: 'GET', url: '/api/v1/playlists/privacy' })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json().data.tracks).toEqual([online])
+    expect(response.body).not.toContain(privatePath)
+  })
+
+  it('preserves position and order for batched list add, update, and remove actions', async() => {
+    const created = await createTestServer()
+    let { app } = created
+    await app.inject({ method: 'POST', url: '/api/v1/playlists', payload: { position: -1, playlists: [{ id: 'a', name: 'A' }] } })
+    await app.inject({ method: 'POST', url: '/api/v1/playlists', payload: { position: -1, playlists: [{ id: 'c', name: 'C' }] } })
+    const add = {
+      position: 1,
+      listInfos: [
+        { id: 'b', name: 'B', locationUpdateTime: null },
+        { id: 'd', name: 'D', locationUpdateTime: null },
+      ],
+    }
+    expect((await app.inject({ method: 'POST', url: '/api/v1/playlists', payload: { position: add.position, playlists: add.listInfos } })).statusCode).toBe(201)
+    expect((await app.inject({ method: 'GET', url: '/api/v1/playlists' })).json().data.map((list: { id: string }) => list.id)).toEqual(['a', 'b', 'd', 'c'])
+    await app.close()
+    apps.splice(apps.indexOf(app), 1)
+    app = await createServer({ storageRoot: created.storageRoot, webRoot: created.webRoot, host: '127.0.0.1', port: 0 })
+    apps.push(app)
+    expect((await app.inject({ method: 'GET', url: '/api/v1/playlists' })).json().data.map((list: { id: string }) => list.id)).toEqual(['a', 'b', 'd', 'c'])
+
+    const update = [
+      { id: 'b', name: 'B2', locationUpdateTime: null },
+      { id: 'd', name: 'D2', locationUpdateTime: null },
+    ]
+    expect((await app.inject({ method: 'PATCH', url: '/api/v1/playlists', payload: { playlists: update } })).statusCode).toBe(200)
+    expect((await app.inject({ method: 'GET', url: '/api/v1/playlists' })).json().data.map((list: { name: string }) => list.name)).toEqual(['A', 'B2', 'D2', 'C'])
+
+    expect((await app.inject({ method: 'DELETE', url: '/api/v1/playlists/b' })).statusCode).toBe(204)
+    expect((await app.inject({ method: 'DELETE', url: '/api/v1/playlists/d' })).statusCode).toBe(204)
+    expect((await app.inject({ method: 'GET', url: '/api/v1/playlists' })).json().data.map((list: { id: string }) => list.id)).toEqual(['a', 'c'])
+  })
+
+  it('optionally includes Service built-in playlists without changing the Web default response', async() => {
+    const { app } = await createTestServer()
+    await app.inject({ method: 'POST', url: '/api/v1/playlists', payload: { position: -1, playlists: [{ id: 'custom', name: 'Custom' }] } })
+
+    const defaultIds = (await app.inject({ method: 'GET', url: '/api/v1/playlists' })).json().data
+      .map((list: { id: string }) => list.id)
+    const complete = (await app.inject({ method: 'GET', url: '/api/v1/playlists?includeBuiltIn=true' })).json().data
+
+    expect(defaultIds).toEqual(['custom'])
+    expect(complete.map((list: { id: string }) => list.id)).toEqual(['default', 'love', 'custom'])
+    expect(complete.slice(0, 2)).toEqual([
+      { id: 'default', name: 'list__name_default' },
+      { id: 'love', name: 'list__name_love' },
+    ])
+  })
+
+  it('validates a whole list batch before mutating any item', async() => {
+    const { app } = await createTestServer()
+    await app.inject({ method: 'POST', url: '/api/v1/playlists', payload: { position: -1, playlists: [{ id: 'a', name: 'A' }] } })
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/playlists',
+      payload: {
+        playlists: [
+          { id: 'a', name: 'Changed', locationUpdateTime: null },
+          { id: 'missing', name: 'Missing', locationUpdateTime: null },
+        ],
+      },
+    })
+
+    expect(response.statusCode).toBe(404)
+    expect((await app.inject({ method: 'GET', url: '/api/v1/playlists/a' })).json().data.name).toBe('A')
+  })
+
+  it('publishes an exact domain event envelope over SSE', async() => {
+    const { app } = await createTestServer()
+    const origin = await app.listen({ host: '127.0.0.1', port: 0 })
+    const stream = await fetch(`${origin}/api/v1/events`)
+    const reader = stream.body!.getReader()
+    expect(new TextDecoder().decode((await reader.read()).value)).toBe(': connected\n\n')
+    const action = {
+      position: 0,
+      listInfos: [
+        { id: 'first', name: 'First', locationUpdateTime: null },
+        { id: 'second', name: 'Second', locationUpdateTime: null },
+      ],
+    }
+
+    const response = await fetch(`${origin}/api/v1/playlists`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ position: action.position, playlists: action.listInfos }),
+    })
+    expect(response.status).toBe(201)
+    expect(new TextDecoder().decode((await reader.read()).value)).toBe(`event: playlists.created\ndata: ${JSON.stringify({ type: 'playlists.created', data: action, sequence: 2 })}\n\n`)
+    await reader.cancel()
+  })
+
+  it('publishes a path-opaque resource event and serves the cached lyric without rerunning the source', async() => {
+    const { app, storageRoot } = await createTestServer()
+    const script = `/*
+ * @name Late lyrics fixture
+ * @description Deterministic app integration source
+ * @version 1.0.0
+ */
+let lyricCalls = 0
+window.tuneflow.on(window.tuneflow.EVENT_NAMES.request, async ({ source, action }) => {
+  if (source !== 'tx' || action !== 'lyric') throw new Error('unexpected action')
+  lyricCalls++
+  if (lyricCalls > 1) throw new Error('lyric source was called twice')
+  return { lyric: '[00:00.00]Late lyric' }
+})
+window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
+  sources: { tx: { type: 'music', actions: ['lyric'], qualitys: [] } },
+})`
+    const installed = await app.inject({ method: 'POST', url: '/api/v1/sources', payload: { script } })
+    expect(installed.statusCode).toBe(200)
+    expect((await app.inject({
+      method: 'PUT', url: '/api/v1/sources/active', payload: { sourceId: installed.json().data.id },
+    })).statusCode).toBe(200)
+    const origin = await app.listen({ host: '127.0.0.1', port: 0 })
+    const stream = await fetch(`${origin}/api/v1/events`)
+    const reader = stream.body!.getReader()
+    expect(new TextDecoder().decode((await reader.read()).value)).toBe(': connected\n\n')
+    const payload = {
+      source: 'tx',
+      musicInfo: {
+        id: 'track-1',
+        name: 'Song',
+        singer: 'Singer',
+        source: 'tx',
+        interval: '00:01',
+        meta: { songId: 'track-1', albumName: '', _qualitys: {} },
+      },
+    }
+
+    try {
+      const first = await fetch(`${origin}/api/v1/catalog/tracks/lyrics`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
+      })
+      expect(await first.json()).toMatchObject({ data: { lyric: '[00:00.00]Late lyric' } })
+      const eventText = new TextDecoder().decode((await reader.read()).value)
+      expect(eventText).toContain('event: track.resources.updated')
+      expect(eventText).toContain(JSON.stringify({ source: 'tx', trackId: 'track-1', resources: ['lyrics'] }))
+      expect(eventText).not.toContain('Late lyric')
+      expect(eventText).not.toContain(storageRoot)
+
+      const cached = await fetch(`${origin}/api/v1/catalog/tracks/lyrics`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
+      })
+      expect(await cached.json()).toMatchObject({ data: { lyric: '[00:00.00]Late lyric' } })
+    } finally {
+      await reader.cancel()
+    }
+  })
+
+  it('uses the stable error envelope for invalid settings and missing lists', async() => {
+    const { app } = await createTestServer()
+
+    expect((await app.inject({ method: 'PATCH', url: '/api/v1/settings', payload: { missing: true } })).json()).toMatchObject({
+      error: { code: 'VALIDATION_ERROR', message: 'Request validation failed' },
+    })
+    expect((await app.inject({ method: 'GET', url: '/api/v1/playlists/missing' })).json()).toEqual({
+      error: { code: 'LIST_NOT_FOUND', message: 'List not found: missing' },
+    })
+    expect((await app.inject({ method: 'PATCH', url: '/api/v1/settings', payload: { 'download.savePath': '/tmp/outside' } })).json()).toEqual({
+      error: { code: 'IMMUTABLE_SETTING', message: 'Download path is managed by the Service' },
+    })
+  })
+
+  it('keeps API misses in the error envelope while returning the web shell for client routes', async() => {
+    const { app } = await createTestServer()
+
+    expect((await app.inject({ method: 'GET', url: '/api/v1/unknown' })).json()).toEqual({
+      error: { code: 'NOT_FOUND', message: 'API route not found' },
+    })
+    expect((await app.inject({ method: 'GET', url: '/api/v1' })).json()).toEqual({
+      error: { code: 'NOT_FOUND', message: 'API route not found' },
+    })
+    expect((await app.inject({ method: 'GET', url: '/api/v1/' })).json()).toEqual({
+      error: { code: 'NOT_FOUND', message: 'API route not found' },
+    })
+    expect((await app.inject({ method: 'GET', url: '/library/roadtrip' })).body).toContain('<title>TuneFlow · 音流</title>')
+  })
+
+  it('does not retain tracks when a deleted list id is recreated', async() => {
+    const { app } = await createTestServer()
+    const track = { id: 'stale-track', name: 'Old song', singer: 'Artist', source: 'kw', interval: '03:00', meta: { songId: 'old', albumName: 'Old' } }
+    await app.inject({ method: 'POST', url: '/api/v1/playlists', payload: { position: -1, playlists: [{ id: 'reused-id', name: 'Original' }] } })
+    await app.inject({ method: 'POST', url: '/api/v1/playlists/reused-id/tracks', payload: { tracks: [track] } })
+    expect((await app.inject({ method: 'DELETE', url: '/api/v1/playlists/reused-id' })).statusCode).toBe(204)
+    expect((await app.inject({ method: 'POST', url: '/api/v1/playlists', payload: { position: -1, playlists: [{ id: 'reused-id', name: 'Replacement' }] } })).statusCode).toBe(201)
+    expect((await app.inject({ method: 'GET', url: '/api/v1/playlists/reused-id' })).json().data.tracks).toEqual([])
+  })
+})

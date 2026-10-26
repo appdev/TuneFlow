@@ -16,3 +16,13 @@ flutter-client
 .env
 .env.*
 npm-debug.log*
+**/node_modules
+**/.git
+**/.codex
+**/artifacts
+apps/player
+apps/android
+**/AGENTS.md
+**/docs/superpowers
+**/src/**/*-internal.js
+**/publish/utils/githubToken.js
