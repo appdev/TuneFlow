@@ -1,3 +1,4 @@
+import { installDefaultAudioOutput } from '../../tests/helpers/browserAudio'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import http from 'node:http'
@@ -234,6 +235,7 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
 
     const browser = await chromium.launch()
     const page = await browser.newPage()
+    await installDefaultAudioOutput(page)
     await installAudioProbe(page)
     const diagnostics: string[] = []
     const streamResponses: Array<{ url: string, status: number, range?: string }> = []

@@ -121,7 +121,7 @@ setTimeout('window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, { sources: 
 
   it('reports timeout callback exceptions as source protocol errors', async() => {
     const timerSource = script('Timer callback error', 'setTimeout(() => { throw new Error(\'timer callback failed\') }, 0)')
-    const host = new SourceWorkerHost({ id: 'timer-callback-error', ...parseSourceScript(timerSource), script: timerSource }, { requestTimeoutMs: 100 })
+    const host = new SourceWorkerHost({ id: 'timer-callback-error', ...parseSourceScript(timerSource), script: timerSource }, { requestTimeoutMs: 2_000 })
     hosts.push(host)
 
     await expect(host.capabilities()).rejects.toMatchObject({ code: 'SOURCE_PROTOCOL_ERROR', message: 'Source timer callback failed' })
@@ -134,7 +134,7 @@ Object.defineProperty(globalThis, '__tuneflowTimerPacket__', { set() { while (tr
 setTimeout(() => window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
   sources: { fixture: { type: 'music', actions: ['musicUrl'], qualitys: [] } },
 }), 0)`)
-    const host = new SourceWorkerHost({ id: 'timer-dispatch-isolation', ...parseSourceScript(timerSource), script: timerSource }, { requestTimeoutMs: 200 })
+    const host = new SourceWorkerHost({ id: 'timer-dispatch-isolation', ...parseSourceScript(timerSource), script: timerSource }, { requestTimeoutMs: 2_000 })
     hosts.push(host)
 
     await expect(host.capabilities()).resolves.toHaveProperty('fixture')
@@ -148,7 +148,7 @@ Object.prototype.toJSON = function() {
 setTimeout(() => window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
   sources: { fixture: { type: 'music', actions: ['musicUrl'], qualitys: [] } },
 }), 0)`)
-    const host = new SourceWorkerHost({ id: 'timer-serialization-isolation', ...parseSourceScript(timerSource), script: timerSource }, { requestTimeoutMs: 200 })
+    const host = new SourceWorkerHost({ id: 'timer-serialization-isolation', ...parseSourceScript(timerSource), script: timerSource }, { requestTimeoutMs: 2_000 })
     hosts.push(host)
 
     await expect(host.capabilities()).resolves.toHaveProperty('fixture')

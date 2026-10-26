@@ -1,3 +1,4 @@
+import { installDefaultAudioOutput } from '../../tests/helpers/browserAudio'
 import { rmSync, mkdtempSync } from 'node:fs'
 import { spawn, type ChildProcess } from 'node:child_process'
 import http from 'node:http'
@@ -128,6 +129,7 @@ describe('Task 4 prepared Service UI smoke', () => {
 
     const browser = await chromium.launch()
     const page = await browser.newPage()
+    await installDefaultAudioOutput(page)
     let activationRequests = 0
     page.on('request', request => {
       if (request.method() === 'PUT' && new URL(request.url()).pathname === '/api/v1/sources/active') activationRequests++
