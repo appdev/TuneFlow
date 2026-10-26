@@ -5,6 +5,10 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: monorepo-checks-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   contracts:
     runs-on: ubuntu-latest

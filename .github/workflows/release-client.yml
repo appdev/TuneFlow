@@ -31,8 +31,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: client-build-${{ github.repository }}-${{ inputs.source_ref || github.event.pull_request.head.sha || github.sha }}-${{ inputs.component || 'all' }}
-  cancel-in-progress: false
+  group: client-build-${{ github.repository }}-${{ github.event.pull_request.number || inputs.source_ref || github.sha }}-${{ inputs.component || 'all' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   metadata:
