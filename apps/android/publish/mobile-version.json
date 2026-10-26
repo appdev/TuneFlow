@@ -159,5 +159,5 @@
       "desc": "Q-music Android 首个适配版本。\n\n- 基于 LX Music Mobile 1.8.4。\n- 使用独立应用 ID，可与 LX Music 共存。\n- 统一 Q-music 品牌与 qmusic:// 深链。\n- 保留后台播放、媒体控制、本地音乐与同步能力。"
     }
   ],
-  "commit": "e5987109b2d808084e4b7f3c94885884945ddb25"
+  "commit": "a6c7b01bd7f77de728af8bd50b3a036204b5e787"
 }
