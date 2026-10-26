@@ -1,0 +1,830 @@
+{
+  "version": "0.4.26",
+  "desc": "<!-- qmusic-service-preview -->\nTuneFlow 0.4.26\n\n本次发布桌面、Web、Android 与统一音乐服务的整合预览版本，客户端发布与更新统一迁入 TuneFlow 仓库。\n\n- 平台账号、账号歌单和个人推荐接入共享服务，各端使用同一账号状态；保留原生官方登录及已有账号迁移入口。\n- 新增共享访问密码和记住登录，支持退出当前会话、修改密码后撤销其他会话；已有账号、歌单和下载文件保留。\n- 统一服务端平台读取与账号校验，保留歌单导入完整性、并发更新及账号变更保护。\n- 优化侧栏图标与选中态，去掉图标方块和重阴影，支持浅深主题及键盘焦点提示；Android 横屏侧栏和竖屏抽屉同步调整。\n- 协议确认倒计时统一为 10 秒，移除接受后的免费开源提示弹窗，保留接受后的初始化流程。\n\n升级说明：\n\n- 使用 TuneFlow-v0.4.26 标签。原 Q-music 发布仓库已删除，旧版请手动下载新包覆盖安装一次，无需卸载；新版使用 TuneFlow 更新通道。\n- 桌面预览版应用 ID、配置目录及 Android 预览包名和签名保持不变。Android 为 0.4.26-preview，versionCode 基数 54，多数手机选择 arm64-v8a。\n- macOS 为临时签名、未公证；Windows 为未正式签名的便携包；桌面预览包仍需手动替换应用。Web 包包含 /V2/ 兼容入口。\n- 播放与下载继续使用统一服务，Docker 镜像单独发布至 Docker Hub。更新源码或安装包不会自动升级已有容器。\n- 已有真实 QQ 与访问密码流程的验收结果不代表所有平台、设备均完成真实扫码验收；遇到官方安全验证需在对应平台处理。\n",
+  "history": [
+    {
+      "version": "0.4.25",
+      "desc": "<!-- qmusic-service-preview -->\nQ-music 0.4.25\n\n本次版本将桌面、Web 与 Android 纳入 TuneFlow 同一源码仓库，各端仍独立构建和发布，共享音乐服务和业务规则。\n\n- 服务镜像默认提供共享 Web，浏览器自动连接当前站点；保留 /V2/ 兼容入口。\n- 优化 Web 居中展示、两侧背景和边缘过渡，补充产品说明与 Web、Android 实际截图。\n- 保留现有歌单、音乐库、设置、桌面预览数据目录、Android 预览应用 ID 和签名。\n- Android 版本为 0.4.25-preview，versionCode 基数升至 53；升级时覆盖安装，无需卸载。\n\n源码版本已升级不代表安装包或镜像已发布。客户端发布与更新统一迁至 TuneFlow，使用 TuneFlow-v<version> 标签；旧版需手动覆盖安装新版一次，无需卸载。具体构建与发布状态见多平台发布检查文档。桌面仍为预览便携包；macOS 尚未公证，Windows 未正式签名。播放与下载继续使用统一服务，现有功能边界不变。\n"
+    },
+    {
+      "version": "0.4.24",
+      "desc": "<!-- qmusic-service-preview -->\n# Q-music 0.4.24\n\n本次发布统一音乐服务整合版预览通道，桌面、Web 和 Android 使用同一套设置、歌单、音乐库与下载服务。\n\n- 恢复平台账号登录、账号歌单导入与首页推荐，保留推荐来源、换批刷新、更新通知及推荐回退。\n- 优化侧边页面切换、首页缓存与下载列表，返回页面时保留内容，减少重复加载。\n- 恢复边播边存；下载支持明确删除音乐库文件，并在确认后替换已有音质，取消操作保留原文件。\n- 可恢复的解析失败继续自动切换平台，播放与下载继续使用统一服务，保留原有安全限制。\n- macOS 使用原生窗口控制按钮；跨端保留已有设置和歌单数据。\n\n安装与兼容性：\n\n- 桌面包沿用现有预览版应用标识和数据目录，更新时退出旧程序后替换应用，无需卸载。macOS 包为临时签名，尚未公证；Windows 包为未签名便携版；桌面暂不支持应用内自动安装更新。\n- Android 沿用现有独立预览版包名及预览签名，版本 0.4.24-preview，versionCode 基数 52。请覆盖安装匹配 ABI 的包；正式版与预览版不能相互覆盖。\n- Web 包包含主界面和 /V2/ 兼容入口，需要连接 TuneFlow 2.13.6 服务。官方账号授权需在原生客户端完成；浏览器使用共享歌单。\n- QQ 真实登录已在桌面验收，Android 官方登录仍待设备验收。其他平台登录仍以实际平台授权结果为准。\n- 本次只发布代码、安装包和镜像，不会自动升级线上容器。下载文件均附 SHA-256 校验，发布清单记录各端的源代码提交。\n"
+    },
+    {
+      "version": "0.4.23",
+      "desc": "# Q-music 0.4.23\n\n本次正式版打磨 PC 的歌单与下载操作，并为 PC、安卓补上自定义日夜切换时间。\n\n### PC 多选与歌单交互\n\n- 歌单、在线歌曲列表和下载任务增加清晰的「多选」入口，支持逐首勾选、全选、反选，以及右键选中／取消选中；可使用 Ctrl／Command 和 Shift 选择多首或连续歌曲。\n- 反选至空、取消最后一首后仍保留多选模式；多选时点击歌曲不会误播放，搜索输入框中的 Ctrl+A 仍用于选择文字。\n- 左侧自建和导入歌单支持直接拖动排序，可将本地歌单拖到平台歌单上方；试听列表和我的收藏保持固定。\n- 拖动增加轻微抬升、邻项弹性让位和落下回弹，顺序即时更新并保存；关闭动画或启用系统减少动态效果时使用简化反馈。\n- 切换 QQ 音乐、网易云、酷狗等已导入歌单时复用列表页面，减少整页重建导致的闪动。\n\n### PC 下载与文件处理\n\n- 下载页统一使用「移除记录…」，确认框明确默认保留文件，也可勾选同时把音频与同名歌词移入回收站。\n- 删除文件成功后同步清理各本地歌单中对应的文件引用，避免歌曲仍显示在列表；在线平台歌曲不受影响。\n- 文件处理等待下载停止，沿用任务原有路径；删除失败时保留对应任务和列表记录，取消确认时保留已选歌曲。\n- 修复 Windows 部分回收站操作失败，以及移除最后一条下载任务时的界面异常。\n\n### PC 与安卓自定义日夜时间\n\n- 在「设置 → 外观／主题 → 按时间」中，可分别设置白天、夜间开始时间，精确到分钟，支持跨午夜。\n- 默认仍为 07:00／19:00；非法或相同时间会提示修正，保存后立即重新计算外观，重启和切换模式后保留设置。\n- 自动切换明暗继续保留所选主题配色和背景。\n\n### 安装与验证\n\n- Windows x64、Arch Linux x64 和 Android 同步发布 0.4.23；安卓沿用正式版包名与签名，可覆盖升级，多数手机选择 arm64-v8a。\n- 已通过相关回归检查，并在独立 PC 测试窗口验证多选、拖动持久化、回收站删除和自定义时间；安卓已完成相关自动化验证与构建，本次未连接真机。\n"
+    },
+    {
+      "version": "0.4.22",
+      "desc": "# Q-music 0.4.22\n\n本次为主题与外观修复版，Windows、Arch Linux 和 Android 同步更新。\n\n### 跟随系统保留主题\n\n- 将「外观模式」与「主题颜色」分开：白天、夜间、跟随系统、按时间独立选择。\n- 修复自动进入夜间后变成默认黑色主题的问题。现在保留当前主题配色、自带背景和自定义背景，仅调整界面明暗。\n- 夜间适当压暗背景，并提高深色强调色、正文及 PC 侧栏文字的可读性，水墨主题也能正常辨认按钮和文字。\n- 更换主题颜色不会退出跟随系统或按时间模式；手选白天／夜间时不受系统明暗变化影响。\n- 兼容旧版本的自动外观设置；按设备本地时间切换时，07:00–19:00 为白天，其余时间为夜间，恢复前台后重新校准。\n\n### 设置布局\n\n- 重新整理两端外观设置：模式预览在上，主题配色在下，减少开关、说明和主题卡片挤在一起的问题。\n- PC 增加清晰的选中标识、键盘切换和「更多主题／收起主题」入口，并适配窄窗口。\n- 安卓同步调整外观选项、配色卡片和夜间文字颜色。\n\n### 安装与验证\n\n- Windows x64、Arch Linux x64、Android 正式安装包同步升级至 0.4.22；安卓沿用原包名和签名，可覆盖升级，大多数手机请选择 arm64-v8a。\n- 主题回归覆盖旧设置迁移、系统／时间切换、全部内置主题、背景保留及夜间对比度；PC 已实际验证切换交互和窄窗口排版。\n- 安卓已完成相关自动化验证与构建，本次未连接真机，厂商系统明暗事件及具体设备显示效果仍需使用中确认。\n"
+    },
+    {
+      "version": "0.4.21",
+      "desc": "# Q-music 0.4.21\n\n本次正式版修复社区反馈的音质选中状态、安卓歌单分类遮挡和下载入口，并补齐两端的播放偏好、本地歌曲处理与歌单同步保留规则。\n\n### 播放与本地歌曲\n\n- 修复 PC 音质菜单中实际播放来源已改变、平台选中框仍停在原位置的问题；来源和音质勾选跟随实际播放结果。安卓音质选择同步实际档位，自动降级后可重新尝试原音质。\n- 两端「设置 → 列表设置」新增单曲播放方式：替换为当前页／列表并从所选歌曲播放，或插入单曲立即播放、保留原队列。搜索、歌单、榜单等入口统一遵循设置。\n- 默认优先播放已下载或已导入的本地歌曲。同平台下载按歌曲 ID 匹配，其他本地曲目严格核对歌名、歌手和时长；文件不可用时回退在线来源，避免把 Live／Remix 等不同版本误匹配。\n- 从列表移除本地歌曲时，可选择同时处理音频和同名歌词。Windows 使用回收站；安卓会明确提示文件删除不可撤销，也可仅移除列表记录。文件处理失败时保留对应列表记录。\n\n### 歌单同步与安卓下载\n\n- QQ 音乐、网易云音乐和酷狗歌单同步时，保留用户手动追加的其他歌曲；平台原有歌曲仍跟随远端增删和排序。账号歌单重新导入也使用相同规则。\n- 旧列表首次升级同步时保守保留额外歌曲，后续按平台来源快照更新；同步过程中手动追加的歌曲也会保留。旧版本已被删除的歌曲无法自动恢复，需要重新添加一次。\n- 安卓在线歌曲列表及「我的列表」增加行内下载按钮，「我的列表」菜单支持单曲和多选下载。跳过本地文件、合并重复点击，权限取消时保留多选状态。\n- 安卓下载其他音质时始终请求在线地址，避免本地歌曲优先播放策略干扰下载。\n- 修复安卓歌单分类抽屉底部「语言」等内容被迷你播放条／底栏遮挡的问题，滚动区域跟随实际底栏高度，也兼容平板和车机布局。\n\n### 定时日夜主题\n\n- PC 和安卓新增「按时间切换日夜模式」开关：按设备本地时间，07:00–19:00 使用日间主题，其余时间使用夜间主题。\n- 恢复前台时重新校准；手动选择固定主题会停止定时切换。\n\n### 安装与验证\n\n- Windows x64、Arch Linux x64 和 Android 同步发布 0.4.21；安卓 versionCode 基数升至 49，沿用正式版包名与签名，可覆盖升级。\n- 安卓提供 arm64-v8a、armeabi-v7a、x86、x86_64 和通用 APK，大多数手机请选择 arm64-v8a。\n- 已完成两端相关回归检查及 PC 主题与弹窗预览；本次没有连接安卓真机，系统文件权限与不同设备上的显示效果仍有待实机确认。\n"
+    },
+    {
+      "version": "0.4.20",
+      "desc": "# Q-music 0.4.20\n\n本次正式版集中打磨下载界面、列表按钮和主题细节，补齐安卓已下载歌曲的本地播放，并修复批量下载与右键菜单的操作边界。\n\n### PC 界面与交互\n\n- 重新整理单曲和批量下载弹窗：标题与关闭按钮同行，单曲显示封面；音质改用轻量列表，统一码率、文件大小和下载图标的位置，减少卡片、描边和厚重徽标。\n- 优化长歌名、窄窗口和封面加载失败时的显示；调整浅色、深色与沉浸播放页的弹窗配色，避免底层歌词透出干扰阅读。\n- 统一歌曲列表的下载、添加、搜索、定位文件和移除图标；播放队列的文字、边框和悬停反馈跟随主题。\n- 分类标签支持方向键、Home/End、Enter 和空格操作，选中项自动滚入可视区域；空格切换标签不再误触发播放暂停。\n\n### PC 下载逻辑\n\n- 批量下载等待任务保存成功后才关闭弹窗；失败时保留音质选择并提供提示，保存期间防止重复提交。\n- 批量选择中的本地歌曲自动跳过，数量说明与实际下载范围一致。\n- 下载任务处理期间禁用重复操作，仅已完成任务显示定位文件按钮；空分类提供返回全部下载入口。\n- 下载右键菜单绑定具体任务，切换分类或任务状态变化时收起，避免列表移动后操作到另一首歌。\n\n### Android 下载页\n\n- 新增全部、进行中、已完成和失败分类及数量，支持横向滚动切换。\n- 已下载歌曲可直接播放本地文件，并显示播放／暂停状态；播放前检查文件和存储权限，失败时给出明确提示。\n- 统一下载条目的按钮尺寸、长歌名、音质和进度排版；适配大屏内容宽度，并为底部播放栏保留空间。\n- 播放及移除操作增加处理中状态，防止同一任务被重复操作；空分类支持一键返回全部。\n\n### 安装与验证\n\n- Windows x64、Arch Linux x64 和 Android 同步发布 0.4.20；安卓 versionCode 基数升至 48，沿用正式包名和签名，可覆盖升级。\n- 安卓提供 arm64-v8a、armeabi-v7a、x86、x86_64 和通用 APK，大多数手机请选择 arm64-v8a。\n- 已完成桌面多主题、窄窗口和键盘交互预览，以及两端下载行为回归检查；本次没有连接安卓真机，系统权限与设备显示效果仍需实机确认。\n"
+    },
+    {
+      "version": "0.4.19",
+      "desc": "# Q-music 0.4.19\n\n本次为桌面修复正式版，修复 0.4.18 新增当前歌曲下载入口的任务创建失败，以及沉浸播放页下载弹窗文字不清晰的问题。\n\n### 下载修复\n\n- 修复从播放栏或播放详情选择音质后提示“未能添加下载任务”的问题：歌曲的响应式数据现在会先转换为可传递的数据快照，再交给下载线程。\n- 修复应用于公共任务创建流程，保留歌曲、音质和来源歌单信息；任务保存成功后才更新下载列表，重复任务不重复添加。\n- 调整任务创建失败提示，不再把程序内部错误一概归因于下载设置。\n\n### 界面修复\n\n- 修复沉浸播放详情的深色弹窗仍使用浅色主题文字、按钮配色的问题，统一歌名、提示、音质按钮及悬停状态的对比度。\n- 主界面与经典播放风格继续使用各自的主题颜色。\n\n### 安装与验证\n\n- 提供 Windows x64 安装包、绿色免安装 7z 包及 Arch Linux x64 包。0.4.18 桌面用户可通过应用内检查更新升级。\n- Android 最新版仍为 0.4.18，本次未发布新 APK；本次问题与修复仅涉及桌面端。\n- 已通过 122 项自动化测试、代码检查和生产构建，并在独立桌面窗口验证任务创建、保存、下载列表和本机测试音频写入完成。第三方歌曲是否可下载仍取决于音乐源。\n- 免安装版请完整解压，并在升级时保留旧 portable 文件夹中的个人数据。\n"
+    },
+    {
+      "version": "0.4.18",
+      "desc": "# Q-music 0.4.18\n\n本次为 Windows、Arch Linux 与 Android 正式版，重点完善歌单同步、桌面本地音乐和主题适配，并优化安卓玻璃控件滑动。\n\n### 歌单同步（PC / Android）\n\n- 优化 QQ 音乐歌曲资料读取，减少重复请求；网易云使用登录会话分批读取歌曲详情，按歌单原有顺序恢复结果。\n- 修复安卓网易云、酷狗歌单自动同步被 QQ 账号校验误拦的问题。\n- 同步失败时区分登录过期、账号不匹配、平台安全验证和歌曲不完整；登录过期可从同步窗口重新登录后重试。\n- 提供一键同步全部可同步歌单；失败保留原列表，避免用不完整结果覆盖本地歌曲。安卓同步期间删除、换源或关闭自动同步后，不再写入过期结果。\n- 酷狗要求安全验证时明确提示前往官方客户端处理；网络失败不会直接被当成登录失效。\n\n### 本地音乐与下载（PC）\n\n- “我的列表”新增“本地音乐”入口，可选择歌曲或文件夹，支持扫描子文件夹、按所在文件夹分别建立歌单。\n- 重复导入同一目录时复用歌单并跳过重复歌曲；显示导入进度、新增、重复和无法读取数量，导入后可直接查看歌单并播放。\n- 本地导入只引用原文件，不复制或上传音乐；移动原文件后需要重新导入。未按文件夹分组时使用独立本地音乐列表，不混入平台同步歌单。\n- 播放栏、经典与沉浸播放详情增加当前歌曲下载按钮；下载音质为空或创建任务失败时提供明确提示，确认期间切歌也不会下载错歌。\n- 调整窄窗口工具区布局，避免下载、收藏与播放队列按钮被裁切。\n\n### 主题与玻璃效果\n\n- PC 统一按钮、输入框、弹窗、侧栏、搜索和列表等组件的主题材质，改善深色及自定义主题中的白底、文字与选中状态。\n- 修复编辑主题切换明暗模式后字体颜色沿用不当的问题，分别保留两种模式的字体设置。\n- Android 优化底栏与迷你播放条玻璃采样：减少无效缓存清理，调整大小时保留上一帧，避免绘制过程中改写正在使用的图像，并复用着色器以减少滑动开销。\n\n### 安装与说明\n\n- Windows 提供 x64 安装包和新增的绿色免安装 7z 包；免安装版请完整解压，数据保存在 portable/userData，升级时保留旧 portable 目录。\n- 同步提供 Arch Linux x64 包，以及 Android arm64-v8a、armeabi-v7a、x86、x86_64 和通用 APK。大多数手机请选择 arm64-v8a。\n- 本地音乐新增入口与播放栏下载入口为本次 PC 改动；安卓发布内容为歌单同步与玻璃绘制优化。\n- 已完成自动化回归、桌面界面与本地播放验证及安卓构建检查；安卓玻璃滑动仍需不同设备实测。平台安全验证与歌曲可播放、可下载范围仍取决于平台及所用音乐源。\n"
+    },
+    {
+      "version": "0.4.17",
+      "desc": "# Q-music 0.4.17\n\n本次为桌面正式版，新增专辑搜索与播放入口，并修复搜索返回、酷狗分享歌单和多处界面布局问题。\n\n### 专辑与播放\n\n- 新增 QQ 音乐、网易云音乐和酷狗音乐专辑搜索，支持聚合查看、专辑详情和整张专辑播放。\n- 播放详情中的歌手和专辑名称支持点击跳转；有可用专辑标识时直接进入详情。\n- 修复专辑曲目点击无反应、提示“播放队列加载失败”的问题。\n- 从排行榜或专辑播放歌曲时使用对应列表作为队列；快速切换排行榜时，旧请求不再覆盖后一次播放队列。\n\n### 搜索与导航\n\n- 搜索后前往设置、排行榜等页面，顶部提供“返回搜索”，恢复最近搜索及专辑浏览位置。\n- 保留搜索页面及滚动位置，修复离开页面时清空搜索数据、返回同一专辑时重复加载的问题。\n- 优化搜索面板失焦收起和设置页按钮间距。\n\n### 酷狗歌单\n\n- “歌单 → 打开歌单”支持识别 QQ、网易云和酷狗官方分享链接，自动选择对应平台。\n- 修复酷狗分享文案、重定向链接和歌单标识的解析，兼容酷狗码与公开歌单编号。\n- 修复酷狗多页歌单尾页的分页偏移，避免重复读取或漏掉歌曲。\n- 账号歌单遇到安全验证（20028）时明确提示前往酷狗官方客户端处理；区分加载失败与空歌单，并提供重试。\n\n### 界面细节\n\n- 修复首页“今日推荐”封面与文字列缩放不一致导致歌名被遮挡的问题，适配窄窗口和放大字号。\n- 重做歌单“默认”分类面板的边界定位：标签自动换行、面板内滚动，增加选中状态、键盘操作和 Esc 收起。\n- 修复歌词旁的时间播放按钮被裁切，适配经典与沉浸布局；移除收回按钮重复的悬停提示。\n\n### 安装与说明\n\n- 本版发布 Windows x64 安装包和 Arch Linux x64 包；Android 最新版仍为 0.4.16，本次未发布新 APK。\n- 桌面正式版可覆盖升级；独立 preview 测试版与正式版的数据相互独立。\n- 已通过 111 项自动化测试、代码检查及本地界面验证。酷狗公开歌单样本已完整读取；平台安全验证、私有歌单权限和音乐源可用性仍由对应平台及所用音源决定。\n"
+    },
+    {
+      "version": "0.4.16",
+      "desc": "# Q-music 0.4.16\n\n本次正式版打磨桌面搜索和列表交互，修复搜索音源记忆、QQ 搜索分页及页面切换异常；安卓更新弹窗新增 Markdown 排版。\n\n### PC 搜索与列表\n\n- 记住上次手动选择的搜索音源，返回首页、重新进入搜索时不再恢复为聚合搜索；浏览歌单和排行榜不会覆盖搜索偏好。\n- 聚焦搜索栏后切换音源，保留输入内容、焦点和历史记录；音源选项与历史记录在同一下拉面板中展示，支持再次点击收起和分层 Esc 返回。\n- 首页移除重复的历史／热搜卡片，历史记录和热搜统一在搜索栏下拉面板查看，修复历史卡片与推荐内容重叠。\n- 搜索歌曲保持紧凑单行，调整歌名、音质标签和平台图标间距；长文字可悬停查看，列表和分页避开底部播放栏。\n- QQ 搜索使用实际返回的原始条目判断末页，避免估算总数产生多余页码；空页提供返回上一页和重新加载。\n- 修复快速搜索、换词或翻页时旧请求覆盖新结果的问题；聚合结果切换单曲音源后，列表显示与后续播放读取及时更新。\n\n### PC 导航与菜单\n\n- 修复搜索后跨页面切换可能出现整页空白的问题。\n- 修复下载分类标签、设置分类选中背景在字号变化时的位置错位。\n- 进入播放详情、切换页面或点击外部时及时关闭旧的右键菜单。\n\n### Android 更新说明\n\n- 更新弹窗支持 Markdown 标题、列表、加粗、引用、代码和链接，跟随应用主题及字号显示，正文可长按复制。\n- 隐藏发布流程注释；链接打开失败时显示明确提示。\n- 此次搜索布局与分页调整针对 PC；安卓本次更新内容为更新说明显示优化。\n\n### 安装说明\n\n- Windows x64、Arch Linux x64 和 Android 同步升级至 0.4.16；安卓 versionCode 46，提供 arm64-v8a、armeabi-v7a、x86、x86_64 和通用 APK。大多数手机请选择 arm64-v8a。\n- 正式包沿用原应用标识和发布签名，可覆盖升级；独立 preview 测试版与正式版的数据相互独立。\n- 旧安卓版此次升级前的提示仍由旧版渲染；安装 0.4.16 后，更新弹窗才会使用新的 Markdown 排版。\n"
+    },
+    {
+      "version": "0.4.15",
+      "desc": "# Q-music 0.4.15\n\n本次正式版修复 PC 与安卓的排行榜、歌单切换问题，新增安卓 QQ 音乐微信账号的电脑配对登录方式，并修复 PC 侧栏选中背景错位。\n\n### 排行榜与歌单\n\n- 修复切换排行榜后仍显示上一榜单、快速切换时旧请求覆盖新结果的问题；列表、选中状态和分页同步更新。\n- 修复歌单「最新／最热」、分类、平台切换卡住或内容不刷新的问题，完善超时、失败重试及返回后的状态恢复。\n- 优化 PC 排行榜和歌单筛选布局，安卓同步调整列表切换与选中反馈。\n\n### 安卓微信账号电脑配对\n\n- 在新版 PC 的「音乐账号 → QQ 音乐」用微信登录，然后点击「连接手机」。手机进入「官方音乐账号 → QQ 音乐 → 微信登录」，在应用内扫描电脑配对码，核对账号后确认使用。\n- 两台设备需连接同一 Wi-Fi／局域网；也可以复制配对码到手机后粘贴连接。这是通过电脑导入已授权的音乐账号，并非安卓直接拉起微信授权。\n- 配对码 3 分钟内有效、仅可领取一次，局域网传输使用加密和校验；关闭、取消或过期后失效。确认前验证音乐账号，确认后使用 Android Keystore 加密保存。\n- 微信登录入口直接展示配对流程，移除重复入口及旧的保存网页二维码操作；修复半透明弹窗导致底层 QQ 登录网页穿透的问题。\n- 新增配对专用扫码页，提供返回、补光、明确取景框和横竖屏适配；手动粘贴按需展开。已登录用户可从电脑更换账号。\n- 导入登录状态不会覆盖本地歌单；连接后可继续使用平台歌单导入与同步功能。\n\n### PC 侧栏\n\n- 修复调整界面字号后，菜单高亮与图标、文字错位的问题；高亮位置和高度跟随实际菜单布局，不再使用固定像素步长。\n- 保留菜单切换动效，适配窗口尺寸与菜单项变化。\n\n### 安装说明\n\n- Windows x64、Arch Linux x64 和 Android 同步升级至 0.4.15；安卓 versionCode 45，提供 arm64-v8a、armeabi-v7a、x86、x86_64 和通用 APK。大多数手机请选择 arm64-v8a。\n- 电脑配对功能需要 PC 与安卓均升级至本版。正式包沿用原应用标识和发布签名；此前独立安装的 preview 测试版与正式版账号数据相互独立。\n- 已完成相关回归测试及 PC 侧栏 72 组布局对齐检查；不同厂商的相机、网络隔离和防火墙配置仍可能影响配对连接。\n"
+    },
+    {
+      "version": "0.4.14",
+      "desc": "# Q-music 0.4.14\n\n本次正式版完善 PC 与安卓的歌单管理和 QQ 收藏同步，新增安卓平板、车机布局与 Apple 沉浸播放风格。\n\n### 歌单来源与界面\n\n- QQ 音乐、网易云音乐、酷狗音乐歌单增加平台图标和来源文字，同名歌单也能分辨；当前歌单标题、单曲和批量收藏的目标列表同步显示来源。\n- 重新整理歌单侧栏：标题与新建、导入与同步分开排列，选中时文字不再跳动，长歌单名不会遮住菜单按钮。\n- 安卓将账号入口明确为「平台歌单」，增加「歌单同步」入口，完善手机抽屉、平板双栏及低矮横屏弹窗的滚动和返回。\n\n### QQ 音乐收藏与同步\n\n- PC 与安卓的单曲收藏窗口支持将 QQ 来源歌曲收藏到官方「我喜欢」。先核对歌曲和账号，提交后回读确认；结果暂不明确时可以只读核对，避免重复提交。\n- QQ 账号歌单支持单向自动更新到本地，并提供一键同步、单独重试、同步进度和最近更新时间。新增、移除及歌曲顺序均跟随 QQ，本地编辑不会上传。\n- 新导入的独立 QQ 歌单默认开启自动更新；历史歌单需先手动同步关联账号，再开启自动更新。收藏成功后刷新同账号且已开启自动更新的本地「我喜欢」。\n- 安卓只在前台按 10 分钟间隔检查，回到前台补查。同步异常、歌曲不完整、账号变更或歌单已删除时保留原列表，不用迟到结果覆盖新状态。\n- 网易云与酷狗继续支持账号歌单导入和手动同步；本次新增的云端收藏与自动更新功能针对 QQ 音乐。\n\n### 安卓平板、车机与播放风格\n\n- 设置增加「自动适配／手机／平板／车机」布局，支持横竖屏和分屏；大屏使用侧栏及双栏列表，迷你播放条独立占位，避免遮挡内容。\n- 车机布局增大歌曲条目和主要播放控件，减少横向误触。适用于可安装 APK 的 Android 车机，不包含 Android Auto 投屏或 CarPlay。\n- 保留原版播放界面并新增独立的「Apple 沉浸」风格，手机与大屏分别排版，支持封面取色动态背景、双语歌词层次和播放控件适配。\n- 流畅模式和减少动态效果设置会降低装饰动效，播放页不可见或应用在后台时停止新增背景动画。\n\n### 安装与说明\n\n- Windows x64、Arch Linux x64 与 Android 同步升级至 0.4.14；安卓 versionCode 44，提供 arm64-v8a、armeabi-v7a、x86、x86_64 和通用 APK。大多数手机请选择 arm64-v8a。\n- 正式安装包沿用原应用标识与发布签名，可从正式版升级；此前独立安装的 preview 测试包与正式版分开保存数据。\n- 已完成账号、同步、自适应回归、两端构建及 PC／安卓模拟器界面检查。平台接口和厂商车机系统存在差异，如有异常请附平台、系统版本和具体提示反馈。\n"
+    },
+    {
+      "version": "0.4.13",
+      "desc": "# Q-music 0.4.13\n\n本次正式版修复 PC 与安卓酷狗歌单导入时误报“平台返回的歌曲不完整”的问题。\n\n### 酷狗歌单同步\n\n- 修复分页提前结束：平台返回的单页数量少于请求数量时，按已知歌单总数继续读取后续页，避免大歌单被误判为缺页。\n- 修复歌曲去重后的数量误判：改为按文件及音质 hash 核对详情，不再把合法的音质合并当成缺歌；不同文件不再仅因歌曲 ID 相同而丢失。\n- 部分歌曲详情偶发缺失时，仅补查缺失项一次，并恢复歌单原有顺序。\n- 同步应用到 PC、安卓的酷狗账号歌单导入与每日推荐读取。\n- 真正缺少歌曲、重复分页、平台总数变化或用户取消时，仍保留原歌单，不以不完整结果覆盖本地列表。\n\n### 安装与验证\n\n- Windows x64、Arch Linux x64 和 Android 同步升级至 0.4.13；安卓 versionCode 43，提供 arm64-v8a、armeabi-v7a、x86、x86_64 和通用 APK。\n- 修复前已通过回归场景复现分页与音质去重误判；修复后 PC 61 项测试、安卓 18 项账号测试通过，并完成两端构建检查。\n- 尚未取得反馈者的具体失败歌单；本版修复的是已复现的问题，不代表所有平台缺失数据都能恢复。若仍失败，请附上歌单链接、歌曲数量、系统和软件版本反馈。\n"
+    },
+    {
+      "version": "0.4.12",
+      "desc": "# Q-music 0.4.12\n\n本次正式版集中完善 QQ、网易云与酷狗账号体验，统一推荐切换，并优化账号管理界面。\n\n### 音乐账号与登录\n\n- 新增酷狗音乐 App 扫码登录，可读取并导入默认收藏、我喜欢、自建及收藏歌单。\n- 修复 PC 的 QQ 音乐微信扫码在手机允许后仍停留“扫描成功”的问题，恢复官方授权回调；正确区分 QQ 与微信的音乐账号凭证。\n- PC 的 QQ 音乐与网易云沿用官方登录窗口，支持调整大小和小屏幕适配；酷狗保留简洁扫码界面。\n- 安卓同步接入酷狗扫码登录，并完善 QQ 微信授权入口与凭证识别。账号凭证仅在本机保存，直接请求对应平台官方接口。\n\n### 个性化推荐与歌单\n\n- PC、安卓首页均可切换 QQ、网易云、酷狗推荐，并记住选择；安卓账号页也可设置首页推荐来源。\n- 新增酷狗账号每日推荐；网易云直接读取账号每日推荐；QQ 默认使用账号雷达，官方每日 30 首作为可选额外授权。\n- QQ 官方每日 30 首入口整合到 QQ 账号管理中，减少分散设置；网易云与酷狗无需填写 QQ 的授权 Key。\n- 账号管理提供歌单与收藏导入入口，保留平台推荐顺序；切换平台时防止旧请求覆盖当前内容。\n- 推荐不可用时明确显示本地精选；退出或切换账号后不复用上一账号的推荐。\n- 酷狗歌单完整取得后才写入本地，失败或取消保留原列表；再次导入同一来源歌单更新已有列表。\n\n### 界面与交互\n\n- PC 账号卡片增加“管理／收起”和方向箭头，再次点击即可收起，切换平台时自动折叠上一项。\n- 调整卡片底色、按钮、间距与展开动画；登录、导入、退出放在展开区域，减少误触。\n- 账号窗口保留滚动条和关闭入口，支持键盘操作与小窗口布局；更新三平台的清晰矢量图标。\n\n### 安装与说明\n\n- Windows x64、Arch Linux x64 和 Android 同步升级至 0.4.12；安卓 versionCode 42，提供 arm64-v8a、armeabi-v7a、x86、x86_64 和通用 APK。大多数手机请选择 arm64-v8a。\n- 账号登录用于歌单和推荐，本次酷狗接入不包含会员播放能力；歌曲播放仍需可用音乐源。\n- 已验证 PC 的 QQ 微信授权、酷狗登录及收藏读取、酷狗 30 首日推和账号卡片交互；安卓通过自动化回归与构建，扫码授权及实际体验仍需在手机上验证。\n"
+    },
+    {
+      "version": "0.4.11",
+      "desc": "# Q-music 0.4.11\n\n本次正式版改善 Windows 与 Android 的更新检查和下载流程，重点处理 GitHub 连接不稳、下载停滞和重试体验。\n\n### 更新线路\n\n- 加入 ghfast.top、gh-proxy.com 两条公共镜像。检查版本和下载安装包均可使用备用地址，无需自行配置服务器。\n- 下载前并行检测当前版本的发布文件，按响应时间选择可用线路；下载约 30 秒没有进展时自动停止该次请求并换线，失败后进行有限重试。\n- 更新窗口和设置页显示当前线路、重试状态与进度；重复点击不会同时启动多个下载任务。\n- GitHub API 可用时以已公开的正式 Release 为准；不可用时回退版本文件及镜像。PC 与安卓仍使用各自的更新通道，排除预发布。\n\n### 下载与安装\n\n- PC 保留 electron-updater 的 SHA-512 文件校验；公共镜像使用完整安装包下载。能够取得 GitHub 元数据摘要时，额外验证更新描述文件。\n- 安卓新增 SHA-256 校验，同时检查 HTTP 状态与下载长度，避免把错误网页或不完整文件交给安装器。\n- 安卓已完成且校验通过的安装包可复用；安装授权失败后可再次安装，无需重新下载。尚未实现安卓失败任务的断点续传，换线时不完整文件会重新下载。\n- 预留 Cloudflare R2 公开镜像配置，本次默认使用公共镜像，不要求配置 Cloudflare 或 OneDrive。\n\n### 安装包与验证\n\n- Windows x64、Arch Linux x64 和 Android 同步升级至 0.4.11；安卓 versionCode 41，提供 arm64-v8a、armeabi-v7a、x86、x86_64 和通用 APK。\n- 更新回归覆盖断网换线、错误响应、下载截断、校验失败、重复点击、缓存复用和平台版本隔离；此前已验证现有正式安装包可通过镜像完整下载并通过校验。\n- 公共镜像可用性及速度取决于所在网络。从旧版升级到本版仍使用旧版更新器；本版安装完成后，后续更新才会使用新的自动选线流程。\n"
+    },
+    {
+      "version": "0.4.10",
+      "desc": "# Q-music 0.4.10\n\n本次正式版集中打磨 Windows 与 Android 的按钮、表单控件和弹窗动效，统一按压、悬停与键盘焦点反馈，不改动播放、同步等核心逻辑。\n\n### PC 控件与弹窗\n\n- 按钮悬停时轻微上浮，按下有短促的回压；禁用状态不再响应悬停，键盘操作时显示主题色焦点环。\n- 勾选框选中时填充主题色底并带柔和光晕，对勾弹性出现；输入框悬停与聚焦状态更清晰，占位文字更柔和。\n- 标签页改为跟随当前项滑动的指示条；滑动条悬停时加粗并显示拖动圆点，拖动中圆点放大。\n- 下拉选择框支持键盘：回车或空格展开，方向键切换选项，Esc 关闭；展开和收起带缩放淡入，并修复快速重复点击时无法再次展开的问题。\n- 弹窗的随机动画改为更克制的上浮、下落和侧滑淡入，关闭时快速淡出；关闭“随机动画”或动画效果后保持静态。\n\n### Android 控件与词幕\n\n- 图标按钮和主按钮按下时带弹性缩放反馈；勾选框对勾弹性出现并带主题底色；输入框聚焦时边框高亮。\n- 状态栏歌词（词幕）的播放、暂停与进度改为直接读取原生播放器状态，切歌和状态变化时重新同步，避免歌词停在暂停状态。\n- 开启系统“减少动态效果”或应用性能模式时，以上动画自动关闭。\n\n### 安装与更新\n\n- Windows x64、Arch Linux x64 与 Android 同步升级至 0.4.10。安卓 versionCode 40，提供 arm64-v8a、armeabi-v7a、x86、x86_64 和通用安装包，大多数手机请选择 arm64-v8a。\n- 已完成 PC 构建与 36 项现有测试、安卓代码检查、类型检查与 157 条回归断言；动效在不同设备上的实际观感仍需使用中验证。"
+    },
+    {
+      "version": "0.4.8",
+      "desc": "# Q-music 0.4.8\n\n本次正式版专注打磨 Windows 与 Android 的界面动效、加载状态和细节交互，不改动播放、同步等核心逻辑。\n\n### PC 界面与动效\n\n- 页面切换加入淡入过渡；左侧导航与设置目录改用跟随当前项滑动的高亮指示。\n- 底部播放栏切歌时封面和歌名淡入，播放／暂停图标带弹性切换；播放详情页的封面与歌曲信息同步过渡。\n- 首页加载改为骨架占位，封面加载完成后淡入；进入和返回歌单详情使用左右滑动切换，当前播放的歌曲高亮并显示音柱，再次点击可暂停或继续。\n- 歌单广场改为自适应网格卡片，依次浮现，悬停时卡片上浮并显示播放提示，支持键盘打开。\n- 排行榜、搜索结果和歌单详情加载时显示与列宽一致的骨架行。\n- 分页改为胶囊样式，页数较多时可输入页码，按回车直接跳转。\n- 我的列表侧栏优化悬停、拖拽和同步中状态；设置页切换分类时内容淡入并回到顶部。\n\n### Android 界面与动效\n\n- 底部播放条和播放详情页切歌时封面、歌名淡入；暂停时封面轻微收缩，播放／暂停按钮带弹性切换。\n- 播放详情页“封面／歌词”页码点改为动态胶囊指示。\n- 歌单详情页上滑后顶栏标题切换为歌单名，封面尺寸与圆角和其他页面统一。\n- 每日推荐、排行榜、搜索歌曲、歌单详情和歌单广场加载时显示骨架占位；每日推荐加载失败可直接重试，每日图片加载后淡入。\n- 开启系统“减少动态效果”或应用性能模式时，以上动画自动关闭。\n\n### 安装与更新\n\n- Windows x64、Arch Linux x64 与 Android 同步升级至 0.4.8。安卓 versionCode 38，提供 arm64-v8a、armeabi-v7a、x86、x86_64 和通用安装包，大多数手机请选择 arm64-v8a。\n- 已完成 PC 构建与 36 项现有测试、安卓代码检查与类型检查；动画在不同设备上的实际观感仍需使用中验证。"
+    },
+    {
+      "version": "0.4.6",
+      "desc": "# Q-music 0.4.6\n\n本次正式版集中打磨 Windows 与 Android 的列表操作、播放队列、下载管理和设置交互，延续现有视觉风格。\n\n### 列表与搜索\n\n- PC 收藏、搜索、排行榜及在线歌单统一多选工具栏和选择入口；操作按钮保留独立宽度，窄窗口按空间收起次要信息，避免长歌名挤掉按钮。\n- 安卓统一歌单多选操作，修复全选状态、范围选择和隐藏栏拦截触摸；长标题、导入入口及详情页主操作重新适配窄屏。\n- 两端添加歌曲弹窗改为明确创建、确认与取消；等待保存成功后关闭，失败保留输入，避免失焦误建歌单、重复点击和旧请求覆盖。\n- 搜索补齐加载与空结果反馈；安卓修复旧搜索结果回弹，PC 完善联想、历史及热搜开关和键盘选择。\n\n### 播放与下载\n\n- 播放队列显示暂停／继续状态，支持定位当前歌曲；安卓重新打开时自动定位，PC 补齐加载失败重试与关闭后的焦点恢复。\n- 修复安卓下载页重新进入后已有任务不显示、重复排队和重试问题；移除记录与同时删除文件分别提供选项，删除失败保留记录。\n- 修复 PC 删除单条下载记录可能误停其他下载的问题；下载页新增多选操作栏，修正范围选择、按钮布局和文件不存在时的反馈。\n- 定时设置新增 15／30／60／90 分钟快捷选择，仅接受 1–1440 的整数分钟；重新打开恢复已保存值，修复等待播完当前歌曲时的状态反馈。\n\n### 云端曲库与通用交互\n\n- 云端曲库补齐配置折叠、未保存草稿保护、密钥显示、歌曲筛选、当前结果全选和操作状态反馈；上传后保留已有列表。\n- PC 优化菜单键盘操作、弹窗焦点与 Escape 层级、歌单侧栏常驻入口以及外观设置的窄窗口布局。\n- 安卓优化返回键层级、设置分类定位和进度拖动取消后的复位。\n\n### 安装与更新\n\n- Windows x64、Arch Linux x64 与 Android 同步升级至 0.4.6。安卓提供 arm64-v8a、armeabi-v7a、x86、x86_64 和通用安装包。\n- 已完成本地构建、36 项现有测试及 104 条针对本轮交互的模拟回归断言；安卓真机视觉效果仍需实际使用验证。"
+    },
+    {
+      "version": "0.4.5",
+      "desc": "# Q-music 0.4.5\n\n### 云端曲库\n\n- Windows 与 Android 支持 S3 兼容存储和 WebDAV；服务配置独立保存，切换时不会覆盖另一服务的密钥。\n- 可上传本地歌曲到命名歌单，查看并勾选云端歌曲，再按原歌单导入或导入默认歌曲列表；音频下载到本机后通过 SHA-256 校验。\n- 可选端到端加密口令；免口令与加密模式使用独立目录。S3 静态加密由存储服务商及存储桶配置决定。\n\n### 交互与结果\n\n- PC 的“我的列表”和手机曲库提供云端入口；PC 补齐导入结果的返回/关闭路径，手机可直接跳转到导入的列表。\n- 增加已选数量、全选与取消全选；连续导入多个歌单时避免列表 ID 冲突。\n- 本版是手动上传与导入，不进行后台自动双向同步；OneDrive 暂不支持。\n\n### 发布范围\n\n- 同时提供 Windows x64、Arch Linux x64、Android arm64 和通用安装包。"
+    },
+    {
+      "version": "0.3.24",
+      "desc": "# Q-music 0.3.24\n\n- 桌面更新只识别含安装包的 Release，避免 Android 独立发布触发 PC 更新。\n- 歌词详情加入双语开关，补齐逐字歌词及跨平台可信匹配的中文译文。"
+    },
+    {
+      "version": "0.3.23",
+      "desc": "# Q-music 0.3.23\n\n### 手机端界面与交互\n\n- 首页搜索来源改为紧凑图标下拉，与历史搜索、当前平台热榜和输入建议自然共存；切换平台、提交搜索和点击热榜时清理过期面板。\n- 设置页改为分类标签与单页内容，播放详情加入清晰的“封面 / 歌词”切换，并统一高频按钮的触控尺寸。\n- 歌单、排行榜、评论和搜索结果补齐加载、空状态、失败提示及重试，快速切换来源时旧请求不会覆盖当前页面。\n\n### 播放线路与音质\n\n- 选择自定义音源后，优先按 Hi-Res、无损、高品质、标准依次尝试，全部失败才回退官方线路。\n- 音质面板改为适合窄屏的紧凑网格，并标明自定义音源、实际平台、官方回退及会员限制。\n- 切换音质会立即刷新当前歌曲；修复排行榜长按播放错列表、歌单分页重复加载和连续切歌异常。\n\n### 稳定性与细节\n\n- 平台图标增加离线回退，账号入口改用真实能力说明，不再暗示未实现的应用内登录。\n- 修复关闭评论后错误保持常亮、播放卡片横向溢出及多个小屏裁切问题。\n\n### 多端发布\n\n- Android 升级至 0.3.23，并生成 arm64-v8a 与通用签名安装包。\n- Windows 和 Arch Linux 随统一发布标签重新生成对应安装包。"
+    },
+    {
+      "version": "0.3.22",
+      "desc": "# Q-music 0.3.22\n\n### 自定义音源优先\n\n- 在设置中选择自定义音源后，默认播放和跨平台匹配会优先请求该音源；仅在全部失败后回退官方线路。\n- 自定义音源可按声明尝试高品质、无损和 Hi-Res；手动选择平台时仍尊重本次平台优先意图。\n- 播放状态记录实际 API 与缓存提供方，避免设置切换期间误读旧音源缓存或错误标记线路。\n\n### 音质菜单\n\n- 平台较多时改用紧凑图标网格，移除横向滚动条，并按窗口高度提供自然的纵向滚动。\n- 音质面板随窗口边缘自动定位，显示“自定义源优先”、实际线路、回退状态及准确的会员提示。\n- 优化键盘焦点、可访问标签与来源选中反馈，小尺寸窗口下也可完整操作。\n\n### 多端发布\n\n- Windows、Arch Linux 与 Android 版本统一升级至 0.3.22。"
+    },
+    {
+      "version": "0.3.21",
+      "desc": "# Q-music 0.3.21\n\n### 音源路由与音质\n\n- 优化官方平台、自定义音源和跨平台匹配的候选顺序；单条线路失败时继续尝试可用线路，不再误跳到下一首。\n- 在音质菜单中明确显示实际播放平台、请求平台和回退状态；自定义高质量音源可正常参与选择。\n- 区分“没有该音质”和“平台未提供文件大小”，并补充官方播放记录上报与失败隔离。\n\n### 搜索、歌单与排行榜\n\n- 搜索框内置竖向平台选择器，支持历史搜索和当前平台热榜，点击热榜或回车后自动清理过期面板。\n- 优化同名歌曲排序，优先展示更可能的原声/正式版本，减少翻唱、混音和现场版本干扰。\n- 修复歌单、排行榜及 QQ 音乐“我喜欢”偶发空白，增加请求校验、重试和过期响应保护。\n\n### 播放器体验\n\n- 恢复唱片播放时旋转、暂停时停止，以及唱针落下/抬起状态同步。\n- 播放控制、音质、可视化和歌词工具保持在当前界面内打开，优化窗口切换与桌面歌词定位。\n- 完善音乐平台登录账户展示、退出登录和失效状态清理。\n\n### 多端发布\n\n- Windows、Arch Linux 与 Android 版本统一升级至 0.3.21。"
+    },
+    {
+      "version": "0.3.20",
+      "desc": "# Q-music 0.3.20\n\n### 搜索结果排序\n\n- 聚合搜索结合平台原生名次、跨平台共识和专辑 ID 证据，优先展示更可能的原声/正式版本。\n- 未指定翻唱、混音、现场等版本词时降低变体干扰；明确输入版本词时保留对应结果的优先级。\n- 单平台结果保持平台原生顺序，某一来源失败时不会用空结果覆盖其他来源。\n\n### 播放线路与缓存\n\n- 重构官方线路、自定义音源、跨平台匹配与缓存的回退顺序，单条线路失败后继续尝试可用线路，不再直接跳到下一首。\n- 区分不同音源提供方的缓存与失败状态，避免过期地址、重复地址或某个接口限流污染其他播放线路。\n- 为请求增加取消、超时和失效地址清理，连续切歌与刷新音质时更加稳定。\n\n### 官方平台播放记录\n\n- 使用 QQ 音乐或网易云音乐官方线路播放时，向已登录平台回报有效播放记录。\n- 播放记录上报失败不会中断当前歌曲，也不会阻塞切歌。\n\n### 多端发布\n\n- Windows、Arch Linux 与 Android 版本统一升级至 0.3.20。"
+    },
+    {
+      "version": "0.3.19",
+      "desc": "# Q-music 0.3.19\n\n### 经典唱片动画\n\n- 恢复经典播放详情页的唱片旋转动画。\n- 播放时唱针落下并持续转动，暂停时唱针抬起且唱片停止。\n- 切歌与播放状态变化时保持动画状态同步。"
+    },
+    {
+      "version": "0.3.18",
+      "desc": "# Q-music 0.3.18\n\n### 搜索与来源选择\n\n- 搜索框来源选择改为紧凑下拉菜单，可与历史搜索和平台热搜面板共存。\n- 修复回车或点击热搜后搜索面板残留、过期提示覆盖和多平台切换异常。\n- 补充平台来源图标与统一的加载、空状态反馈。\n\n### 歌单、排行榜与账号\n\n- 修复歌单、QQ 音乐“我喜欢”和排行榜内容空白或加载失败。\n- 增加请求重试、响应校验及失效状态恢复。\n- 优化 QQ 音乐与网易云音乐账号状态检测、登录信息展示和退出登录流程。\n\n### 多端发布\n\n- Windows、Arch Linux 与 Android 版本统一升级至 0.3.18。"
+    },
+    {
+      "version": "0.3.17",
+      "desc": "# Q-music 0.3.17\n\n- 稳定搜索导航、热搜加载与播放线路切换。"
+    },
+    {
+      "version": "0.3.4",
+      "desc": "# Q-music 0.3.4\n\n### Apple Music 风格歌词页\n\n- 新增沉浸式歌词风格，同时保留原有经典布局，可在设置中自由切换。\n- 重排封面、歌词、播放控制与工具栏，统一评论、播放列表、倍速、音效和歌词选择等浮层的深色磨砂视觉。\n- 优化歌词详情页的进入、退出与内容切换动画，移除重复控件和多余边框。\n\n### 专辑色音频可视化\n\n- 使用当前封面主色生成 Apple Music 风格的柔和动态光场。\n- 低频驱动封面呼吸，中高频控制多层光晕的流动与明暗。\n- 限制到 30 FPS 与 1.5 倍像素密度，封面仅在切歌时取色，降低 Windows、集显和 Linux Wayland 的合成负担。"
+    },
+    {
+      "version": "0.3.3",
+      "desc": "# Q-music 0.3.3\n\n### 多源歌单与排行榜\n\n- 修复 QQ 音乐、网易云音乐和咪咕音乐歌单切换后内容空白的问题。\n- 修复酷我、QQ 音乐、网易云音乐和咪咕音乐排行榜接口，五个内置来源均可正常加载。\n- 合并重复请求并隔离过期响应，避免快速切换来源时旧请求覆盖新页面。\n\n### 界面细节\n\n- 统一底栏与歌词页的无封面占位图标。\n- 移除歌词页唱片中心的蓝绿渐变音符，改用简洁的中性声波标记。"
+    },
+    {
+      "version": "0.2.9",
+      "desc": "# Q-music 0.2.9\n\n### 个性化推荐\n\n- 支持在 QQ 音乐与网易云音乐之间选择每日推荐来源。\n- QQ 音乐接入私人雷达，并支持通过腾讯官方授权获取真正的“每日30首”。\n- 授权流程改为应用内自动识别、验证和系统加密保存，无需手动填写 Key。\n- 网易云音乐支持读取账号歌单及完整歌单详情。\n\n### 首页与体验\n\n- 首页改为更接近 QQ 音乐的信息卡片布局，补充今日推荐与歌单宝藏库。\n- 修复推荐详情歌曲数量不完整、账号登录回调及歌单详情空白等问题。"
+    },
+    {
+      "version": "0.2.5",
+      "desc": "# Q-music 0.2.5\n\n### 每日精选\n\n- 每日精选卡片支持整卡点击，并新增完整歌单详情页。\n- 详情页可查看全部推荐歌曲、播放全部、单曲播放和换一批。\n- 移除首页重复的搜索按钮，让内容布局更简洁。\n\n### 多端同步\n\n- 桌面端新增更紧凑的“扫码登录同步”入口与二维码配对弹窗。\n- Android 支持扫描桌面端二维码，通过 `qmusic://` 深链自动建立同步连接。\n- 增加配对状态、设备数量和异常反馈。"
+    },
+    {
+      "version": "0.2.4",
+      "desc": "Q-music 0.2.4\n\n- 首页改为简洁的推荐卡片与聚合搜索。\n- 修复歌单和歌曲页面切换后内容区空白的问题。\n- 修复更新检测异常，并支持 Markdown 更新内容。"
+    },
+    {
+      "version": "0.2.3",
+      "desc": "Q-music 0.2.3\n\n- 新增每日推荐与多端同步基础能力。\n- 优化首页发现内容和桌面端交互。"
+    },
+    {
+      "version": "0.2.2",
+      "desc": "Q-music 桌面版 0.2.2\n\n- Linux 原生 Wayland 默认使用 ANGLE/EGL，避免 NVIDIA 驱动下 desktop GL 初始化失败后回退到软件渲染。\n- X11/XWayland 继续使用 desktop GL。\n- 尊重用户显式传入的 `--use-gl` 与 `--use-angle` 参数，并在日志中记录最终图形后端。\n- 修正 `disable-gpu-sandbox` 启动参数格式。"
+    },
+    {
+      "version": "0.2.1",
+      "desc": "Q-music 0.2.1\n\n本版本统一发布 Windows、Arch Linux 与 Android 客户端。\n\n主要变更\n- Android 改为手机优先的单列布局与底部导航，组件视觉对齐 Windows 端的圆角玻璃风格。\n- Android 补回 QQ 音乐、网易云、酷狗与 Spotify 外部歌单导入。\n- Android 关于、问题反馈、版本检测和安装包下载统一指向当前 Q-music 项目。\n- 增加 Arch Linux pacman 包构建与校验。\n- 修正跨端品牌、更新源与发布资产命名。"
+    },
+    {
+      "version": "0.2.0",
+      "desc": "Q-music 0.2.0\n\n本版本基于 LX Music Desktop 2.12.2 二次修改。\n\n主要变更\n- 界面全面焕新为液态玻璃风格：中性白毛玻璃面板，自定义背景图可真正透出。\n- 新增「背景与毛玻璃」设置：一键选背景图，面板透明/模糊滑块实时调整并记忆。\n- 主题选择器升级为迷你玻璃预览卡；左侧导航与设置侧栏选中态重做，去掉竖线。\n- 右键/下拉菜单统一为主题感知磨砂浮层；SQ/Hi-Res 徽标胶囊化。\n- 播放栏重做：播放簇居中、图标重绘为实心圆角风格、播放键主题色渐变发光、进度条加拖拽圆点、工具图标分组。\n- 列表行优化：正在播放行主色高亮 + 均衡跳动条，hover 磨砂底，文字可读性微衬底。\n- 打开歌曲评论改用 FLIP 连续滑动动画，全程丝滑。\n- 新增「启动时自动检查更新」开关；修复「软件更新」设置节不可见的问题。"
+    },
+    {
+      "version": "0.1.11",
+      "desc": "Q-music 0.1.11\n\n本版本基于 LX Music Desktop 2.12.2 二次修改。\n\n主要变更\n- 重做打开歌曲评论的动画：封面、歌词、说明用真正的 FLIP 手法从原位置连续滑动到新位置，不再是先跳到位再淡入，运动全程顺滑。\n- 打开瞬间的布局重排先在静止状态下处理完，再开始滑动，把卡顿吸收掉，保证滑动本身丝滑。\n- 评论面板与评论列表推迟到滑动结束后再淡入，避免面板首次绘制与大量评论渲染阻塞动画。"
+    },
+    {
+      "version": "0.1.10",
+      "desc": "Q-music 0.1.10\n\n本版本基于 LX Music Desktop 2.12.2 二次修改。\n\n主要变更\n- 播放详情页打开歌曲评论时不再生硬跳变：封面、歌词、评论面板按真实运动方向依次平滑落位，开关动画对称。\n- 评论面板标题与歌名基线对齐，顶部增加留白。\n- 评论列表加载完成后淡入显示，不再瞬间填充。"
+    },
+    {
+      "version": "0.1.9",
+      "desc": "Q-music 0.1.9\n\n本版本基于 LX Music Desktop 2.12.2 二次修改。\n\n主要变更\n- 外部歌单导入加固：校验 Spotify 分页链接防止 Token 外泄、导入过程可随时取消、网络波动时保留已读取的部分继续导入、错误提示中文化、来源读取不完整时明确提示实际读取数量。\n- 播放队列修复：重复歌曲时正确高亮当前曲目、修复快照过期可能点击播错歌的问题、加载中不再误显示「列表为空」。\n- 播放队列交互优化：「稍后播」增删动画、列表底部渐隐、删除按钮键盘聚焦可见。\n- 播放详情页无歌词时显示「暂无歌词」占位提示。\n- 底栏标题只显示歌名；封面悬停显示展开提示。\n- 「我的列表」侧栏标题不再截断；导入弹窗取消按钮文案修正。"
+    },
+    {
+      "version": "0.1.6",
+      "desc": "Q-music 0.1.6\n\n本版本基于 LX Music Desktop 2.12.2 二次修改。\n\n主要变更\n- 更新检查优先读取 Q-music GitHub Latest Release，减少手动维护版本信息的遗漏。\n- 设置「软件更新」页新增「检查更新」按钮，可主动触发更新检测。\n- 更新 publish/version.json，让 v0.1.5 能正确发现新版本。\n- 保留 publish/version.json 与 jsDelivr 作为兼容兜底源。"
+    },
+    {
+      "version": "0.1.5",
+      "desc": "主要变更\n- 关于 Q-music 页面新增当前版本号显示。\n- 升级版本号到 0.1.5，并通过 GitHub Actions 自动生成 Windows x64 安装包。"
+    },
+    {
+      "version": "0.1.4",
+      "desc": "主要变更\n- 将版本检测与自动更新发布源固定到 Nshpiter/Q-music。\n- 恢复启动后的轻量版本检测，发现新版时展示更新弹窗。\n- 修复“下载更新”在更新器未激活时无法继续下载的问题。\n- 安装包新增“创建桌面快捷方式”选项，默认不创建，测试安装时无需手动清理桌面图标。\n- 更新软件发布页链接为 Q-music GitHub Releases。\n- 重写 README 项目主页，并替换为 Q-music 当前界面截图。"
+    },
+    {
+      "version": "0.1.3",
+      "desc": "主要变更\n- 修复主视图布局高度异常时可能出现的空白页面问题。\n- 修复展开歌词后切换主界面时路由视图可能变为空白的问题。\n- 更新应用图标与托盘原色、黑色、白色图标，改为更简洁的浅色音乐图标风格。\n- 增加路由、设置页、弹窗遮罩和渲染异常诊断日志，辅助定位设置页切换后的空白界面问题。\n- 调整应用品牌、图标、窗口标题和安装包名称为 Q-music。\n- 重构播放详情页视觉、歌词布局、评论区域和音频可视化。\n- 隔离 appId 与 qmusic:// 深链协议，避免与官方 LX Music 冲突。\n- 关闭生产 source map，减少发布包体积。\n- 补充 README、NOTICE 与 MODIFICATIONS，明确二改归属和许可说明。"
+    }
+  ],
+  "repository": "appdev/TuneFlow",
+  "commit": "e2a0bdcb1227180fb48c8fc306907f5ccc0278bc",
+  "assets": [
+    {
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/678422935",
+      "id": 678422935,
+      "node_id": "RA_kwDOT02oOM4ob-mX",
+      "name": "manifest-android.json",
+      "label": "",
+      "uploader": {
+        "login": "github-actions[bot]",
+        "id": 41898282,
+        "node_id": "MDM6Qm90NDE4OTgyODI=",
+        "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "content_type": "application/json",
+      "state": "uploaded",
+      "size": 1064,
+      "digest": "sha256:045eccd234b4ded80edac640772d7f6a93036a675e2607252182d61f4e4b4e46",
+      "download_count": 0,
+      "created_at": "2026-10-26T14:31:49Z",
+      "updated_at": "2026-10-26T14:31:49Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v0.4.26/manifest-android.json"
+    },
+    {
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/678422683",
+      "id": 678422683,
+      "node_id": "RA_kwDOT02oOM4ob-ib",
+      "name": "manifest-desktop.json",
+      "label": "",
+      "uploader": {
+        "login": "github-actions[bot]",
+        "id": 41898282,
+        "node_id": "MDM6Qm90NDE4OTgyODI=",
+        "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "content_type": "application/json",
+      "state": "uploaded",
+      "size": 1251,
+      "digest": "sha256:455e96f3500ce862085f8f08ca30343f967f6d963882c016bcba63874040672c",
+      "download_count": 0,
+      "created_at": "2026-10-26T14:31:43Z",
+      "updated_at": "2026-10-26T14:31:44Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v0.4.26/manifest-desktop.json"
+    },
+    {
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/678422803",
+      "id": 678422803,
+      "node_id": "RA_kwDOT02oOM4ob-kT",
+      "name": "manifest-web.json",
+      "label": "",
+      "uploader": {
+        "login": "github-actions[bot]",
+        "id": 41898282,
+        "node_id": "MDM6Qm90NDE4OTgyODI=",
+        "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "content_type": "application/json",
+      "state": "uploaded",
+      "size": 327,
+      "digest": "sha256:d4eb7d667b7a322bb73062c9e73972582f7f5fdbe4b75974538ea8c91b9976da",
+      "download_count": 0,
+      "created_at": "2026-10-26T14:31:46Z",
+      "updated_at": "2026-10-26T14:31:47Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v0.4.26/manifest-web.json"
+    },
+    {
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/678421941",
+      "id": 678421941,
+      "node_id": "RA_kwDOT02oOM4ob-W1",
+      "name": "Q-music-android-v0.4.26-arm64-v8a.apk",
+      "label": "",
+      "uploader": {
+        "login": "github-actions[bot]",
+        "id": 41898282,
+        "node_id": "MDM6Qm90NDE4OTgyODI=",
+        "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "content_type": "application/vnd.android.package-archive",
+      "state": "uploaded",
+      "size": 25902924,
+      "digest": "sha256:623f00a562552b3bd186f8e4b733e916fb12a220cd3af86cc21911b7396375c9",
+      "download_count": 0,
+      "created_at": "2026-10-26T14:31:28Z",
+      "updated_at": "2026-10-26T14:31:29Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v0.4.26/Q-music-android-v0.4.26-arm64-v8a.apk"
+    },
+    {
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/678422066",
+      "id": 678422066,
+      "node_id": "RA_kwDOT02oOM4ob-Yy",
+      "name": "Q-music-android-v0.4.26-armeabi-v7a.apk",
+      "label": "",
+      "uploader": {
+        "login": "github-actions[bot]",
+        "id": 41898282,
+        "node_id": "MDM6Qm90NDE4OTgyODI=",
+        "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "content_type": "application/vnd.android.package-archive",
+      "state": "uploaded",
+      "size": 21007328,
+      "digest": "sha256:5d673cc737dce4c2232bfdf9f588521c83bcf619f32335272236cfb5af85f84f",
+      "download_count": 0,
+      "created_at": "2026-10-26T14:31:30Z",
+      "updated_at": "2026-10-26T14:31:32Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v0.4.26/Q-music-android-v0.4.26-armeabi-v7a.apk"
+    },
+    {
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/678422181",
+      "id": 678422181,
+      "node_id": "RA_kwDOT02oOM4ob-al",
+      "name": "Q-music-android-v0.4.26-universal.apk",
+      "label": "",
+      "uploader": {
+        "login": "github-actions[bot]",
+        "id": 41898282,
+        "node_id": "MDM6Qm90NDE4OTgyODI=",
+        "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "content_type": "application/vnd.android.package-archive",
+      "state": "uploaded",
+      "size": 68545895,
+      "digest": "sha256:2e77d3a64a3309d09c968619ac78b0bfecb611005d5f7520a6254bccdf6f7a6e",
+      "download_count": 0,
+      "created_at": "2026-10-26T14:31:33Z",
+      "updated_at": "2026-10-26T14:31:36Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v0.4.26/Q-music-android-v0.4.26-universal.apk"
+    },
+    {
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/678422353",
+      "id": 678422353,
+      "node_id": "RA_kwDOT02oOM4ob-dR",
+      "name": "Q-music-android-v0.4.26-x86.apk",
+      "label": "",
+      "uploader": {
+        "login": "github-actions[bot]",
+        "id": 41898282,
+        "node_id": "MDM6Qm90NDE4OTgyODI=",
+        "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "content_type": "application/vnd.android.package-archive",
+      "state": "uploaded",
+      "size": 26212496,
+      "digest": "sha256:f679fcd030d4f18bc312e4afe72333412be3d303a2db0078c7169c33374ee495",
+      "download_count": 0,
+      "created_at": "2026-10-26T14:31:37Z",
+      "updated_at": "2026-10-26T14:31:38Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v0.4.26/Q-music-android-v0.4.26-x86.apk"
+    },
+    {
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/678422452",
+      "id": 678422452,
+      "node_id": "RA_kwDOT02oOM4ob-e0",
+      "name": "Q-music-android-v0.4.26-x86_64.apk",
+      "label": "",
+      "uploader": {
+        "login": "github-actions[bot]",
+        "id": 41898282,
+        "node_id": "MDM6Qm90NDE4OTgyODI=",
+        "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "content_type": "application/vnd.android.package-archive",
+      "state": "uploaded",
+      "size": 26669874,
+      "digest": "sha256:63a831070b8606c8cd32c72b066b9d729cbb748397bdea844b6effd96dae94ec",
+      "download_count": 0,
+      "created_at": "2026-10-26T14:31:40Z",
+      "updated_at": "2026-10-26T14:31:41Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v0.4.26/Q-music-android-v0.4.26-x86_64.apk"
+    },
+    {
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/678420119",
+      "id": 678420119,
+      "node_id": "RA_kwDOT02oOM4ob96X",
+      "name": "Q-music-Docker-0.4.26-linux-arm64.tar.gz",
+      "label": "",
+      "uploader": {
+        "login": "github-actions[bot]",
+        "id": 41898282,
+        "node_id": "MDM6Qm90NDE4OTgyODI=",
+        "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "content_type": "application/x-gtar",
+      "state": "uploaded",
+      "size": 124029712,
+      "digest": "sha256:6f54afaddb960fc5dd9a56e7f9c0bd6eda6145fdf5e5e611fc749c833de7f133",
+      "download_count": 0,
+      "created_at": "2026-10-26T14:30:46Z",
+      "updated_at": "2026-10-26T14:30:50Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v0.4.26/Q-music-Docker-0.4.26-linux-arm64.tar.gz"
+    },
+    {
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/678420299",
+      "id": 678420299,
+      "node_id": "RA_kwDOT02oOM4ob99L",
+      "name": "Q-music-Docker-0.4.26-linux-x64.tar.gz",
+      "label": "",
+      "uploader": {
+        "login": "github-actions[bot]",
+        "id": 41898282,
+        "node_id": "MDM6Qm90NDE4OTgyODI=",
+        "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "content_type": "application/x-gtar",
+      "state": "uploaded",
+      "size": 123685327,
+      "digest": "sha256:6ff17799bbb1b5dcb9ce5e5f8b753d62ceb18de1dead67de46ef285c66c3d1b8",
+      "download_count": 0,
+      "created_at": "2026-10-26T14:30:51Z",
+      "updated_at": "2026-10-26T14:30:56Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v0.4.26/Q-music-Docker-0.4.26-linux-x64.tar.gz"
+    },
+    {
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/678420634",
+      "id": 678420634,
+      "node_id": "RA_kwDOT02oOM4ob-Ca",
+      "name": "Q-music-Docker-0.4.26-mac-arm64.zip",
+      "label": "",
+      "uploader": {
+        "login": "github-actions[bot]",
+        "id": 41898282,
+        "node_id": "MDM6Qm90NDE4OTgyODI=",
+        "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "content_type": "application/zip",
+      "state": "uploaded",
+      "size": 121143897,
+      "digest": "sha256:4e70ee6de6f7ad5d5498bd4a451cfae8cec62430a96c4c3b16dc4321ab4e08b2",
+      "download_count": 0,
+      "created_at": "2026-10-26T14:30:57Z",
+      "updated_at": "2026-10-26T14:31:03Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v0.4.26/Q-music-Docker-0.4.26-mac-arm64.zip"
+    },
+    {
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/678420937",
+      "id": 678420937,
+      "node_id": "RA_kwDOT02oOM4ob-HJ",
+      "name": "Q-music-Docker-0.4.26-mac-x64.zip",
+      "label": "",
+      "uploader": {
+        "login": "github-actions[bot]",
+        "id": 41898282,
+        "node_id": "MDM6Qm90NDE4OTgyODI=",
+        "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "content_type": "application/zip",
+      "state": "uploaded",
+      "size": 128681792,
+      "digest": "sha256:6114f4ac3bfacfc6ac9e24fed9a44de5834899babc263fef0ba61780adc5f2ca",
+      "download_count": 0,
+      "created_at": "2026-10-26T14:31:04Z",
+      "updated_at": "2026-10-26T14:31:09Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v0.4.26/Q-music-Docker-0.4.26-mac-x64.zip"
+    },
+    {
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/678421160",
+      "id": 678421160,
+      "node_id": "RA_kwDOT02oOM4ob-Ko",
+      "name": "Q-music-Docker-0.4.26-win-arm64.zip",
+      "label": "",
+      "uploader": {
+        "login": "github-actions[bot]",
+        "id": 41898282,
+        "node_id": "MDM6Qm90NDE4OTgyODI=",
+        "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "content_type": "application/zip",
+      "state": "uploaded",
+      "size": 146162467,
+      "digest": "sha256:8f1f785064281628cd802a5f2d67ffc55b0eacd1fd221c7af7a2ff4b28e99efa",
+      "download_count": 0,
+      "created_at": "2026-10-26T14:31:10Z",
+      "updated_at": "2026-10-26T14:31:16Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v0.4.26/Q-music-Docker-0.4.26-win-arm64.zip"
+    },
+    {
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/678421445",
+      "id": 678421445,
+      "node_id": "RA_kwDOT02oOM4ob-PF",
+      "name": "Q-music-Docker-0.4.26-win-x64.zip",
+      "label": "",
+      "uploader": {
+        "login": "github-actions[bot]",
+        "id": 41898282,
+        "node_id": "MDM6Qm90NDE4OTgyODI=",
+        "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "content_type": "application/zip",
+      "state": "uploaded",
+      "size": 146780651,
+      "digest": "sha256:13061cefa7c2f208bf1bf7b29956411e2fc46112b5b8553ba3e4fae1d00b2203",
+      "download_count": 0,
+      "created_at": "2026-10-26T14:31:18Z",
+      "updated_at": "2026-10-26T14:31:25Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v0.4.26/Q-music-Docker-0.4.26-win-x64.zip"
+    },
+    {
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/678421846",
+      "id": 678421846,
+      "node_id": "RA_kwDOT02oOM4ob-VW",
+      "name": "Q-music-Web-0.4.26.tar.gz",
+      "label": "",
+      "uploader": {
+        "login": "github-actions[bot]",
+        "id": 41898282,
+        "node_id": "MDM6Qm90NDE4OTgyODI=",
+        "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "content_type": "application/x-gtar",
+      "state": "uploaded",
+      "size": 12769217,
+      "digest": "sha256:c467f2552938eb4cfd2bac788378ac28b75ff2e93c5b4ae9321181e9c4fc4c70",
+      "download_count": 0,
+      "created_at": "2026-10-26T14:31:26Z",
+      "updated_at": "2026-10-26T14:31:27Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v0.4.26/Q-music-Web-0.4.26.tar.gz"
+    },
+    {
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/678422877",
+      "id": 678422877,
+      "node_id": "RA_kwDOT02oOM4ob-ld",
+      "name": "SHA256SUMS-android.txt",
+      "label": "",
+      "uploader": {
+        "login": "github-actions[bot]",
+        "id": 41898282,
+        "node_id": "MDM6Qm90NDE4OTgyODI=",
+        "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "content_type": "text/plain; charset=utf-8",
+      "state": "uploaded",
+      "size": 513,
+      "digest": "sha256:76e2806657ce1a143b63d9527453d1912ea8277c25dcb6d568f3ae6815faa9da",
+      "download_count": 0,
+      "created_at": "2026-10-26T14:31:48Z",
+      "updated_at": "2026-10-26T14:31:48Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v0.4.26/SHA256SUMS-android.txt"
+    },
+    {
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/678422601",
+      "id": 678422601,
+      "node_id": "RA_kwDOT02oOM4ob-hJ",
+      "name": "SHA256SUMS-desktop.txt",
+      "label": "",
+      "uploader": {
+        "login": "github-actions[bot]",
+        "id": 41898282,
+        "node_id": "MDM6Qm90NDE4OTgyODI=",
+        "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "content_type": "text/plain; charset=utf-8",
+      "state": "uploaded",
+      "size": 616,
+      "digest": "sha256:ba7547d8a604e3d52fa42869387a8ed08fac46d2a0d59aaa413aec0715df57a9",
+      "download_count": 0,
+      "created_at": "2026-10-26T14:31:42Z",
+      "updated_at": "2026-10-26T14:31:42Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v0.4.26/SHA256SUMS-desktop.txt"
+    },
+    {
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/678422754",
+      "id": 678422754,
+      "node_id": "RA_kwDOT02oOM4ob-ji",
+      "name": "SHA256SUMS-web.txt",
+      "label": "",
+      "uploader": {
+        "login": "github-actions[bot]",
+        "id": 41898282,
+        "node_id": "MDM6Qm90NDE4OTgyODI=",
+        "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+        "html_url": "https://github.com/apps/github-actions",
+        "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "content_type": "text/plain; charset=utf-8",
+      "state": "uploaded",
+      "size": 92,
+      "digest": "sha256:fea487ba76d0ff8bb97e842bfcfa1a51938b2dee770bc98bef6366575c9cfe16",
+      "download_count": 0,
+      "created_at": "2026-10-26T14:31:45Z",
+      "updated_at": "2026-10-26T14:31:45Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v0.4.26/SHA256SUMS-web.txt"
+    }
+  ]
+}
