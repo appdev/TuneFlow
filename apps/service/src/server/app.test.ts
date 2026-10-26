@@ -39,6 +39,10 @@ afterEach(async() => {
 })
 
 describe('TuneFlow service', () => {
+  it('refuses to serve the private account storage beneath a static Web root', async() => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-private-account-root-')); roots.push(root)
+    await expect(createServer({ storageRoot: root, webRoot: root, host: '127.0.0.1', port: 0 })).rejects.toThrow('Account storage must be outside the static Web root')
+  })
   it('serves Flutter at root and preserves the legacy SPA under /V2/', async() => {
     const { app, webRoot } = await createTestServer()
     mkdirSync(path.join(webRoot, 'V2'))

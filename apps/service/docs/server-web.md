@@ -43,8 +43,10 @@ Configuration is supplied with environment variables:
 
 The loopback default is intentional. To opt in on a trusted LAN, bind
 `TUNEFLOW_HOST=0.0.0.0` and control access with the host firewall or reverse proxy.
-There is no authentication, tenant separation, or public-network hardening;
-do not expose this iteration directly to the Internet.
+Music platform account APIs use revocable device authorization and require a
+protected connection; see [shared platform accounts](platform-accounts.md).
+The general library/playback APIs retain their existing shared-instance access
+policy and have no tenant separation. Do not expose them directly to the Internet.
 
 ## Storage, backup, and restore
 

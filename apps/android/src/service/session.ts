@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { ServiceClient } from './client'
 import { DEFAULT_ENDPOINT, PROFILE_KEY, ServiceWorkspace } from './workspace'
+import { probeAccountAccess } from '../../../../packages/service-client/src/accounts'
 
 let workspace = new ServiceWorkspace(new ServiceClient(DEFAULT_ENDPOINT))
 let started = false
@@ -9,6 +10,13 @@ let refreshing: Promise<void> | undefined
 const subscribers = new Set<() => void>()
 const recommendationSubscribers = new Set<() => void>()
 let recommendationSequence = -1
+let accountSequence = -1
+let accountAccessMarker: string | undefined
+const accountSubscribers = new Set<() => void>()
+let accountIdentityRevision = 0
+export const getAccountIdentityRevision = () => `${accountSequence}:${accountIdentityRevision}`
+export const subscribeAccounts = (listener: () => void) => { accountSubscribers.add(listener); return () => { accountSubscribers.delete(listener) } }
+export const notifyAccountsChanged = () => { accountIdentityRevision++; for (const listener of accountSubscribers) listener() }
 export const subscribeRecommendations = (listener: () => void) => { recommendationSubscribers.add(listener); return () => { recommendationSubscribers.delete(listener) } }
 export interface ServiceListSnapshot { defaultList: LX.Music.MusicInfo[], loveList: LX.Music.MusicInfo[], userList: LX.List.UserListInfoFull[], tempList?: LX.Music.MusicInfo[] }
 const listSubscribers = new Set<(data: ServiceListSnapshot) => void>()
@@ -58,6 +66,15 @@ export const checkService = async(refresh = false) => {
     const snapshot = await current.client.request<{ sequence: number, events?: Array<{ type: string, sequence: number }> }>('/api/v1/events/snapshot')
     if (current !== workspace) return
     const recommendation = snapshot.events?.find(event => event.type === 'recommendations.updated')
+    const account = snapshot.events?.find(event => event.type === 'accounts.changed')
+    const accessState = await probeAccountAccess(current.client)
+    const access = JSON.stringify(accessState)
+    if (current !== workspace) return
+    if (accessState.state !== 'unavailable') {
+      if (accountAccessMarker !== undefined && access !== accountAccessMarker) notifyAccountsChanged()
+      accountAccessMarker = access
+    }
+    if (account && account.sequence !== accountSequence) { accountSequence = account.sequence; notifyAccountsChanged() }
     if (recommendation && recommendation.sequence !== recommendationSequence) {
       recommendationSequence = recommendation.sequence
       for (const listener of recommendationSubscribers) listener()
@@ -89,6 +106,8 @@ export const connectService = async(endpoint: string, stopPlayback: () => Promis
   await AsyncStorage.setItem(PROFILE_KEY, next.endpoint)
   workspace = new ServiceWorkspace(next); sequence = -1
   recommendationSequence = -1
+  accountSequence = -1; notifyAccountsChanged()
+  accountAccessMarker = undefined
   serviceStatus.connected = false; serviceStatus.endpoint = next.endpoint; serviceStatus.error = ''; changed()
   for (const listener of listSubscribers) listener({ defaultList: [], loveList: [], userList: [] })
   await refreshing?.catch(() => {})

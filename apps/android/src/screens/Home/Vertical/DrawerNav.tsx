@@ -3,7 +3,7 @@ import { Image, ScrollView, StyleSheet, View } from 'react-native'
 import { useI18n } from '@/lang'
 import { useNavActiveId, useStatusbarHeight } from '@/store/common/hook'
 import { useTheme } from '@/store/theme/hook'
-import { Icon } from '@/components/common/Icon'
+import NavigationIcon from '@/components/common/NavigationIcon'
 import { confirmDialog, createStyle, exitApp as backHome } from '@/utils/tools'
 import { NAV_MENUS } from '@/config/constant'
 import type { InitState } from '@/store/common/state'
@@ -48,19 +48,16 @@ const MenuItem = ({ id, icon, onPress }: {
       <View
         style={{
           ...styles.iconContent,
-          backgroundColor: active ? theme['c-primary-dark-100'] : theme['q-surface-base'],
-          borderColor: active ? theme['c-primary-dark-100'] : theme['q-outline'],
         }}
       >
-        <Icon
-          accessible={false}
+        <NavigationIcon
           name={icon}
-          size={18}
-          color={active ? '#fff' : theme['q-text-secondary']}
+          size={22}
+          color={active ? theme['q-accent-text'] : theme['q-text-secondary']}
         />
       </View>
       <Text
-        style={styles.text}
+        style={[styles.text, { fontWeight: active ? '600' : '500' }]}
         size={13}
         color={active ? theme['q-accent-text'] : theme['q-text-primary']}
         numberOfLines={1}
@@ -79,8 +76,6 @@ const MenuItem = ({ id, icon, onPress }: {
         active
           ? {
               backgroundColor: theme['q-surface-tint'],
-              borderColor: theme['c-primary-alpha-700'],
-              borderWidth: StyleSheet.hairlineWidth,
             }
           : null,
       ]}
@@ -188,8 +183,6 @@ const styles = createStyle({
     height: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 11,
-    borderWidth: StyleSheet.hairlineWidth,
   },
   text: {
     flex: 1,

@@ -3,13 +3,15 @@ import defaultHotKey from '@common/defaultHotKey'
 import themes from '@common/theme/index.json'
 import { unavailable } from './unavailable'
 import { applyWebTheme } from './theme'
+import { sharedAccounts } from '../../../../packages/service-client/src/accounts'
+import { ServiceClient } from '../../../../packages/service-client/src/client'
+const accounts = () => sharedAccounts(new ServiceClient(location.origin))
 
 const prefix = 'qmusic.web.v1.'
 const read = (key: string, fallback: any = null) => { try { return JSON.parse(localStorage.getItem(prefix + key) ?? 'null') ?? fallback } catch { return fallback } }
 const write = (key: string, value: any) => { localStorage.setItem(prefix + key, JSON.stringify(value)) }
 const listeners = new Map<string, Set<(...args: any[]) => void>>()
 const emit = (name: string, value: any) => { for (const listener of listeners.get(name) ?? []) listener(null, value) }
-const emptyAccounts = () => ({ tx: false, wy: false, kg: false, accounts: Object.fromEntries(['tx', 'wy', 'kg'].map(id => [id, { state: 'disconnected', displayName: '', avatar: '', accountHint: '', hasSession: false }])) })
 
 const invoke = async(name: string, params?: any): Promise<any> => {
   switch (name) {
@@ -43,9 +45,10 @@ const invoke = async(name: string, params?: any): Promise<any> => {
     case 'winMain_get_music_url': return ''
     case 'winMain_get_sound_effect_eq_preset': return read('eq', [])
     case 'winMain_get_sound_effect_convolution_preset': return read('convolution', [])
-    case 'winMain_music_account_status': return emptyAccounts()
-    case 'winMain_music_account_daily': return { status: 'login_required', ids: [] }
-    case 'winMain_music_account_playlists': return { status: 'login_required', playlists: [] }
+    case 'winMain_music_account_status': return accounts().status()
+    case 'winMain_music_account_login': return accounts().login(params)
+    case 'winMain_music_account_daily': return accounts().daily(params)
+    case 'winMain_music_account_playlists': return accounts().playlists(params)
     case 'winMain_music_account_playback_report': return { status: 'unsupported' }
     case 'winMain_fullscreen': {
       if (params) await document.documentElement.requestFullscreen()
@@ -89,4 +92,20 @@ export const ipcRenderer = {
   removeAllListeners(name: string) { listeners.delete(name) },
 }
 export const shell = { openExternal: async(url: string) => { if (/^https?:\/\//.test(url)) window.open(url, '_blank', 'noopener,noreferrer') }, showItemInFolder: () => unavailable('本机文件管理器') }
-export const clipboard = { writeText: (text: string) => { void navigator.clipboard?.writeText(text) }, readText: () => '' }
+const copyWithSelection = (text: string) => {
+  const previous = document.activeElement as HTMLElement | null
+  const input = document.createElement('textarea')
+  input.value = text
+  input.style.cssText = 'position:fixed;opacity:0;pointer-events:none'
+  input.setAttribute('aria-hidden', 'true')
+  document.body.appendChild(input)
+  try { input.select(); document.execCommand('copy') } finally { input.remove(); previous?.focus({ preventScroll: true }) }
+}
+export const clipboard = {
+  writeText: (text: string) => {
+    // The asynchronous clipboard API is unavailable on ordinary HTTP origins.
+    if (navigator.clipboard?.writeText) void navigator.clipboard.writeText(text).catch(() => { copyWithSelection(text) })
+    else copyWithSelection(text)
+  },
+  readText: () => '',
+}

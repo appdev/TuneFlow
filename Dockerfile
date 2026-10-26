@@ -8,7 +8,7 @@ RUN npm run build:web
 
 FROM node:24-bookworm-slim AS build
 
-WORKDIR /app
+WORKDIR /app/apps/service
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates g++ git make python3 \
@@ -18,12 +18,13 @@ COPY apps/service/package.json apps/service/package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
 
 COPY apps/service/ .
+COPY packages/ /app/packages/
 COPY LICENSE NOTICE ./
 COPY --from=player-web /web/apps/player/dist/web-client /tmp/player-web
 ARG TUNEFLOW_WEB_VARIANT=qmusic
 RUN if [ "$TUNEFLOW_WEB_VARIANT" = "qmusic" ]; then \
       mkdir -p dist/web && cp -a /tmp/player-web/. dist/web/ \
-      && TUNEFLOW_LEGACY_WEB_OUTPUT=/app/dist/web/V2 TUNEFLOW_LEGACY_WEB_BASE=/V2/ npm run build:web \
+      && TUNEFLOW_LEGACY_WEB_OUTPUT=/app/apps/service/dist/web/V2 TUNEFLOW_LEGACY_WEB_BASE=/V2/ npm run build:web \
       && npm run prepare:service; \
     elif [ "$TUNEFLOW_WEB_VARIANT" = "integrated" ]; then \
       node build-config/server/install-integrated-web.mjs && npm run prepare:service; \
@@ -45,11 +46,12 @@ RUN apt-get update \
  && mkdir -p /config /music /cache /tmp/tuneflow \
  && chown -R node:node /config /music /cache /tmp/tuneflow
 
-COPY --from=build --chown=node:node /app/dist/web ./dist/web
-COPY --from=build --chown=node:node /app/dist/server ./dist/server
-COPY --from=build --chown=node:node /app/LICENSE /app/README.md ./
-COPY --from=build --chown=node:node /app/docs/server-web.md ./docs/server-web.md
-COPY --from=build --chown=node:node /app/docs/integrated-flutter-web.md ./docs/integrated-flutter-web.md
+COPY --from=build --chown=node:node /app/apps/service/dist/web ./dist/web
+COPY --from=build --chown=node:node /app/apps/service/dist/server ./dist/server
+COPY --from=build --chown=node:node /app/apps/service/LICENSE /app/apps/service/README.md ./
+COPY --from=build --chown=node:node /app/apps/service/docs/server-web.md ./docs/server-web.md
+COPY --from=build --chown=node:node /app/apps/service/docs/integrated-flutter-web.md ./docs/integrated-flutter-web.md
+COPY --from=build --chown=node:node /app/apps/service/docs/platform-accounts.md ./docs/platform-accounts.md
 
 ENV NODE_ENV=production \
     TUNEFLOW_HOST=0.0.0.0 \

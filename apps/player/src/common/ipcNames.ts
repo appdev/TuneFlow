@@ -141,6 +141,7 @@ const modules = {
     sync_get_server_devices: 'sync_get_server_devices',
     sync_remove_server_device: 'sync_remove_server_device',
     music_account_login: 'music_account_login',
+    music_account_publish: 'music_account_publish',
     music_account_logout: 'music_account_logout',
     music_account_status: 'music_account_status',
     music_account_transfer_start: 'music_account_transfer_start',

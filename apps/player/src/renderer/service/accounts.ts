@@ -1,52 +1,44 @@
-import { getMusicAccountDaily, getMusicAccountStatus, type MusicAccountProvider, type MusicAccountPlaylist } from '@renderer/utils/ipc'
-import { loadAccountPlaylistMusic, loadKugouHashMusic } from '@renderer/views/List/MyList/importPlaylist'
-import txMusicInfo from '@renderer/utils/musicSdk/tx/musicInfo'
-import wyMusicDetail from '@renderer/utils/musicSdk/wy/musicDetail'
-import { toNewMusicInfo } from '@renderer/utils'
+import type { MusicAccountProvider, MusicAccountPlaylist } from '@renderer/utils/ipc'
 import { getWorkspace, refreshServiceLists } from './session'
-import { accountTracks, importAccountCollection } from './accountLibrary'
 import { ServiceError } from './client'
+import { sharedAccounts } from '../../../../../packages/service-client/src/accounts'
+export { sharedAccounts }
 
 export const accountNames = { tx: 'QQ 音乐', wy: '网易云音乐', kg: '酷狗音乐' }
 export const notifyAccountsChanged = () => { window.dispatchEvent(new Event('qmusic-accounts-changed')) }
+export const getSharedAccountStatus = async(refresh = false) => sharedAccounts(getWorkspace().client).status(refresh)
+export const getSharedAccountPlaylists = async(provider: MusicAccountProvider) => sharedAccounts(getWorkspace().client).playlists(provider)
 export const assertAccountOwner = async(provider: MusicAccountProvider, owner: string) => {
-  const status = await getMusicAccountStatus()
+  const status = await getSharedAccountStatus()
   if (!status[provider] || !owner || status.accounts[provider]?.importOwner !== owner) throw new ServiceError('ACCOUNT_CHANGED')
 }
 
 export const importDesktopAccountPlaylist = async(provider: MusicAccountProvider, playlist: MusicAccountPlaylist, shouldCancel: () => boolean = () => false) => {
   const workspace = getWorkspace()
-  const owner = playlist.importOwner ?? ''
-  const guard = async() => {
-    if (shouldCancel()) throw new ServiceError('CANCELLED')
-    if (workspace !== getWorkspace()) throw new ServiceError('SERVER_CHANGED')
-    await assertAccountOwner(provider, owner)
-    if (shouldCancel() || workspace !== getWorkspace()) throw new ServiceError('CANCELLED')
-  }
-  await guard()
-  const musics = await loadAccountPlaylistMusic(provider, playlist.id, undefined, shouldCancel, { accountId: playlist.accountId, importOwner: owner })
-  const result = await importAccountCollection(workspace, { provider, owner, id: playlist.id, name: playlist.name }, musics, guard)
+  const api = sharedAccounts(workspace.client)
+  const status = await api.status()
+  if (shouldCancel() || workspace !== getWorkspace()) throw new ServiceError('CANCELLED')
+  if (!playlist.importOwner || status.accounts[provider].importOwner !== playlist.importOwner) throw new ServiceError('ACCOUNT_CHANGED')
+  const result = await api.import(provider, playlist.id, status.revisions[provider])
+  if (workspace !== getWorkspace()) throw new ServiceError('SERVER_CHANGED')
   await refreshServiceLists()
   return result
 }
 
 export const loadDesktopAccountPlaylist = async(provider: MusicAccountProvider, playlist: MusicAccountPlaylist, shouldCancel: () => boolean) => {
   const workspace = getWorkspace()
-  const musics = await loadAccountPlaylistMusic(provider, playlist.id, undefined, shouldCancel, { accountId: playlist.accountId, importOwner: playlist.importOwner })
-  await assertAccountOwner(provider, playlist.importOwner ?? '')
+  const api = sharedAccounts(workspace.client)
+  const status = await api.status()
+  if (!playlist.importOwner || status.accounts[provider].importOwner !== playlist.importOwner) throw new ServiceError('ACCOUNT_CHANGED')
+  const result = await api.tracks(provider, playlist.id, status.revisions[provider])
   if (shouldCancel() || workspace !== getWorkspace()) throw new ServiceError('CANCELLED')
-  return accountTracks(workspace, musics)
+  return result.list.map(track => workspace.native(track))
 }
 
-export const loadDesktopAccountDaily = async(provider: MusicAccountProvider) => {
+export const loadDesktopAccountDaily = async(provider: MusicAccountProvider, force = false) => {
   const workspace = getWorkspace()
-  const result = await getMusicAccountDaily(provider)
+  const result = await sharedAccounts(workspace.client).daily(provider, force)
   if (result.status !== 'personalized') return { list: [], status: result.status }
-  let musics: LX.Music.MusicInfo[]
-  if (provider === 'kg') musics = await loadKugouHashMusic(result.ids)
-  else if (provider === 'wy') musics = (await wyMusicDetail.getList(result.ids)).list.map(toNewMusicInfo)
-  else musics = (await Promise.all(result.ids.slice(0, 30).map(id => txMusicInfo(id).catch(() => null)))).filter(Boolean).map(toNewMusicInfo)
-  await assertAccountOwner(provider, result.importOwner ?? '')
   if (workspace !== getWorkspace()) throw new ServiceError('SERVER_CHANGED')
-  return { list: accountTracks(workspace, musics), status: result.kind ?? 'personalized' }
+  return { list: result.list.map(track => workspace.native(track)), status: result.kind ?? 'personalized' }
 }

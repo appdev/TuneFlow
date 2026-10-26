@@ -1,10 +1,13 @@
 import { ServiceClient, ServiceError } from './client'
 import { DEFAULT_ENDPOINT, PROFILE_KEY, ServiceWorkspace, LIBRARY_ID } from './workspace'
+import { probeAccountAccess } from '../../../../../packages/service-client/src/accounts'
 
 const listeners = new Map<string, Set<(payload: any) => void>>()
 const subscribers = new Set<() => void>()
 const recommendationSubscribers = new Set<() => void>()
 let recommendationSequence = -1
+let accountSequence = -1
+let accountAccessMarker: string | undefined
 export const subscribeRecommendations = (listener: () => void) => { recommendationSubscribers.add(listener); return () => { recommendationSubscribers.delete(listener) } }
 let workspace: ServiceWorkspace | undefined
 let polling = false
@@ -68,6 +71,15 @@ export const checkService = async(refresh = false) => {
     const snapshot = await current.client.request<{ sequence: number, events?: Array<{ type: string, sequence: number }> }>('/api/v1/events/snapshot')
     if (current !== getWorkspace()) return
     const recommendation = snapshot.events?.find(event => event.type === 'recommendations.updated')
+    const account = snapshot.events?.find(event => event.type === 'accounts.changed')
+    const accessState = await probeAccountAccess(current.client)
+    const access = JSON.stringify(accessState)
+    if (current !== getWorkspace()) return
+    if (accessState.state !== 'unavailable') {
+      if (accountAccessMarker !== undefined && access !== accountAccessMarker) window.dispatchEvent(new Event('qmusic-accounts-changed'))
+      accountAccessMarker = access
+    }
+    if (account && account.sequence !== accountSequence) { accountSequence = account.sequence; window.dispatchEvent(new Event('qmusic-accounts-changed')) }
     if (recommendation && recommendation.sequence !== recommendationSequence) {
       recommendationSequence = recommendation.sequence
       for (const listener of recommendationSubscribers) listener()

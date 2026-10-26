@@ -1,6 +1,6 @@
 {
   "name": "tuneflow-server-web",
-  "version": "2.13.7",
+  "version": "2.13.8",
   "description": "TuneFlow (音流) Web UI and Node.js Service",
   "scripts": {
     "build:theme": "node src/common/theme/createThemes.js",
@@ -119,6 +119,7 @@
     "needle": "^3.5.0",
     "pako": "1.0.11",
     "qrc-decoder": "1.0.2",
+    "qrcode": "^1.5.4",
     "sortablejs": "^1.15.7",
     "taglib-wasm": "^2.0.0",
     "tunnel": "^0.0.6",

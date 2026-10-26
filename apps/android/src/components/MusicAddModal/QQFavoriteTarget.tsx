@@ -6,7 +6,8 @@ import Button from '@/components/common/Button'
 import { useTheme } from '@/store/theme/hook'
 import { useI18n, type Message } from '@/lang'
 import { addQQFavoriteSong } from '@/core/musicAccount/qqFavorite'
-import { syncQQFavorites } from '@/core/musicAccount/autoSync'
+import { syncSharedQQFavorites } from '../../../../../packages/music-core/src/sharedAccountSync'
+import { getWorkspace, refreshServiceLists } from '@/service/session'
 import type { QQFavoriteResult } from '@/types/qqFavorite'
 
 export default ({ musicInfo, disabled, onBusy, onLogin }: {
@@ -37,9 +38,10 @@ export default ({ musicInfo, disabled, onBusy, onLogin }: {
     try {
       const next = await addQQFavoriteSong({ songMid: String(musicInfo.meta.songId), action: checking ? 'check' : 'add' })
       if (mounted.current) setResult(checking && next.status == 'unavailable' ? { ...next, status: 'unknown' } : next)
-      if (next.status == 'added' && next.owner && next.accountId) {
+      if (next.status == 'added' && next.accountId) {
         if (mounted.current) setSyncMessage('list_sync_favorite_pending')
-        void syncQQFavorites(next.owner, next.accountId).then(sync => {
+        void syncSharedQQFavorites(getWorkspace()).then(async sync => {
+          await refreshServiceLists()
           if (mounted.current) setSyncMessage(sync.failed ? 'list_sync_favorite_failed' : sync.total ? 'list_sync_favorite_done' : 'list_sync_favorite_unlinked')
         }).catch(() => { if (mounted.current) setSyncMessage('list_sync_favorite_failed') })
       }

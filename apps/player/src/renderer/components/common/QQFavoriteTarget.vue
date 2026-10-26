@@ -17,8 +17,10 @@
 
 <script>
 import { computed, ref, watch, onBeforeUnmount } from '@common/utils/vueTools'
-import { addQQFavoriteSong, loginMusicAccount } from '@renderer/utils/ipc'
-import { syncQQFavorites } from '@renderer/store/list/syncSourceList'
+import { addQQFavoriteSong } from '@renderer/utils/ipc'
+import { useRouter } from '@common/utils/vueRouter'
+import { getWorkspace, refreshServiceLists } from '@renderer/service/session'
+import { syncSharedQQFavorites } from '../../../../../../packages/music-core/src/sharedAccountSync'
 import SourceIcon from './SourceIcon.vue'
 
 export default {
@@ -30,6 +32,7 @@ export default {
   },
   emits: ['busy'],
   setup(props, { emit }) {
+    const router = useRouter()
     const status = ref('')
     const errorCode = ref(null)
     const working = ref(false)
@@ -49,15 +52,15 @@ export default {
       emit('busy', true)
       try {
         if (needsLogin) {
-          const result = await loginMusicAccount('tx')
-          if (generation == current) status.value = result.status == 'connected' ? 'ready' : 'login_required'
+          await router.push('/setting?name=SettingAccounts&provider=tx')
         } else {
           const checking = needsCheck.value
           const result = await addQQFavoriteSong(songMid, checking ? 'check' : 'add')
           if (result.status == 'added' && result.accountId) {
             // 本地同步失败不能改变已经确认的云端收藏结果。
             if (generation == current) localSync.value = 'list_sync_favorite_pending'
-            void syncQQFavorites(result.accountId).then(sync => {
+            void syncSharedQQFavorites(getWorkspace()).then(async sync => {
+              await refreshServiceLists()
               if (generation == current) localSync.value = sync.failed ? 'list_sync_favorite_failed' : sync.total ? 'list_sync_favorite_done' : 'list_sync_favorite_unlinked'
             }).catch(() => { if (generation == current) localSync.value = 'list_sync_favorite_failed' })
           }
@@ -67,8 +70,8 @@ export default {
             errorCode.value = result.code ?? null
           }
         }
-      } catch {
-        if (generation == current) status.value = needsLogin ? 'unavailable' : 'unknown'
+      } catch (error) {
+        if (generation == current) status.value = ['DEVICE_AUTH_REQUIRED', 'PLATFORM_LOGIN_REQUIRED'].includes(error?.code) ? 'login_required' : needsLogin ? 'unavailable' : 'unknown'
       } finally {
         working.value = false
         emit('busy', false)

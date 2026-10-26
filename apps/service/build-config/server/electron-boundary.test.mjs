@@ -153,13 +153,14 @@ test('Service build and runtime target Node 24 with TagLib-Wasm packaged', () =>
 
   assert.equal(pkg.engines.node, '>= 24')
   assert.equal(pkg.dependencies['taglib-wasm'], '^2.0.0')
-  assert.equal([...buildConfig.matchAll(/target:\s*'node24'/g)].length, 4)
+  assert.equal([...buildConfig.matchAll(/target:\s*'node24'/g)].length, 5)
+  assert.match(buildConfig, /recoverAccessCli\.ts/)
   assert.match(buildConfig, /migrateLegacyStorageCli\.ts/)
   assert.equal(pkg.scripts['migrate:storage'], 'node dist/server/migrate-storage.cjs')
   assert.match(buildConfig, /'taglib-wasm':\s*'\^2\.0\.0'/)
   assert.match(prepareConfig, /rmSync\(path\.join\(serverRoot, 'node_modules'\), \{ recursive: true, force: true \}\)/)
   assert.match(workflow, /node-version:\s*24/)
-  assert.equal([...dockerfile.matchAll(/^FROM node:24-bookworm-slim/gm)].length, 2)
+  assert.equal([...dockerfile.matchAll(/^FROM node:24-bookworm-slim/gm)].length, 3)
 })
 
 test('Service build packages the source ZIP runtime dependency', () => {

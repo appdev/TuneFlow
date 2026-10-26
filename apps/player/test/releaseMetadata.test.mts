@@ -31,7 +31,7 @@ test('桌面更新元数据与版本一致，Android 保留独立版本记录', 
   assertUsefulReleaseNotes(desktopMetadata, packageInfo.version)
   assertUsefulReleaseNotes(mobileMetadata, mobileMetadata.version)
   assert.match(mobileMetadata.commit ?? '', /^[a-f\d]{7,40}$/)
-  assert.match(changeLog, new RegExp(`^Q-music ${packageInfo.version.replaceAll('.', '\\.')}$`, 'm'))
+  assert.match(changeLog, new RegExp(`^TuneFlow ${packageInfo.version.replaceAll('.', '\\.')}$`, 'm'))
 })
 
 test('发布工作流只允许带人工说明的 Release 流程', async() => {

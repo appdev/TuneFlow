@@ -86,18 +86,19 @@ test('Android native account imports route only to Service and do not enable leg
   await assert.rejects(api.syncAccountPlaylist({}, {}, undefined, undefined, true), /cancelled/)
 })
 
-test('Android owner fingerprint matches desktop namespace and personal recommendations disable device fallback', async() => {
+test('Android owner fingerprint matches desktop namespace and personal recommendations use the shared account service', async() => {
   const qq = load(path.join(mobileRoot, 'src/core/musicAccount/qqCredentials.ts'))
   const workspace = new mobile.workspace.ServiceWorkspace(new mobile.api.ServiceClient('http://fixture'))
-  let fallback
+  let sharedCalls = 0
   const accounts = load(path.join(mobileRoot, 'src/service/accounts.ts'), {
     '@/utils/musicSdk/utils': { toMD5: text => createHash('md5').update(text).digest('hex') },
     '@/core/musicAccount/qqCredentials': qq,
-    '@/core/musicAccount/daily': { getAccountDaily: async(_p, _f, _s, allowFallback) => { fallback = allowFallback; return { list: [song], kind: 'radar' } } },
+    '../../../../packages/service-client/src/accounts': { sharedAccounts: () => ({ daily: async(_provider, force) => { sharedCalls++; assert.equal(force, true); return { list: [song], kind: 'radar', status: 'personalized' } } }) },
+    '@/core/musicAccount/cookies': {}, '@/core/musicAccount/kugou': {}, 'react-native': { NativeModules: {} },
     '@/core/musicAccount/playlists': {}, './accountLibrary': mobile.accounts, './session': { getWorkspace: () => workspace }, './client': mobile.api,
   })
   assert.equal(accounts.accountOwner({ provider: 'tx', cookies: { qqmusic_uin: '123', login_type: '1' } }), owner)
   const result = await accounts.loadMobileAccountDaily('tx', true)
-  assert.equal(fallback, false)
+  assert.equal(sharedCalls, 1)
   assert.equal(result.list[0].meta.service.endpoint, 'http://fixture')
 })

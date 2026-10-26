@@ -6,6 +6,10 @@ import * as hotKeys from '@common/hotKey'
 import { APP_EVENT_NAMES, DATA_KEYS, DEFAULT_SETTING } from '@common/constants'
 import { type QQFavoriteRequest, type QQFavoriteResult } from '@common/types/qqFavorite'
 import type { AccountTransferInfo, AccountTransferState } from '@common/types/accountTransfer'
+import { getSharedAccountStatus, getSharedAccountPlaylists } from '@renderer/service/accounts'
+import { getWorkspace } from '@renderer/service/session'
+import { accountAccess } from '@renderer/service/client'
+import { sharedAccounts } from '../../../../../packages/service-client/src/accounts'
 
 export const startAccountTransfer = async() => rendererInvoke<AccountTransferInfo>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_transfer_start)
 export const getAccountTransferState = async(id: string) => rendererInvoke<string, AccountTransferState>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_transfer_status, id)
@@ -130,13 +134,21 @@ export interface MusicAccountPlaybackReportResult {
   status: 'reported' | 'login_required' | 'unavailable'
 }
 export const getMusicAccountStatus = async() => {
-  return rendererInvoke<MusicAccountStatus>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_status)
+  return getSharedAccountStatus()
 }
-export const addQQFavoriteSong = async(songMid: string, action: QQFavoriteRequest['action'] = 'add') => {
-  return rendererInvoke<QQFavoriteRequest, QQFavoriteResult>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_qq_favorite_add, { songMid, action })
+export const addQQFavoriteSong = async(songMid: string, action: QQFavoriteRequest['action'] = 'add'): Promise<QQFavoriteResult> => {
+  const api = sharedAccounts(getWorkspace().client); const status = await api.status()
+  if (!status.tx) return { status: 'login_required' }
+  return api.favorite(songMid, action, status.revisions.tx)
 }
 export const loginMusicAccount = async(provider: MusicAccountProvider) => {
   return rendererInvoke<MusicAccountProvider, MusicAccountLoginResult>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_login, provider)
+}
+export const publishMusicAccount = async(provider: MusicAccountProvider) => {
+  const workspace = getWorkspace(); const status = await getSharedAccountStatus()
+  const token = await accountAccess.get(workspace.client.endpoint)
+  if (!token || workspace !== getWorkspace()) throw new Error('请先授权当前设备')
+  return rendererInvoke(WIN_MAIN_RENDERER_EVENT_NAME.music_account_publish, { provider, endpoint: workspace.client.endpoint, token, revision: status.revisions[provider] })
 }
 export const logoutMusicAccount = async(provider: MusicAccountProvider) => {
   return rendererInvoke<MusicAccountProvider, MusicAccountLogoutResult>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_logout, provider)
@@ -145,7 +157,7 @@ export const getMusicAccountDaily = async(provider: MusicAccountProvider) => {
   return rendererInvoke<MusicAccountProvider, MusicAccountDailyResult>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_daily, provider)
 }
 export const getMusicAccountPlaylists = async(provider: MusicAccountProvider) => {
-  return rendererInvoke<MusicAccountProvider, MusicAccountPlaylistsResult>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_playlists, provider)
+  return getSharedAccountPlaylists(provider)
 }
 export const getMusicAccountPlaylistDetail = async(provider: MusicAccountProvider, id: string) => {
   return rendererInvoke<{ provider: MusicAccountProvider, id: string }, MusicAccountPlaylistDetailResult>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_playlist_detail, { provider, id })

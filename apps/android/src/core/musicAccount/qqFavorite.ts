@@ -2,6 +2,9 @@ import { assertAccountSession, openAccountSession, request, type AccountSession 
 import { getQQCredentials, getQQRequestComm, getQQSyncIdentity, getQQWebRequestComm } from './qqCredentials'
 import { zzcSign } from '@/utils/musicSdk/tx/utils/crypto'
 import type { QQFavoriteRequest, QQFavoriteResult } from '@/types/qqFavorite'
+import { getWorkspace, isServiceMode } from '@/service/session'
+import { sharedAccounts } from '../../../../../packages/service-client/src/accounts'
+import { ServiceError } from '@/service/client'
 
 class FavoriteResponseError extends Error {
   constructor(public code: number) { super('rejected') }
@@ -70,11 +73,22 @@ const perform = async(input: QQFavoriteRequest): Promise<QQFavoriteResult> => {
 }
 
 const pending = new Map<string, Promise<QQFavoriteResult>>()
+const performShared = async(input: QQFavoriteRequest): Promise<QQFavoriteResult> => {
+  try {
+    const api = sharedAccounts(getWorkspace().client); const status = await api.status()
+    if (!status.tx) return { status: 'login_required' }
+    return await api.favorite(input.songMid, input.action ?? 'add', status.revisions.tx)
+  } catch (error) {
+    if (error instanceof ServiceError && ['DEVICE_AUTH_REQUIRED', 'PLATFORM_LOGIN_REQUIRED'].includes(error.code)) return { status: 'login_required' }
+    throw error
+  }
+}
 export const addQQFavoriteSong = async(input: QQFavoriteRequest): Promise<QQFavoriteResult> => {
   if (!/^[a-zA-Z0-9]{1,64}$/.test(input.songMid) || (input.action != null && input.action != 'add' && input.action != 'check')) return { status: 'unsupported' }
-  const existing = pending.get(input.songMid)
+  const key = `${getWorkspace().client.endpoint}:${input.songMid}`
+  const existing = pending.get(key)
   if (existing) return existing
-  const task = perform(input).finally(() => { pending.delete(input.songMid) })
-  pending.set(input.songMid, task)
+  const task = (isServiceMode() ? performShared(input) : perform(input)).finally(() => { pending.delete(key) })
+  pending.set(key, task)
   return task
 }

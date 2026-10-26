@@ -282,8 +282,6 @@ const fetchData = async(url, method, {
   timeout = 15000,
   ...options
 }, callback) => {
-  // console.log(url, options)
-  console.log('---start---', url)
   headers = Object.assign({}, headers)
   if (headers[bHh]) {
     const path = url.replace(/^https?:\/\/[\w.:]+\//, '/')

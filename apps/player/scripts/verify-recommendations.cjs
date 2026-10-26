@@ -128,6 +128,7 @@ for (const [index, client] of clients.entries()) {
       async tracks() { return [] }
     }
     const session = load(path.join(client.folder, 'session.ts'), {
+      [index ? '../../../../packages/service-client/src/accounts' : '../../../../../packages/service-client/src/accounts']: { probeAccountAccess: async() => ({ state: 'unpaired' }) },
       './client': { ServiceClient: FakeClient },
       './workspace': { ServiceWorkspace: FakeWorkspace, DEFAULT_ENDPOINT: 'http://fixture' },
       '@react-native-async-storage/async-storage': { setItem: async() => {} },
@@ -146,18 +147,14 @@ for (const [index, client] of clients.entries()) {
   })
 }
 
-test('Android cache identity uses only local authorization and changes for account replacement, logout and session replacement', async() => {
-  const crypto = require('node:crypto')
-  let cookies = { uin: 'one', authst: 'synthetic-one' }
+test('Android cache identity follows shared account revisions and endpoints without reading local credentials', async() => {
+  let revision = 0, endpoint = 'https://fixture'
   const identity = load(path.join(clients[1].folder, 'dailyIdentity.ts'), {
-    '@/core/musicAccount/cookies': { getProviderCookies: async() => cookies, getQQCredentials: value => value },
-    '@/core/musicAccount/kugou': { requireKugouSession: async() => ({ userId: 'one', token: 'synthetic' }) },
-    '@/utils/musicSdk/utils': { toMD5: value => crypto.createHash('md5').update(value).digest('hex') },
+    './session': { getAccountIdentityRevision: () => String(revision), getWorkspace: () => ({ client: { endpoint } }) },
   })
   const first = await identity.getDailyAccountKey('tx')
-  cookies = { ...cookies, uin: 'two' }; assert.notEqual(await identity.getDailyAccountKey('tx'), first)
-  cookies = { ...cookies, authst: 'synthetic-two' }; const second = await identity.getDailyAccountKey('tx'); assert.notEqual(second, first)
-  cookies = {}; assert.equal(await identity.getDailyAccountKey('tx'), 'anonymous')
+  revision++; assert.notEqual(await identity.getDailyAccountKey('tx'), first)
+  const second = await identity.getDailyAccountKey('tx'); endpoint = 'https://other'; assert.notEqual(await identity.getDailyAccountKey('tx'), second)
   assert.equal(await identity.getDailyAccountKey('server'), '')
 })
 
@@ -186,7 +183,7 @@ test('Android homepage keeps snapshots across appearance, foreground, provider s
     '@/lang': { useI18n: () => key => key }, '@/store/theme/hook': { useTheme: () => ({}) },
     '@/theme/ui': { Q_UI: { touchSize: 44 } }, '@/utils/tools': { createStyle: value => value, toast() {} },
     '@/utils/hooks/useAdaptiveLayout': () => ({ wide: false }),
-    './session': { getWorkspace: () => workspace, serviceStatus: {}, subscribeService: () => () => {}, subscribeRecommendations: () => () => {} },
+    './session': { getWorkspace: () => workspace, serviceStatus: {}, subscribeService: () => () => {}, subscribeRecommendations: () => () => {}, subscribeAccounts: () => () => {} },
     './accounts': {}, './dailyIdentity': { getDailyAccountKey: async() => owner },
     './recommendations': { ...client.recommendations, loadDailyFeed: async(_workspace, source, _personal, force) => { calls.push({ source, force }); return { list: [{ ...song, source }], origin: 'public', kind: source + '_public', status: 'ready', reason: '' } } },
   }
@@ -219,20 +216,13 @@ test('Android homepage keeps snapshots across appearance, foreground, provider s
   slots.forEach(slot => slot?.cleanup?.())
 })
 
-test('desktop QQ: one metadata rejection and one missing song preserve remaining songs; ownership guard still rejects account changes', async() => {
+test('desktop recommendations consume normalized shared tracks and preserve server account-change guards', async() => {
   const client = clients[0]
   const workspace = new client.workspace.ServiceWorkspace(new client.api.ServiceClient('http://fixture'))
   let valid = true
-  const accountLibrary = load(path.join(client.folder, 'accountLibrary.ts'), { './client': client.api })
   const accounts = load(path.join(client.folder, 'accounts.ts'), {
-    '@renderer/utils/ipc': {
-      getMusicAccountDaily: async() => ({ status: 'personalized', kind: 'radar', importOwner: 'owner', ids: ['ok', 'bad', 'missing', 'ok2'] }),
-      getMusicAccountStatus: async() => ({ tx: valid, accounts: { tx: { importOwner: 'owner' } } }),
-    },
-    '@renderer/views/List/MyList/importPlaylist': {},
-    '@renderer/utils/musicSdk/tx/musicInfo': async id => { if (id === 'bad') throw Error('metadata failed'); return id === 'missing' ? null : { ...song, id: 'tx_' + id } },
-    '@renderer/utils/musicSdk/wy/musicDetail': {}, '@renderer/utils': { toNewMusicInfo: value => value },
-    './session': { getWorkspace: () => workspace }, './accountLibrary': accountLibrary, './client': client.api,
+    '../../../../../packages/service-client/src/accounts': { sharedAccounts: () => ({ daily: async() => { if (!valid) throw new client.api.ServiceError('ACCOUNT_CHANGED'); return { status: 'personalized', kind: 'radar', list: [{ ...song, id: 'one' }, { ...song, id: 'two' }] } } }) },
+    './session': { getWorkspace: () => workspace }, './client': client.api,
   })
   const result = await accounts.loadDesktopAccountDaily('tx')
   assert.equal(result.list.length, 2); assert.equal(result.status, 'radar')

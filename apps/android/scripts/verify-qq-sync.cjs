@@ -12,6 +12,11 @@ function load(file, dependencies = {}, globals = {}) {
     dependencies['@/service/session'] ??= { isServiceMode: () => false }
     dependencies['@/service/accounts'] ??= {}
   }
+  if (file == 'src/core/musicAccount/qqFavorite.ts') {
+    dependencies['@/service/session'] ??= { isServiceMode: () => false, getWorkspace: () => ({ client: { endpoint: 'https://fixture' } }) }
+    dependencies['@/service/client'] ??= { ServiceError: class extends Error {} }
+    dependencies['../../../../../packages/service-client/src/accounts'] ??= {}
+  }
   if (file != 'src/utils/playlistMerge.ts') dependencies['@/utils/playlistMerge'] = load('src/utils/playlistMerge.ts')
   const context = { exports: {}, Error, Buffer, URL, AbortController, setTimeout, clearTimeout,
     require: id => { assert.ok(id in dependencies, `Missing mock: ${id}`); return dependencies[id] }, ...globals }
@@ -36,6 +41,10 @@ function favoriteHarness(options = {}) {
   let written = false
   let changed = false
   const api = load('src/core/musicAccount/qqFavorite.ts', {
+    ...(options.shared ? {
+      '@/service/session': { isServiceMode: () => true, getWorkspace: () => ({ client: { endpoint: 'https://fixture' } }) },
+      '../../../../../packages/service-client/src/accounts': { sharedAccounts: () => options.shared },
+    } : {}),
     './qqCredentials': qq,
     '@/utils/musicSdk/tx/utils/crypto': sign,
     './requests': {
@@ -63,6 +72,16 @@ function favoriteHarness(options = {}) {
   }, { setTimeout: callback => { queueMicrotask(callback); return 1 } })
   return { api, calls, checks: () => checks }
 }
+
+test('共享账号收藏仅调用服务接口，不读取本机 QQ 会话', async () => {
+  let favoriteCalls = 0
+  const h = favoriteHarness({ shared: {
+    status: async () => ({ tx: true, revisions: { tx: 7 } }),
+    favorite: async (mid, action, revision) => { favoriteCalls++; assert.equal(mid, songMid); assert.equal(action, 'add'); assert.equal(revision, 7); return { status: 'added' } },
+  } })
+  assert.equal((await h.api.addQQFavoriteSong({ songMid })).status, 'added')
+  assert.equal(favoriteCalls, 1); assert.equal(h.calls.length, 0)
+})
 
 test('安卓 QQ 收藏签名原始 JSON，使用真实数字 ID，写后读回确认', async () => {
   const h = favoriteHarness()

@@ -18,10 +18,17 @@ import AccountTransfer from './AccountTransfer'
 import DailySettings from '@/screens/Home/Views/Search/BlankView/DailySettings'
 import { getDailyProvider, setDailyProvider, type DailyProvider } from '@/core/musicAccount/daily'
 import { toast } from '@/utils/tools'
+import SharedAccounts from './SharedAccounts'
+import { publishMobileAccount } from '@/service/accounts'
+import { notifyAccountsChanged } from '@/service/session'
 
 const PROVIDERS: MusicAccountProvider[] = ['tx', 'wy', 'kg']
 
-export default ({ componentId, initialProvider = 'tx' }: { componentId: string, initialProvider?: MusicAccountProvider }) => {
+export default (props: { componentId: string, initialProvider?: MusicAccountProvider }) => {
+  const [native, setNative] = useState<MusicAccountProvider>()
+  return native ? <NativeMusicAccount {...props} initialProvider={native} onLinked={() => { setNative(undefined); notifyAccountsChanged() }} /> : <SharedAccounts initialProvider={props.initialProvider} onBack={() => { void pop(props.componentId) }} onNative={setNative} />
+}
+const NativeMusicAccount = ({ componentId, initialProvider = 'tx', onLinked }: { componentId: string, initialProvider?: MusicAccountProvider, onLinked: () => void }) => {
   const theme = useTheme()
   const t = useI18n()
   const statusBarHeight = useStatusbarHeight()
@@ -100,7 +107,7 @@ export default ({ componentId, initialProvider = 'tx' }: { componentId: string, 
 
   return <View style={[styles.container, { paddingTop: statusBarHeight, backgroundColor: theme['c-content-background'] }]}>
     <View style={styles.header}>
-      <Button style={styles.backBtn} accessibilityLabel={t('back')} onPress={() => { void pop(componentId) }}><Icon accessible={false} name="chevron-left" size={24} color={theme['c-font']} /></Button>
+      <Button style={styles.backBtn} accessibilityLabel={t('back')} onPress={onLinked}><Icon accessible={false} name="chevron-left" size={24} color={theme['c-font']} /></Button>
       <Text size={16} style={styles.heading}>{t('setting_music_account_title')}</Text>
       <View style={styles.backBtn} />
     </View>
@@ -112,6 +119,7 @@ export default ({ componentId, initialProvider = 'tx' }: { componentId: string, 
       {connected[provider] ? <Button disabled={loggingOut || syncing} style={styles.logoutBtn} onPress={() => { void logout().catch(() => {}) }}><Text size={12} color={theme['q-accent-text']}>{t('setting_music_account_logout')}</Text></Button> : null}
     </View>
     <View style={styles.recommendActions}>
+      <Button disabled={loggingOut || syncing || !connected[provider]} style={styles.recommendButton} onPress={() => { void publishMobileAccount(provider).then(onLinked).catch(reason => { toast(reason instanceof Error ? reason.message : '共享账号失败') }) }}><Text size={12} color={theme['q-accent-text']}>共享授权并返回</Text></Button>
       <Button disabled={loggingOut || syncing} accessibilityState={{ selected: dailyProvider == provider }} style={[styles.recommendButton, { backgroundColor: theme['q-surface-tint'] }]} onPress={() => {
         void setDailyProvider(provider).then(async() => { await AsyncStorage.setItem('@qmusic_service_daily_mode', 'account'); if (mounted.current) { setSelectedDailyProvider(provider); toast(t('daily_provider_saved')) } }).catch(() => { toast(t('daily_preference_failed')) })
       }}><Text size={12} color={theme['q-accent-text']}>{t(dailyProvider == provider ? 'daily_provider_current' : 'daily_provider_use')}</Text></Button>

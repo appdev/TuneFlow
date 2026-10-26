@@ -2,7 +2,7 @@ import { memo } from 'react'
 import { Image, ScrollView, StyleSheet, View } from 'react-native'
 import { useNavActiveId, useStatusbarHeight } from '@/store/common/hook'
 import { useTheme } from '@/store/theme/hook'
-import { Icon } from '@/components/common/Icon'
+import NavigationIcon from '@/components/common/NavigationIcon'
 import { confirmDialog, createStyle, exitApp as backHome } from '@/utils/tools'
 import { NAV_MENUS } from '@/config/constant'
 import type { InitState } from '@/store/common/state'
@@ -40,8 +40,7 @@ const MenuItem = ({ id, icon, onPress }: {
   const { isCar } = useAdaptiveLayout()
   const iconContent = (
     <View style={styles.iconContent}>
-      <Icon
-        accessible={false}
+      <NavigationIcon
         name={icon}
         size={isCar ? 25 : 22}
         color={active ? theme['q-accent-text'] : theme['q-text-secondary']}
@@ -63,9 +62,8 @@ const MenuItem = ({ id, icon, onPress }: {
           active
             ? {
                 backgroundColor: theme['q-surface-tint'],
-                borderColor: theme['q-outline'],
               }
-            : { borderColor: 'transparent' },
+            : null,
         ]}
       >
         {iconContent}
@@ -165,7 +163,6 @@ const styles = createStyle({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
     gap: 4,
   },
   footer: {

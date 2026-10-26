@@ -1,4 +1,4 @@
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, statSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { type TypeBoxTypeProvider } from '@fastify/type-provider-typebox'
@@ -57,12 +57,16 @@ import { buildAIProfileInput } from './radio/aiProjection'
 import { RadioSessionRepository } from './radio/sessionRepository'
 import { RadioService } from './radio/service'
 import { registerRadioRoutes } from './routes/radio'
+import { registerAccountRoutes } from './accounts/routes'
 
 export type { ServerOptions, ServerOptionsInput } from './config'
 
 export const createServer = async(options: ServerOptionsInput): Promise<FastifyInstance> => {
   const serverOptions = normalizeServerOptions(options)
   const { storage } = serverOptions
+  const accountRoot = path.resolve(storage.configRoot, 'account-security')
+  const staticRoot = existsSync(serverOptions.webRoot) ? realpathSync(serverOptions.webRoot) : serverOptions.webRoot
+  if (accountRoot === staticRoot || accountRoot.startsWith(`${staticRoot}${path.sep}`)) throw new Error('Account storage must be outside the static Web root')
   if (initDatabase(storage.databaseRoot) == null) throw new Error('Unable to initialize TuneFlow database')
 
   const app = Fastify({ ajv: { customOptions: { removeAdditional: false } } }).withTypeProvider<TypeBoxTypeProvider>()
@@ -328,6 +332,7 @@ export const createServer = async(options: ServerOptionsInput): Promise<FastifyI
   })
 
   registerHealthRoutes(app, () => settings.getSettings())
+  registerAccountRoutes(app, storage.configRoot, events)
   registerSettingsRoutes(app, settings, events)
   registerRuntimeRoutes(app, appData)
   registerListRoutes(app, events)

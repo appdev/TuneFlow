@@ -26,7 +26,7 @@ test('both client facades point to the same portable API and business implementa
   for (const [app, dir] of [['player', 'src/renderer/service'], ['android', 'src/service']]) {
     for (const name of ['client', 'downloads', 'recommendations', 'accountLibrary']) {
       const file = path.join(root, 'apps', app, dir, name + '.ts')
-      const match = /^export \* from '([^']+)'/.exec(fs.readFileSync(file, 'utf8'))
+      const match = /(?:^|\n)export \* from '([^']+)'/.exec(fs.readFileSync(file, 'utf8'))
       assert.ok(match)
       assert.equal(path.resolve(path.dirname(file), match[1] + '.ts'), path.join(root, 'packages', name === 'client' ? 'service-client' : 'music-core', 'src', name + '.ts'))
     }

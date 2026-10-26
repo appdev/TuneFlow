@@ -199,7 +199,6 @@ import { ServiceError } from './client'
 const props = withDefaults(defineProps<{ visible?: boolean, source?: string }>(), { visible: true, source: '' })
 const router = useRouter()
 const saved = localStorage.getItem('qmusic.dailyRecommend.provider')
-const isWeb = String(process.platform) === 'web'
 const selectedDailyProvider = ref<DailySource>(localStorage.getItem('qmusic.service.daily.mode.v1') === 'server' ? 'server' : saved === 'wy' || saved === 'kg' ? saved : 'tx')
 const accountProviderOptions = [{ id: 'tx', nameKey: 'search__account_qq', name: '' }, { id: 'wy', nameKey: 'search__account_netease', name: '' }, { id: 'kg', nameKey: 'source_kg', name: '' }, { id: 'server', nameKey: '', name: '推荐' }] as const
 const dailyRecommendList = shallowRef<LX.Music.MusicInfoOnline[]>([])
@@ -228,7 +227,7 @@ const todayMonth = computed(() => new Intl.DateTimeFormat(window.i18n.locale || 
 const todayLabel = computed(() => new Intl.DateTimeFormat(window.i18n.locale || 'zh-CN', { month: 'long', day: 'numeric' }).format(now.value))
 const hasMusicAccount = computed(() => accountStatus.value.tx || accountStatus.value.wy || accountStatus.value.kg)
 const hasMusicAccountSession = computed(() => Object.values(accountStatus.value.accounts).some(account => account.hasSession))
-const accountActionText = computed(() => isWeb ? '音乐平台账号' : hasMusicAccount.value ? '音乐账号已登录 · 管理账号' : '登录音乐平台')
+const accountActionText = computed(() => hasMusicAccount.value ? '音乐账号已登录 · 管理账号' : '登录音乐平台')
 const dailyRecommendMode = computed(() => feed.value?.origin === 'account' ? 'personalized' : 'fallback')
 const dailyTitle = computed(() => `${dailyKindNames[feed.value?.kind ?? ''] ?? '今日推荐'} · ${dailyRecommendList.value.length} 首`)
 const dailySourceText = computed(() => isDailyLoading.value && !feed.value ? '正在加载推荐…' : feed.value ? dailyFeedNotice(feed.value) : '每日精选，发现好音乐')
@@ -315,7 +314,7 @@ const loadAccountPlaylists = async(force = false, provider = accountPlaylistsPro
 }
 const refreshAccountStatus = async() => {
   const revision = ++statusRevision
-  const status = await getMusicAccountStatus().catch(() => undefined)
+  const status = await getMusicAccountStatus().catch(error => error?.code === 'DEVICE_AUTH_REQUIRED' ? { tx: false, wy: false, kg: false, accounts: { tx: profile(), wy: profile(), kg: profile() } } : undefined)
   if (!active || revision !== statusRevision || !status) return
   accountStatus.value = status
   const selected = selectedDailyProvider.value

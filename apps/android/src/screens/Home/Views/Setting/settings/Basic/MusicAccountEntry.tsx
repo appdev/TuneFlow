@@ -7,22 +7,27 @@ import { useTheme } from '@/store/theme/hook'
 import { createStyle } from '@/utils/tools'
 import commonState from '@/store/common/state'
 import { pushMusicAccountScreen } from '@/navigation/navigation'
-import { isMusicAccountConnected } from '@/core/musicAccount'
+import { getSharedAccountStatus } from '@/service/accounts'
+import { subscribeAccounts } from '@/service/session'
+import { ServiceError } from '@/service/client'
 
 const MusicAccountEntry = memo(() => {
   const theme = useTheme()
   const t = useI18n()
   const [connected, setConnected] = useState<boolean | null>(null)
+  const [locked, setLocked] = useState(false)
 
   useEffect(() => {
-    void Promise.all([isMusicAccountConnected('tx'), isMusicAccountConnected('wy'), isMusicAccountConnected('kg')])
-      .then(states => { setConnected(states.some(Boolean)) })
-      .catch(() => { setConnected(false) })
+    let active = true
+    const refresh = () => { void getSharedAccountStatus().then(status => { if (active) { setConnected(status.tx || status.wy || status.kg); setLocked(false) } }).catch(reason => { if (active) { setConnected(false); setLocked(reason instanceof ServiceError && reason.code === 'DEVICE_AUTH_REQUIRED') } }) }
+    refresh()
+    const unsubscribe = subscribeAccounts(refresh)
+    return () => { active = false; unsubscribe() }
   }, [])
 
   return (
     <View style={styles.content}>
-      <Text size={13}>使用官方页面登录后，即可浏览账号歌单和个人推荐。导入只补充歌曲，保留已有内容。</Text>
+      <Text size={13}>各端输入访问密码后，即可共享平台账号、歌单与个人推荐。导入保留已有内容。</Text>
       <TouchableOpacity
         style={styles.row}
         activeOpacity={0.6}
@@ -33,7 +38,7 @@ const MusicAccountEntry = memo(() => {
         <View style={styles.labelWrap}>
           <Text style={styles.label}>{t('setting_music_account_title')}</Text>
           <Text size={11} color={theme['q-text-secondary']}>
-            {connected == null ? '' : connected ? t('setting_music_account_connected') : t('setting_music_account_disconnected')}
+            {locked ? '输入访问密码以查看' : connected == null ? '' : connected ? t('setting_music_account_connected') : t('setting_music_account_disconnected')}
           </Text>
         </View>
         <Text size={14} color={theme['q-text-secondary']}>{'›'}</Text>

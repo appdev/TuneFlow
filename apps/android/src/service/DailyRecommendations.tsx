@@ -5,7 +5,6 @@ import { getDailyProvider, setDailyProvider } from '@/core/musicAccount/daily'
 import { useNavigationComponentDidAppear } from '@/navigation'
 import { pushMusicAccountScreen, pushPlayDetailScreen } from '@/navigation/navigation'
 import commonState from '@/store/common/state'
-import DailySettings from '@/screens/Home/Views/Search/BlankView/DailySettings'
 import { togglePlay } from '@/core/player/player'
 import { playFromPage } from '@/core/player/selection'
 import { useIsPlay, usePlayMusicInfo } from '@/store/player/hook'
@@ -22,7 +21,7 @@ import Skeleton from '@/components/common/Skeleton'
 import useAdaptiveLayout from '@/utils/hooks/useAdaptiveLayout'
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { getWorkspace, serviceStatus, subscribeService, subscribeRecommendations } from './session'
+import { getWorkspace, serviceStatus, subscribeService, subscribeRecommendations, subscribeAccounts } from './session'
 import { loadMobileAccountDaily } from './accounts'
 import { loadDailyFeed, dailyFeedNotice, dailyKindNames, readDailyFeedCache, cacheDailyFeed, clearDailyFeedCache, type DailySource, type DailyFeed } from './recommendations'
 import { getDailyAccountKey } from './dailyIdentity'
@@ -47,7 +46,6 @@ export default () => {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [detailVisible, setDetailVisible] = useState(false)
-  const [settingsVisible, setSettingsVisible] = useState(false)
   const [startingPlayback, setStartingPlayback] = useState(false)
   const playbackPending = useRef(false)
 
@@ -132,12 +130,13 @@ export default () => {
       else void load(sourceRef.current, false, true)
     }
     const unsubscribeRecommendations = subscribeRecommendations(update)
+    const unsubscribeAccounts = subscribeAccounts(() => { clearDailyFeedCache(getWorkspace()); shownSource.current = undefined; feedRef.current = undefined; request.current?.abort(); request.current = undefined; setResult(undefined); setList([]); void preferences() })
     let endpoint = getWorkspace().client.endpoint
     const unsubscribe = subscribeService(() => {
       if (!ready.current || serviceStatus.busy || !serviceStatus.connected) return
       if (endpoint !== serviceStatus.endpoint) { endpoint = serviceStatus.endpoint; shownSource.current = undefined; feedRef.current = undefined; setResult(undefined); setList([]); void preferences() } else if (['warming', 'generating', 'stale'].includes(feedRef.current?.status ?? '') && !request.current) update()
     })
-    return () => { isUnmountedRef.current = true; ready.current = false; request.current?.abort(); listener.remove(); unsubscribe(); unsubscribeRecommendations() }
+    return () => { isUnmountedRef.current = true; ready.current = false; request.current?.abort(); listener.remove(); unsubscribe(); unsubscribeRecommendations(); unsubscribeAccounts() }
   }, [load, preferences])
   const resume = useCallback(() => {
     if (commonState.navActiveId == 'nav_search') void preferences()
@@ -157,9 +156,7 @@ export default () => {
     identity.current = owner
     void load(source)
   }
-  const refresh = useCallback(() => { void load(sourceRef.current, true) }, [load])
   const openAccount = () => {
-    setSettingsVisible(false)
     if (commonState.componentIds.home) pushMusicAccountScreen(commonState.componentIds.home, sourceRef.current === 'server' ? 'tx' : sourceRef.current)
   }
   const sourceLabel = !result ? t(loading ? 'search_daily_recommend_loading' : loadError ? 'load_failed' : 'search_daily_recommend_empty') : `${dailyKindNames[result.kind] ?? '个人推荐'} · ${list.length} 首`
@@ -197,7 +194,7 @@ export default () => {
     >
       <View style={styles.providerBar}>
         {(['tx', 'wy', 'kg', 'server'] as const).map(source => <Button key={source} ripple={null} disabled={startingPlayback} accessibilityRole="tab" accessibilityState={{ selected: provider == source }} onPress={() => { void changeProvider(source) }} style={[styles.providerChip, { backgroundColor: provider == source ? theme['q-surface-tint'] : 'transparent' }]}><Text size={12} color={provider == source ? theme['q-accent-text'] : theme['q-text-secondary']}>{source === 'server' ? '推荐' : t(source == 'tx' ? 'setting_music_account_qq' : source == 'kg' ? 'setting_music_account_kugou' : 'setting_music_account_netease')}</Text></Button>)}
-        <Button accessibilityLabel={t('daily_settings')} style={styles.settingsButton} onPress={() => { setSettingsVisible(true) }}><Icon name="slider" rawSize={19} color={theme['q-text-secondary']} /></Button>
+        <Button accessibilityLabel={t('daily_settings')} style={styles.settingsButton} onPress={openAccount}><Icon name="slider" rawSize={19} color={theme['q-text-secondary']} /></Button>
       </View>
       <Button accessibilityLabel={t('search_daily_open')} style={styles.feature} onPress={() => { setDetailVisible(true) }}>
         <View style={styles.mosaic}>
@@ -213,7 +210,7 @@ export default () => {
           <Text size={12} style={styles.openHint} color={theme['q-accent-text']}>{t('search_daily_open')} ›</Text>
         </View>
       </Button>
-      {result ? <Button onPress={result.reason == 'login_required' ? openAccount : () => { if (sourceRef.current !== 'server') setSettingsVisible(true) }} style={styles.sourceNotice}><Text size={11} color={theme['q-text-secondary']}>{dailyFeedNotice(result)}</Text></Button> : null}
+      {result ? <Button onPress={() => { if (sourceRef.current !== 'server') openAccount() }} style={styles.sourceNotice}><Text size={11} color={theme['q-text-secondary']}>{dailyFeedNotice(result)}</Text></Button> : null}
       <View style={[styles.actions, wide && { width: '100%', maxWidth: 400 }]}>
         <Button accessibilityLabel={t('daily_refresh')} disabled={loading || startingPlayback} style={{ ...styles.action, backgroundColor: theme['q-surface-tint'] }} onPress={() => { void load(sourceRef.current, true) }}>
           <Text size={12} color={theme['q-accent-text']}>{t('daily_refresh')}</Text>
@@ -262,7 +259,6 @@ export default () => {
                 </ScrollView>
               </>
             : <View style={styles.state}><Text size={12} color={theme['q-text-secondary']}>{t('search_daily_recommend_empty')}</Text></View>}
-      {settingsVisible ? <DailySettings provider={provider === 'server' ? 'tx' : provider} onClose={() => { setSettingsVisible(false) }} onChanged={refresh} onLogin={openAccount} /> : null}
       <Modal visible={detailVisible} animationType="slide" onRequestClose={() => { setDetailVisible(false) }}>
         <SafeAreaView style={{ flex: 1, backgroundColor: theme['c-content-background'] }}>
           <View style={styles.detailHeader}>

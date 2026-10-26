@@ -89,7 +89,7 @@ export default {
     SettingSearch,
     SettingList,
     SettingService: isWeb ? webPanel('connection') : { render: () => h(ServerSettings, { section: 'connection' }) },
-    SettingAccounts: isWeb ? webPanel('capabilities') : MusicAccounts,
+    SettingAccounts: MusicAccounts,
     SettingSource: { render: () => h(ServerSettings, { section: 'sources' }) },
     SettingDownload: { render: () => h(ServerSettings, { section: 'downloads' }) },
     SettingCompatibility: isWeb ? webPanel('capabilities') : { render: () => h(ServerSettings, { section: 'compatibility' }) },
