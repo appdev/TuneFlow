@@ -43,6 +43,18 @@ test('Docker keeps legacy default, original volume contract and isolated Service
   assert.equal(JSON.parse(read('package.json')).workspaces, undefined)
   assert.notEqual(JSON.parse(read('apps/service/package.json')).dependencies['better-sqlite3'], JSON.parse(read('apps/player/package.json')).dependencies['better-sqlite3'])
 })
+test('release jobs use one resolved source and retain API/raw/CDN update compatibility without downgrading', () => {
+  const workflow = read('.github/workflows/release-client.yml')
+  assert.equal((workflow.match(/ref: \$\{\{ needs.metadata.outputs.source \}\}/g) ?? []).length, 5)
+  const { channelMetadata } = require('../scripts/publish-client.cjs')
+  const incoming = { version: '0.4.25', desc: 'published preview', history: [] }
+  const assets = [{ name: 'Q-music-android-v0.4.25-arm64-v8a.apk' }]
+  const value = channelMetadata({ version: '0.4.24' }, incoming, 'a'.repeat(40), assets)
+  assert.equal(value.repository, 'appdev/TuneFlow')
+  assert.equal(value.commit, 'a'.repeat(40))
+  assert.deepEqual(value.assets, assets)
+  assert.equal(channelMetadata({ version: '0.4.26' }, incoming, 'a'.repeat(40), assets), null)
+})
 test('component bundles validate independently while preserving APK checksum filenames', t => {
   const { expectedAssets } = require('../apps/player/scripts/prepare-release.cjs')
   const { prepareAssets, assetComponent } = require('../scripts/publish-client.cjs')

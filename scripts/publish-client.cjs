@@ -6,6 +6,18 @@ const { expectedAssets } = require('../apps/player/scripts/prepare-release.cjs')
 
 const components = ['desktop', 'web', 'android']
 const assetComponent = name => name.endsWith('.apk') ? 'android' : name.startsWith('Q-music-Web-') ? 'web' : 'desktop'
+const compareVersions = (a, b) => {
+  for (let i = 0; i < 3; i++) {
+    const difference = Number(a.split('.')[i]) - Number(b.split('.')[i])
+    if (difference) return difference
+  }
+  return 0
+}
+function channelMetadata(current, incoming, source, assets) {
+  if (!/^\d+\.\d+\.\d+$/.test(incoming.version) || !/^[a-f0-9]{40}$/.test(source)) throw Error('Invalid channel metadata')
+  if (compareVersions(current.version, incoming.version) > 0) return null
+  return { ...incoming, repository: 'appdev/TuneFlow', commit: source, assets }
+}
 function prepareAssets(directory, { version, source, component }) {
   if (!/^\d+\.\d+\.\d+$/.test(version) || !/^[a-f0-9]{40}$/.test(source) || !['all', ...components].includes(component)) throw Error('Invalid frozen release inputs')
   const selected = component === 'all' ? components : [component]
@@ -62,6 +74,31 @@ function publish(directory, env = process.env) {
     gh(['release', 'upload', tag, path.join(directory, file)])
   }
   if (release.isDraft) gh(['release', 'edit', tag, '--draft=false', '--prerelease', '--latest=false'])
+  // Old installations also use raw/CDN metadata when the releases API is blocked.
+  // Update only these public channel files, after every selected asset is uploaded.
+  const published = JSON.parse(gh(['api', 'repos/appdev/Q-music/releases/tags/' + tag]))
+  if (published.draft) throw Error('Cannot advertise a draft release')
+  const channels = env.RELEASE_COMPONENT === 'all' ? ['desktop', 'android'] : [env.RELEASE_COMPONENT]
+  for (const channel of channels) {
+    if (channel === 'web') continue
+    const name = channel === 'android' ? 'mobile-version.json' : 'version.json'
+    const apiPath = 'repos/appdev/Q-music/contents/publish/' + name
+    const incoming = require(channel === 'android' ? '../apps/android/publish/mobile-version.json' : '../apps/player/publish/version.json')
+    let updated = false
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const file = JSON.parse(gh(['api', apiPath + '?ref=master']))
+      const current = JSON.parse(Buffer.from(file.content, 'base64').toString('utf8'))
+      const metadata = channelMetadata(current, incoming, source, published.assets)
+      if (!metadata) { updated = true; break }
+      const result = cp.spawnSync('gh', ['api', '--method', 'PUT', apiPath, '--input', '-'], {
+        encoding: 'utf8',
+        input: JSON.stringify({ message: 'chore(update): advertise ' + incoming.version + ' from TuneFlow', branch: 'master', sha: file.sha, content: Buffer.from(JSON.stringify(metadata, null, 2) + '\n').toString('base64') }),
+      })
+      if (result.status === 0) { updated = true; break }
+      if (!/409/.test(result.stderr)) throw Error('Unable to update public compatibility channel')
+    }
+    if (!updated) throw Error('Compatibility channel changed concurrently; retry publication')
+  }
 }
 if (require.main === module) publish(process.argv[2])
-module.exports = { prepareAssets, assetComponent }
+module.exports = { prepareAssets, assetComponent, channelMetadata }
