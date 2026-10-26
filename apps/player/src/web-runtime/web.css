@@ -1,0 +1,3 @@
+html.web .native-only { display: none !important; }
+html.web, html.web body { background: var(--color-content-background, #f6f8fa); }
+html.web #container { -webkit-app-region: no-drag; }

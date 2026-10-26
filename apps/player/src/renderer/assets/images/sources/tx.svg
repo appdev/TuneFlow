@@ -1,0 +1,6 @@
+<!-- QQ 音乐音符标识的矢量重绘，参考 https://y.qq.com/favicon.ico -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <circle cx="32" cy="32" r="32" fill="#ffdf39"/>
+  <path fill="#18cba0" d="M25 12c9 3 18 1 29-6-3 10-10 17-21 18z"/>
+  <path fill="#00bb91" d="m25 13 8 5 13 23c5 9 1 17-8 19-9 2-17-3-18-11-1-8 6-14 14-13h3z"/>
+</svg>

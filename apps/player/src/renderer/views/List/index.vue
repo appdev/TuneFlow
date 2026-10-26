@@ -1,0 +1,80 @@
+<template>
+  <div id="my-list" :class="$style.container" @click="handleContainerClick">
+    <MyList ref="myList" :list-id="listId" @show-menu="$refs.musicList.handleMenuClick()" />
+    <MusicList ref="musicList" :list-id="listId" @show-menu="$refs.myList.handleMenuClick()" />
+  </div>
+</template>
+
+<script>
+import { getListPrevSelectId } from '@renderer/utils/data'
+import { defaultList } from '@renderer/store/list/state'
+
+import MyList from './MyList/index.vue'
+import MusicList from './MusicList/index.vue'
+
+export default {
+  name: 'List',
+  components: {
+    MyList,
+    MusicList,
+  },
+  async beforeRouteEnter(to, from, next) {
+    let id = to.query.id
+    if (!id) {
+      id = await getListPrevSelectId()
+      id ||= defaultList.id
+      next({
+        path: to.path,
+        query: { ...to.query, id },
+      })
+    } else next()
+  },
+  beforeRouteUpdate(to, from) {
+    // console.log(to, from)
+    if (to.query.updated) return
+    let id = to.query.id
+    id ||= defaultList.id
+    // if (!getList(id)) {
+    //   id = defaultList.id
+    // }
+    this.listId = id
+    const scrollIndex = to.query.scrollIndex
+    const isAnimation = from.query.id == to.query.id
+    this.$refs.musicList?.handleRestoreScroll(scrollIndex, isAnimation)
+
+    return {
+      path: '/list',
+      query: { ...to.query, id, updated: true },
+    }
+  },
+  beforeRouteLeave(to, from) {
+    this.$refs.musicList?.saveListPosition()
+  },
+  data() {
+    return {
+      listId: null,
+    }
+  },
+  created() {
+    this.listId = this.$route.query.id || defaultList.id
+  },
+}
+</script>
+
+<style lang="less" module>
+@import '@renderer/assets/styles/layout.less';
+
+.container {
+  overflow: hidden;
+  height: 100%;
+  display: flex;
+  position: relative;
+  gap: 16px;
+  padding: 16px 18px calc(@height-player + 18px);
+  box-sizing: border-box;
+  background:
+    linear-gradient(135deg, var(--q-surface-soft), var(--q-surface)),
+    radial-gradient(circle at 16% 14%, var(--color-primary-alpha-900), transparent 34%);
+}
+
+</style>

@@ -1,0 +1,12 @@
+name: Publish Version Info
+
+on:
+  workflow_dispatch:
+
+jobs:
+  disabled:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disabled by default
+        run: |
+          echo "Configure Q-music version metadata publishing before enabling this workflow."

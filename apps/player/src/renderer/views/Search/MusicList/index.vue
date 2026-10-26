@@ -1,0 +1,87 @@
+<template>
+  <div :class="$style.container">
+    <material-online-list
+      ref="listRef"
+      :page="listInfo.page"
+      :limit="listInfo.limit"
+      :total="listInfo.total"
+      :list="listInfo.list"
+      :no-item="listInfo.noItemLabel"
+      :source-selector="props.sourceId == 'all'"
+      :source-tag="props.sourceId != 'all'"
+      :source-options="getSourceOptions"
+      :source-name="getSourceName"
+      check-api-source
+      search-results
+      @retry="search(searchText, props.sourceId, props.page)"
+      @toggle-page="handleTogglePage"
+      @play-list="handlePlayList"
+      @source-change="handleSourceChange"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { watch } from '@common/utils/vueTools'
+import { searchText } from '@renderer/store/search/state'
+import { useRouter, useRoute } from '@common/utils/vueRouter'
+import useList, { type SearchSource } from './useList'
+
+interface Props {
+  sourceId: SearchSource
+  page: number
+}
+
+const props = defineProps<Props>()
+const router = useRouter()
+const route = useRoute()
+
+const {
+  listRef,
+  listInfo,
+  search,
+  handlePlayList,
+  getSourceOptions,
+  getSourceName,
+  handleSourceChange,
+} = useList()
+
+watch(() => [searchText.value, props.sourceId, props.page] as const, ([text, sourceId, page]) => {
+  search(text, sourceId, page || 1)
+}, {
+  immediate: true,
+})
+
+const handleTogglePage = (page: number) => {
+  void router.replace({
+    path: route.path,
+    query: {
+      ...route.query,
+      page,
+    },
+  })
+}
+
+
+</script>
+
+
+<style lang="less" module>
+@import '@renderer/assets/styles/layout.less';
+.container {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 4px 16px calc(@height-player + 18px);
+}
+
+.list {
+  overflow: hidden;
+  height: 100%;
+  flex: auto;
+}
+
+</style>

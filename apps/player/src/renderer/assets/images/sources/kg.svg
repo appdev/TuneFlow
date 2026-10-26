@@ -1,0 +1,6 @@
+<!-- 酷狗 K 标识的矢量重绘，参考 https://www.kugou.com/common/images/icon_logo_v20.png -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <circle cx="32" cy="32" r="32" fill="#0095ef"/>
+  <circle cx="32" cy="32" r="24" fill="none" stroke="#fff" stroke-width="2.5"/>
+  <path fill="#fff" d="M24 19h6l-5 27h-6zM40 19h8L33 33l11 13h-8L25 33z"/>
+</svg>

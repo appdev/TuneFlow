@@ -1,0 +1,196 @@
+// const path = require('path')
+import { app } from 'electron'
+import { mainHandle, mainOn } from '@common/mainIpc'
+import { WIN_MAIN_RENDERER_EVENT_NAME } from '@common/ipcNames'
+// import { name as defaultName } from '../../../../../package.json'
+import {
+  minimize,
+  maximize,
+  closeWindow,
+  showWindow,
+  setFullScreen,
+  sendFullScreenState,
+  sendEvent,
+  clearCache,
+  getCacheSize,
+  toggleDevTools,
+  setWindowBounds,
+  setIgnoreMouseEvents,
+  // setThumbnailClip,
+  toggleMinimize,
+  toggleHide,
+  showSelectDialog,
+  showDialog,
+  showSaveDialog,
+} from '@main/modules/winMain'
+import { quitApp } from '@main/app'
+import { getAllThemes, removeTheme, saveTheme, setPowerSaveBlocker } from '@main/utils'
+import { openDirInExplorer } from '@common/utils/electron'
+import { addQQFavoriteSong, getMusicAccountDailySongIds, getMusicAccountMusicUrl, getMusicAccountPlaylistDetail, getMusicAccountPlaylists, getMusicAccountStatus, getQQDailyKeyStatus, logoutMusicAccount, openMusicAccountLogin, openQQDailyKeyPage, reportMusicAccountPlayback, saveQQDailyApiKey, type MusicAccountDailyResult, type MusicAccountLoginResult, type MusicAccountLogoutResult, type MusicAccountMusicUrlRequest, type MusicAccountMusicUrlResult, type MusicAccountPlaybackReportRequest, type MusicAccountPlaybackReportResult, type MusicAccountPlaylistDetailResult, type MusicAccountPlaylistsResult, type MusicAccountProvider, type QQDailyKeySaveResult } from '../musicAccount'
+import { type QQFavoriteRequest, type QQFavoriteResult } from '@common/types/qqFavorite'
+import { startAccountTransfer, getAccountTransferState, cancelAccountTransfer } from '../accountTransfer'
+import type { AccountTransferInfo, AccountTransferState } from '@common/types/accountTransfer'
+import { getCloudConfig, getSavedCloudPassword, importCloudTracks, listCloudTracks, saveCloudConfig, saveCloudPassword, selectCloudProvider, uploadCloudTrack, type CloudConfig, type CloudTrack } from '../cloudLibrary'
+
+export default () => {
+  mainHandle<AccountTransferInfo>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_transfer_start, startAccountTransfer)
+  mainHandle<string, AccountTransferState>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_transfer_status, async({ params }) => getAccountTransferState(params))
+  mainHandle<string, undefined>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_transfer_cancel, async({ params }) => { cancelAccountTransfer(params); return undefined })
+  mainHandle<ReturnType<typeof getCloudConfig>>(WIN_MAIN_RENDERER_EVENT_NAME.cloud_config_get, async() => getCloudConfig())
+  mainHandle<CloudConfig, ReturnType<typeof getCloudConfig>>(WIN_MAIN_RENDERER_EVENT_NAME.cloud_config_save, async({ params }) => saveCloudConfig(params))
+  mainHandle<CloudConfig['provider'], ReturnType<typeof getCloudConfig>>(WIN_MAIN_RENDERER_EVENT_NAME.cloud_config_select, async({ params }) => selectCloudProvider(params))
+  mainHandle<string>(WIN_MAIN_RENDERER_EVENT_NAME.cloud_password_get, async() => getSavedCloudPassword())
+  mainHandle<string, undefined>(WIN_MAIN_RENDERER_EVENT_NAME.cloud_password_save, async({ params }) => {
+    saveCloudPassword(params)
+    return undefined
+  })
+  mainHandle<string, CloudTrack[]>(WIN_MAIN_RENDERER_EVENT_NAME.cloud_tracks_list, async({ params }) => listCloudTracks(params))
+  mainHandle<{ source: string, password: string, playlist: string, name: string, singer: string }, CloudTrack>(WIN_MAIN_RENDERER_EVENT_NAME.cloud_track_upload, async({ params }) => uploadCloudTrack(params.source, params.password, params.playlist, params.name, params.singer))
+  mainHandle<{ ids: string[], password: string }, Array<CloudTrack & { filePath: string }>>(WIN_MAIN_RENDERER_EVENT_NAME.cloud_tracks_import, async({ params }) => importCloudTracks(params.ids, params.password))
+  // 设置应用名称
+  // mainOn(WIN_MAIN_RENDERER_EVENT_NAME.set_app_name, ({ params: name }) => {
+  //   if (name == null) {
+  //     app.setName(defaultName)
+  //   } else {
+  //     app.setName(name)
+  //   }
+  // })
+  mainOn(WIN_MAIN_RENDERER_EVENT_NAME.quit, () => {
+    quitApp()
+  })
+  mainOn(WIN_MAIN_RENDERER_EVENT_NAME.min_toggle, () => {
+    toggleMinimize()
+  })
+  mainOn(WIN_MAIN_RENDERER_EVENT_NAME.hide_toggle, () => {
+    toggleHide()
+  })
+  mainOn(WIN_MAIN_RENDERER_EVENT_NAME.min, () => {
+    minimize()
+  })
+  mainOn(WIN_MAIN_RENDERER_EVENT_NAME.max, () => {
+    maximize()
+  })
+  mainOn(WIN_MAIN_RENDERER_EVENT_NAME.focus, () => {
+    showWindow()
+  })
+  mainOn<boolean>(WIN_MAIN_RENDERER_EVENT_NAME.set_power_save_blocker, ({ params: enabled }) => {
+    setPowerSaveBlocker(enabled)
+  })
+  mainOn<boolean>(WIN_MAIN_RENDERER_EVENT_NAME.close, ({ params: isForce }) => {
+    if (isForce) {
+      app.exit(0)
+      return
+    }
+    closeWindow()
+  })
+  // 全屏
+  mainHandle<boolean, boolean>(WIN_MAIN_RENDERER_EVENT_NAME.fullscreen, async({ params: isFullscreen }) => {
+    global.lx.event_app.main_window_fullscreen(isFullscreen)
+    return setFullScreen(isFullscreen)
+  })
+
+  // 选择目录
+  mainHandle<Electron.OpenDialogOptions, Electron.OpenDialogReturnValue>(WIN_MAIN_RENDERER_EVENT_NAME.show_select_dialog, async({ params: options }) => {
+    return showSelectDialog(options)
+  })
+  // 显示弹窗信息
+  mainOn<Electron.MessageBoxSyncOptions>(WIN_MAIN_RENDERER_EVENT_NAME.show_dialog, ({ params }) => {
+    showDialog(params)
+  })
+  // 显示保存弹窗
+  mainHandle<Electron.SaveDialogOptions, Electron.SaveDialogReturnValue>(WIN_MAIN_RENDERER_EVENT_NAME.show_save_dialog, async({ params }) => {
+    return showSaveDialog(params)
+  })
+  // 在资源管理器中定位文件
+  mainOn<string>(WIN_MAIN_RENDERER_EVENT_NAME.open_dir_in_explorer, async({ params }) => {
+    return openDirInExplorer(params)
+  })
+
+
+  mainHandle(WIN_MAIN_RENDERER_EVENT_NAME.clear_cache, async() => {
+    await clearCache()
+  })
+
+  mainHandle<number>(WIN_MAIN_RENDERER_EVENT_NAME.get_cache_size, async() => {
+    return getCacheSize()
+  })
+
+  mainOn(WIN_MAIN_RENDERER_EVENT_NAME.open_dev_tools, () => {
+    toggleDevTools()
+  })
+
+  mainOn<Partial<Electron.Rectangle>>(WIN_MAIN_RENDERER_EVENT_NAME.set_window_size, ({ params }) => {
+    setWindowBounds(params)
+  })
+
+  mainOn<boolean>(WIN_MAIN_RENDERER_EVENT_NAME.set_ignore_mouse_events, ({ params: isIgnored }) => {
+    isIgnored
+      ? setIgnoreMouseEvents(isIgnored, { forward: true })
+      : setIgnoreMouseEvents(false)
+  })
+
+  // mainHandle<Electron.Rectangle>(WIN_MAIN_RENDERER_EVENT_NAME.taskbar_set_thumbnail_clip, async({ params }) => {
+  //   return setThumbnailClip(params)
+  // })
+
+  mainOn<LX.Player.Status>(WIN_MAIN_RENDERER_EVENT_NAME.player_status, ({ params }) => {
+    // setThumbarButtons(params)
+    global.lx.event_app.player_status(params)
+  })
+
+  mainOn(WIN_MAIN_RENDERER_EVENT_NAME.inited, () => {
+    global.lx.event_app.main_window_inited()
+    sendFullScreenState()
+  })
+
+  mainHandle<{ themes: LX.Theme[], userThemes: LX.Theme[] }>(WIN_MAIN_RENDERER_EVENT_NAME.get_themes, async() => {
+    return getAllThemes()
+  })
+  mainHandle<LX.Theme>(WIN_MAIN_RENDERER_EVENT_NAME.save_theme, async({ params: theme }) => {
+    saveTheme(theme)
+  })
+  mainHandle<string>(WIN_MAIN_RENDERER_EVENT_NAME.remove_theme, async({ params: id }) => {
+    removeTheme(id)
+  })
+  mainHandle(WIN_MAIN_RENDERER_EVENT_NAME.music_account_status, async() => {
+    return getMusicAccountStatus()
+  })
+  mainHandle<QQFavoriteRequest, QQFavoriteResult>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_qq_favorite_add, async({ params }) => addQQFavoriteSong(params))
+  mainHandle<MusicAccountProvider, MusicAccountLoginResult>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_login, async({ params: provider }) => {
+    if (provider == 'tx') cancelAccountTransfer()
+    return openMusicAccountLogin(provider)
+  })
+  mainHandle<MusicAccountProvider, MusicAccountLogoutResult>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_logout, async({ params: provider }) => {
+    if (provider == 'tx') cancelAccountTransfer()
+    return logoutMusicAccount(provider)
+  })
+  mainHandle<MusicAccountProvider, MusicAccountDailyResult>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_daily, async({ params: provider }) => {
+    return getMusicAccountDailySongIds(provider)
+  })
+  mainHandle<MusicAccountProvider, MusicAccountPlaylistsResult>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_playlists, async({ params: provider }) => {
+    return getMusicAccountPlaylists(provider)
+  })
+  mainHandle<{ provider: MusicAccountProvider, id: string }, MusicAccountPlaylistDetailResult>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_playlist_detail, async({ params }) => {
+    return getMusicAccountPlaylistDetail(params.provider, params.id)
+  })
+  mainHandle<MusicAccountMusicUrlRequest, MusicAccountMusicUrlResult>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_music_url, async({ params }) => {
+    return getMusicAccountMusicUrl(params)
+  })
+  mainHandle<MusicAccountPlaybackReportRequest, MusicAccountPlaybackReportResult>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_playback_report, async({ params }) => {
+    return reportMusicAccountPlayback(params)
+  })
+  mainHandle(WIN_MAIN_RENDERER_EVENT_NAME.music_account_qq_daily_key_status, async() => getQQDailyKeyStatus())
+  mainHandle<string, QQDailyKeySaveResult>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_qq_daily_key_save, async({ params }) => saveQQDailyApiKey(params))
+  mainHandle<QQDailyKeySaveResult>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_qq_daily_key_page, async() => openQQDailyKeyPage())
+}
+
+export const sendFocus = () => {
+  sendEvent(WIN_MAIN_RENDERER_EVENT_NAME.focus)
+}
+
+export const sendTaskbarButtonClick = (action: LX.Player.StatusButtonActions, data?: unknown) => {
+  sendEvent(WIN_MAIN_RENDERER_EVENT_NAME.player_action_on_button_click, { action, data })
+}
+export const sendConfigChange = (setting: Partial<LX.AppSetting>) => {
+  sendEvent(WIN_MAIN_RENDERER_EVENT_NAME.on_config_change, setting)
+}

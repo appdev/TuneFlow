@@ -1,0 +1,547 @@
+<template>
+  <div ref="dom_lists" :class="$style.lists">
+    <div :class="$style.listHeader">
+      <div :class="$style.titleRow">
+        <h2 :class="$style.listsTitle">{{ $t('my_list') }}</h2>
+        <button type="button" :class="$style.listsAdd" :aria-label="$t('lists__new_list_btn')" :title="$t('lists__new_list_btn')" @click="isShowNewList = true">
+          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="70%" viewBox="0 0 24 24" space="preserve">
+            <use xlink:href="#icon-list-add" />
+          </svg>
+        </button>
+      </div>
+      <button type="button" :class="[$style.listsAdd, $style.importBtn]" @click="refreshLibrary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
+        <span>刷新音乐库</span>
+      </button>
+    </div>
+    <ul ref="dom_lists_list" class="scroll" :class="[$style.listsContent, { [$style.sortable]: isDragging }]">
+      <li
+        class="default-list" :class="[$style.listsItem, {[$style.active]: defaultList.id == listId}, {[$style.clicked]: rightClickItemIndex == -2}, {[$style.fetching]: fetchingListStatus[defaultList.id]}]"
+        role="button" tabindex="0" :aria-label="$t(defaultList.name)" :aria-pressed="defaultList.id == listId"
+        @contextmenu="handleListsItemRigthClick($event, -2)" @click="handleListToggle(defaultList.id)"
+        @keydown.enter.self="handleListToggle(defaultList.id)" @keydown.space.self.prevent="handleListToggle(defaultList.id)"
+      >
+        <span :class="$style.listsLabel">
+          <PlaylistIdentity :list="defaultList" :name="$t(defaultList.name)" />
+        </span>
+      </li>
+      <li
+        class="default-list" :class="[$style.listsItem, {[$style.active]: loveList.id == listId}, {[$style.clicked]: rightClickItemIndex == -1}, {[$style.fetching]: fetchingListStatus[loveList.id]}]"
+        role="button" tabindex="0" :aria-label="$t(loveList.name)" :aria-pressed="loveList.id == listId"
+        @contextmenu="handleListsItemRigthClick($event, -1)" @click="handleListToggle(loveList.id)"
+        @keydown.enter.self="handleListToggle(loveList.id)" @keydown.space.self.prevent="handleListToggle(loveList.id)"
+      >
+        <span :class="$style.listsLabel">
+          <PlaylistIdentity :list="loveList" :name="$t(loveList.name)" />
+        </span>
+      </li>
+      <li
+        v-for="(item, index) in userLists"
+        :key="item.id" class="user-list" :data-list-id="item.id"
+        :class="[$style.listsItem, { 'default-list': isReadOnlyList(item.id), [$style.active]: item.id == listId}, {[$style.clicked]: rightClickItemIndex == index}, {[$style.fetching]: fetchingListStatus[item.id]}]"
+        role="button" tabindex="0" :data-index="index" :aria-pressed="item.id == listId" @contextmenu="handleListsItemRigthClick($event, index)"
+        @keydown.enter.self="handleListToggle(item.id)" @keydown.space.self.prevent="handleListToggle(item.id)"
+      >
+        <span :class="$style.listsLabel" :title="item.name" @click="handleListToggle(item.id, index + 2)">
+          <PlaylistIdentity :list="item" subtitle />
+          <svg v-if="!isReadOnlyList(item.id)" :class="$style.dragHandle" viewBox="0 0 16 24" aria-hidden="true"><title>{{ $t('lists__drag_sort') }}</title><g fill="currentColor"><circle cx="5" cy="6" r="1.3" /><circle cx="11" cy="6" r="1.3" /><circle cx="5" cy="12" r="1.3" /><circle cx="11" cy="12" r="1.3" /><circle cx="5" cy="18" r="1.3" /><circle cx="11" cy="18" r="1.3" /></g></svg>
+        </span>
+        <base-input
+          :class="$style.listsInput" type="text" :value="item.name"
+          :placeholder="item.name" @keyup.enter="handleSaveListName(index, $event)" @blur="handleSaveListName(index, $event)"
+        />
+      </li>
+      <transition enter-active-class="animated-fast slideInLeft" leave-active-class="animated-fast fadeOut" @after-leave="isNewListLeave = false" @after-enter="$refs.dom_listsNewInput.focus()">
+        <li v-if="isShowNewList" :class="[$style.listsItem, $style.listsNew, {[$style.newLeave]: isNewListLeave}]">
+          <base-input
+            ref="dom_listsNewInput" :class="$style.listsInput" type="text" :placeholder="$t('lists__new_list_input')"
+            @keyup.enter="handleCreateList" @blur="handleCreateList"
+          />
+        </li>
+      </transition>
+    </ul>
+    <base-menu v-model="isShowMenu" :menus="menus" :xy="menuLocation" item-name="name" @menu-click="handleMenuClick" />
+    <DuplicateMusicModal v-model:visible="isShowDuplicateMusicModal" :list-info="duplicateListInfo" />
+    <ListSortModal v-model:visible="isShowListSortModal" :list-info="sortListInfo" />
+    <ListUpdateModal v-model:visible="isShowListUpdateModal" />
+    <LocalMusicModal v-model:visible="isShowLocalMusicModal" @open-list="handleListToggle" />
+  </div>
+</template>
+
+<script>
+import { openUrl } from '@common/utils/electron'
+import { scanServiceLibrary } from '@renderer/service/session'
+import { isReadOnlyList } from '@renderer/service/workspace'
+
+import musicSdk from '@renderer/utils/musicSdk'
+import DuplicateMusicModal from './components/DuplicateMusicModal.vue'
+import LocalMusicModal from './components/LocalMusicModal.vue'
+import ListSortModal from './components/ListSortModal.vue'
+import ListUpdateModal from './components/ListUpdateModal.vue'
+import PlaylistIdentity from '@renderer/components/common/PlaylistIdentity.vue'
+
+import { defaultList, loveList, userLists, fetchingListStatus } from '@renderer/store/list/state'
+import { removeUserList } from '@renderer/store/list/action'
+
+import { ref, watch } from '@common/utils/vueTools'
+import { useRouter } from '@common/utils/vueRouter'
+import { LIST_IDS } from '@common/constants'
+
+import { dialog } from '@renderer/plugins/Dialog'
+
+import { saveListPrevSelectId } from '@renderer/utils/data'
+
+import { useI18n } from '@renderer/plugins/i18n'
+
+
+import useShare from './useShare'
+import useMenu from './useMenu'
+import useListUpdate from './useListUpdate'
+import useSort from './useSort'
+import useDarg from './useDarg'
+import useEditList from './useEditList'
+import useListScroll from './useListScroll'
+import useDuplicate from './useDuplicate'
+
+export default {
+  name: 'MyLists',
+  components: {
+    PlaylistIdentity,
+    DuplicateMusicModal,
+    LocalMusicModal,
+    ListSortModal,
+    ListUpdateModal,
+  },
+  props: {
+    listId: {
+      type: String,
+      required: true,
+    },
+  },
+  emits: ['show-menu'],
+  setup(props, { emit }) {
+    const router = useRouter()
+    const t = useI18n()
+    const refreshLibrary = async() => {
+      try { await scanServiceLibrary(); handleListToggle('service_library') } catch (error) { void dialog({ message: error.message }) }
+    }
+
+    const dom_lists_list = ref(null)
+    const rightClickItemIndex = ref(-10)
+    const isShowLocalMusicModal = ref(false)
+
+    const { handleImportList, handleExportList } = useShare()
+    const { isShowListUpdateModal, handleUpdateSourceList } = useListUpdate()
+    const { isShowListSortModal, sortListInfo, handleSortList } = useSort()
+    const { isShowDuplicateMusicModal, duplicateListInfo, handleDuplicateList } = useDuplicate()
+    const { handleRename, handleSaveListName, isShowNewList, isNewListLeave, handleCreateList } = useEditList({ dom_lists_list })
+    useListScroll({ dom_lists_list })
+
+    const handleOpenSourceDetailPage = async(listInfo) => {
+      const { source, sourceListId } = listInfo
+      if (!sourceListId) return
+      if (source == 'kg' && /^account:/.test(sourceListId)) {
+        void openUrl('https://www.kugou.com/')
+        return
+      }
+      let url
+      if (/board__/.test(sourceListId)) {
+        const id = sourceListId.replace(/board__/, '')
+        url = musicSdk[source].leaderboard.getDetailPageUrl(id)
+      } else if (musicSdk[source]?.songList?.getDetailPageUrl) {
+        url = await musicSdk[source].songList.getDetailPageUrl(sourceListId)
+      }
+      if (!url) return
+      void openUrl(url)
+    }
+
+    const handleRemove = (listInfo) => {
+      void dialog.confirm({
+        message: t('lists__remove_tip', { name: listInfo.name }),
+        confirmButtonText: t('lists__remove_tip_button'),
+      }).then(isRemove => {
+        if (!isRemove) return
+        void removeUserList([listInfo.id])
+        if (props.listId == listInfo.id) {
+          handleListToggle(LIST_IDS.DEFAULT)
+        }
+      })
+    }
+
+    const {
+      menus,
+      menuLocation,
+      isShowMenu,
+      showMenu,
+      menuClick,
+    } = useMenu({
+      emit,
+
+      handleImportList,
+      handleExportList,
+      handleUpdateSourceList,
+      handleOpenSourceDetailPage,
+      handleSortList,
+      handleDuplicateList,
+      handleRename,
+      handleRemove,
+    })
+
+    const handleListsItemRigthClick = (event, index) => {
+      rightClickItemIndex.value = index
+      showMenu(event, index)
+    }
+
+    const handleListToggle = (id) => {
+      if (suppressDragClick() || id == props.listId) return
+      router.replace({
+        path: '/list',
+        query: { id },
+      }).catch(_ => _)
+    }
+
+    const openCloudLibrary = () => {
+      void router.push({ path: '/setting', query: { name: 'SettingSync', section: 'cloud-library' } })
+    }
+
+    const handleMenuClick = (action) => {
+      if (rightClickItemIndex.value < -2) return
+      let index = rightClickItemIndex.value
+      rightClickItemIndex.value = -10
+      menuClick(action, index)
+    }
+
+    const { isDragging, suppressDragClick } = useDarg({ dom_lists_list, handleMenuClick })
+
+
+    watch(() => props.listId, (listId) => {
+      saveListPrevSelectId(listId)
+    })
+
+    watch(() => userLists, (lists) => {
+      if (lists.some(l => l.id == props.listId)) return
+      void router.replace({
+        path: '/list',
+        query: {
+          id: defaultList.id,
+        },
+      })
+    })
+
+    return {
+      isReadOnlyList,
+      refreshLibrary,
+      rightClickItemIndex,
+      defaultList,
+      loveList,
+      userLists,
+      fetchingListStatus,
+      dom_lists_list,
+      isShowLocalMusicModal,
+      isShowListUpdateModal,
+      isShowListSortModal,
+      sortListInfo,
+      isShowDuplicateMusicModal,
+      duplicateListInfo,
+      handleSaveListName,
+      isShowNewList,
+      isNewListLeave,
+      handleCreateList,
+      handleListsItemRigthClick,
+      isShowMenu,
+      handleMenuClick,
+      menus,
+      menuLocation,
+      handleListToggle,
+      openCloudLibrary,
+      isDragging,
+      hideMenu: handleMenuClick,
+    }
+  },
+}
+</script>
+
+<style lang="less" module>
+@import '@renderer/assets/styles/layout.less';
+
+@lists-item-height: 36px;
+.lists {
+  flex: none;
+  width: clamp(210px, 19%, 236px);
+  display: flex;
+  flex-flow: column nowrap;
+  overflow: hidden;
+  border-radius: 20px;
+  background: rgb(from var(--color-main-background) r g b / .52);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .66), 0 16px 38px rgba(72, 91, 112, .08);
+  backdrop-filter: blur(16px) saturate(1.1);
+}
+.cloudLink {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  margin: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--color-primary-alpha-600);
+  border-radius: 12px;
+  background: var(--color-primary-background-hover);
+  color: var(--color-button-font);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color @transition-fast, box-shadow @transition-fast, transform @transition-fast;
+  &:hover, &:focus-visible {
+    background: var(--color-primary-alpha-800);
+    box-shadow: 0 8px 18px var(--color-primary-alpha-900);
+    .cloudArrow { opacity: 1; transform: translateX(3px); }
+  }
+  &:active { transform: scale(.98); }
+  svg { width: 17px; height: 17px; flex: none; }
+  span { flex: 1; }
+  .cloudArrow { width: 13px; height: 13px; opacity: .6; transition: opacity @transition-fast, transform @transition-fast; }
+}
+.listHeader {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-flow: column nowrap;
+  align-items: stretch;
+  gap: 8px;
+  padding: 12px;
+  box-sizing: border-box;
+  border-bottom: 1px solid rgba(122, 136, 150, .1);
+  &:hover {
+    .listsAdd {
+      opacity: 1;
+    }
+  }
+}
+.titleRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.listsTitle {
+  flex: none;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.2;
+  padding: 0 5px 0 0;
+  font-weight: 750;
+  .mixin-ellipsis-1();
+}
+.headerBtns {
+  flex: none;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: 6px;
+}
+.listsAdd {
+  // position: absolute;
+  // right: 0;
+  margin-top: 0;
+  background: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  outline: none;
+  border-radius: @radius-border;
+  cursor: pointer;
+  opacity: .72;
+  transition: opacity @transition-normal, background-color @transition-normal;
+  color: var(--color-button-font);
+  svg {
+    vertical-align: bottom;
+  }
+  &:active {
+    opacity: .7 !important;
+  }
+  &:hover {
+    opacity: 1 !important;
+    background-color: var(--color-primary-background-hover);
+  }
+  &:focus-visible {
+    opacity: 1;
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+}
+.importBtn {
+  opacity: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: auto;
+  min-width: 0;
+  height: 32px;
+  margin: 0;
+  padding: 0 8px;
+  color: var(--color-primary);
+  background-color: var(--color-primary-background-hover);
+  box-shadow: inset 0 0 0 1px var(--color-primary-alpha-600);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  svg {
+    width: 12px;
+    height: 12px;
+    flex: none;
+  }
+  span {
+    min-width: 0;
+    .mixin-ellipsis-1();
+  }
+
+  &:hover {
+    opacity: 1 !important;
+    color: var(--color-primary-dark-300);
+  }
+}
+.listsContent > :global(.default-list) .listsLabel { height: 42px; }
+.listsContent > :global(.default-list) + :global(.user-list) { margin-top: 10px; }
+.listsContent {
+  flex: auto;
+  min-width: 0;
+  overflow-y: auto !important;
+  scrollbar-gutter: stable;
+  padding: 7px;
+  box-sizing: border-box;
+  // border-right: 1px solid rgba(0, 0, 0, 0.12);
+
+  &.sortable {
+    .listsItem.dragingItem {
+      background-color: var(--color-primary-alpha-900) !important;
+      box-shadow: inset 0 0 0 1px var(--color-primary-alpha-700);
+      opacity: .35;
+      .listsLabel { opacity: .35; }
+    }
+  }
+}
+.dragHandle { flex: none; width: 14px; height: 22px; margin-left: auto; padding-left: 6px; color: var(--color-font-label); opacity: .55; cursor: grab; }
+.dragChosen, .dragChosen .dragHandle { cursor: grabbing !important; }
+.listsItem.dragFloating {
+  list-style: none;
+  color: var(--color-font) !important;
+  opacity: .98 !important;
+  background: var(--color-content-background) !important;
+  box-shadow: inset 0 0 0 1px var(--color-primary-alpha-600), 0 12px 30px rgba(0, 0, 0, .20), 0 3px 8px rgba(0, 0, 0, .09);
+  transform-origin: center;
+  pointer-events: none;
+  &[data-drag-motion='true'] { scale: 1.035; rotate: -.6deg; animation: q-list-lift .22s cubic-bezier(.22, 1.4, .36, 1); }
+}
+@keyframes q-list-lift { from { scale: .985; rotate: 0deg; } to { scale: 1.035; rotate: -.6deg; } }
+@media (prefers-reduced-motion: reduce) { .listsItem.dragFloating[data-drag-motion='true'] { animation: none; scale: 1; rotate: 0deg; } }
+.listsItem {
+  position: relative;
+  margin-bottom: 4px;
+  border-radius: 12px;
+  transition: .3s ease;
+  transition-property: color, background-color, opacity, box-shadow;
+  background-color: transparent;
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+  }
+  &:not(.active) {
+    &:hover {
+      background-color: var(--color-primary-background-hover);
+      cursor: pointer;
+    }
+    &:not(.editing):hover {
+      background-color: var(--color-primary-background-hover);
+    }
+  }
+  &.active {
+    color: var(--color-primary-dark-300);
+    background-color: rgb(from var(--color-main-background) r g b / .76);
+    box-shadow: inset 0 0 0 1px var(--color-primary-alpha-700);
+    &:before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 3px; background: var(--color-primary); }
+  }
+  &.selected {
+    background-color: var(--color-primary-font-active);
+  }
+  &.clicked {
+    background-color: var(--color-primary-background-hover);
+  }
+  // 正在从来源同步：保留可读性，右侧转圈提示进行中
+  &.fetching {
+    opacity: .66;
+    .listsLabel { padding-right: 30px; }
+    &:after {
+      content: '';
+      position: absolute;
+      right: 11px;
+      top: 50%;
+      width: 12px;
+      height: 12px;
+      margin-top: -7px;
+      border: 1.5px solid var(--color-primary-alpha-700);
+      border-top-color: var(--color-primary);
+      border-radius: 50%;
+      animation: q-mylist-spin .8s linear infinite;
+    }
+  }
+  &.editing {
+    padding: 0 10px;
+    background-color: var(--color-primary-background-hover);
+    .listsLabel {
+      display: none;
+    }
+    .listsInput {
+      display: block;
+    }
+  }
+}
+.activeIcon {
+  height: .9em;
+  width: .9em;
+  margin-right: .35em;
+  vertical-align: -0.05em;
+}
+.listsLabel {
+  height: 54px;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0 12px;
+  font-size: 13px;
+  line-height: 1.25;
+  .mixin-ellipsis-1();
+}
+.listsInput {
+  width: 100%;
+  height: @lists-item-height;
+  // border: none;
+  padding: 0;
+  // padding-bottom: 1px;
+  line-height: @lists-item-height;
+  background: none !important;
+  border-radius: 0;
+  // outline: none;
+  font-size: 13px;
+  display: none;
+  // font-family: inherit;
+}
+
+.listsNew {
+  padding: 0 10px;
+  background-color: var(--color-primary-background-hover) !important;
+  box-shadow: inset 0 0 0 1.5px var(--color-primary-alpha-600);
+  .listsInput {
+    display: block;
+  }
+}
+@keyframes q-mylist-spin {
+  to { transform: rotate(360deg); }
+}
+.newLeave {
+  margin-top: -@lists-item-height;
+  z-index: -1;
+}
+
+
+</style>
