@@ -29,6 +29,9 @@ jobs:
       - name: Eslint check
         run: npm run lint
 
+      - name: Install browser used by Service UI smoke tests
+        run: npx playwright install --with-deps chromium
+
       - name: Test
         run: npm test
 

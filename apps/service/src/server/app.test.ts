@@ -480,7 +480,8 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
       expect(created.statusCode).toBe(201)
 
       let local: { id: string, pictureUrl?: string | null } | undefined
-      for (let attempt = 0; attempt < 100; attempt++) {
+      // Includes the scheduler and a deliberate first-request 503 retry on CI.
+      for (let attempt = 0; attempt < 500; attempt++) {
         const tracks = (await app.inject({ method: 'GET', url: '/api/v1/library/tracks' })).json().data as Array<{ id: string, name: string, pictureUrl?: string | null }>
         local = tracks.find(track => track.name === 'Artwork retry')
         if (local?.pictureUrl != null) break
@@ -492,7 +493,7 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
       if (previousPrivateTargets == null) delete process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS
       else process.env.TUNEFLOW_TEST_ALLOW_PRIVATE_PLAYBACK_TARGETS = previousPrivateTargets
     }
-  })
+  }, 15_000)
 
   it('clears download history through one idempotent collection route', async() => {
     const { app } = await createTestServer()
