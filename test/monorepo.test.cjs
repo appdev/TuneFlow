@@ -20,7 +20,7 @@ test('application identities, data keys and existing update channel remain compa
   assert.match(gradle, /applicationId "io.github.nshpiter.qmusic.mobile"/)
   assert.match(gradle, /applicationIdSuffix ".preview"/)
   assert.match(gradle, /signingConfig signingConfigs.debug/)
-  for (const file of ['apps/player/src/common/utils/updateSources.ts', 'apps/android/src/utils/updateSources.ts']) assert.match(read(file), /https:\/\/github.com\/appdev\/Q-music\/releases\/download\//)
+  for (const file of ['apps/player/src/common/utils/updateSources.ts', 'apps/android/src/utils/updateSources.ts']) assert.match(read(file), /https:\/\/github.com\/appdev\/TuneFlow\/releases\/download\//)
 })
 test('both client facades point to the same portable API and business implementations', () => {
   for (const [app, dir] of [['player', 'src/renderer/service'], ['android', 'src/service']]) {

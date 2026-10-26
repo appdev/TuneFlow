@@ -35,10 +35,10 @@ Docker 默认托管 `apps/player` 的共享 Vue Web。Web 固定连接页面 ori
 | Android 正式 applicationId | `io.github.nshpiter.qmusic.mobile`；正式与预览签名分别保留 |
 | 桌面连接键 | `qmusic.docker.endpoint.v1` |
 | Android 连接键 | `qmusic.service.endpoint.v1` |
-| 客户端发布入口 | [appdev/Q-music Releases](https://github.com/appdev/Q-music/releases)，保留资产命名与更新元数据 |
+| 客户端发布入口 | [TuneFlow Releases](https://github.com/appdev/TuneFlow/releases)，`client-v<version>` 标签，保留附件命名与应用身份 |
 | Server 发布入口 | [appdev/TuneFlow Releases](https://github.com/appdev/TuneFlow/releases)，独立版本与 Docker 镜像 |
 
-源码统一不意味着修改应用 ID、重建签名、卸载重装或重定向旧更新地址。旧 Release 和安装资产保留，不覆盖已公开的不同内容。
+应用 ID、签名和数据目录保持不变。原 Q-music 仓库已删除，客户端更新迁移到 TuneFlow，旧版需要手动覆盖安装新版一次；无法通过已删除的地址给旧版推送迁移。不会覆盖新仓库已公开的不同内容。
 
 ## 构建与发布入口
 
@@ -47,13 +47,12 @@ Docker 默认托管 `apps/player` 的共享 Vue Web。Web 固定连接页面 ori
 | [Shared contracts and client checks](../.github/workflows/monorepo-checks.yml) | 单仓库约束、共享契约与客户端检查 |
 | [Docker build](../.github/workflows/docker-build.yml) | 构建并检查 `linux/amd64` 服务镜像；可手动选择推送镜像与发布服务版本 |
 | [Build and release clients from monorepo](../.github/workflows/release-client.yml) | 按 `desktop`、`web`、`android` 或 `all` 独立构建客户端 |
-| [兼容发布调用器](https://github.com/appdev/Q-music/blob/master/.github/workflows/tuneflow-client.yml) | 在原发布仓库调用 TuneFlow 构建，并按需发布到原客户端通道 |
 
 当前通道可用性、产物覆盖和手动触发要求见[多平台发布检查](release-readiness.md)。版本提交不代表安装包或镜像已经发布。
 
-客户端工作流先解析 `source_ref`，后续任务只检出同一固定 SHA。直接在 TuneFlow 手动运行客户端工作流只构建和上传 Actions artifacts；发布到现有更新通道须使用兼容调用器并选择 `publish`。构建所用源码仍来自 TuneFlow。
+客户端工作流先解析 `source_ref`，后续任务只检出同一固定 SHA。直接在 TuneFlow 手动运行客户端工作流，默认只构建并上传 Actions artifacts；明确选择 `publish=true` 后才公开发布。无需跨仓库兼容调用器。构建与 Release 标签都指向指定的冻结源码 SHA。
 
-所选端安装包与校验文件完整上传后，才更新旧仓库公开的版本元数据；API、raw 与 CDN 回退线路保留，更新通道不能降回旧版本。服务端发布从 `apps/service/package.json` 读取版本；发布服务 Release 时工作流要求匹配的 `v<version>` tag 与发行说明。服务与客户端版本不要求相同，`all` 客户端发布要求桌面和 Android 版本匹配。
+所选端安装包与校验文件完整上传后，才更新 TuneFlow 的 `channels/desktop.json` 与 `channels/android.json`；API、raw 与 CDN 回退线路保留，更新通道不能降回旧版本。服务端发布从 `apps/service/package.json` 读取版本；发布服务 Release 时工作流要求匹配的 `v<version>` tag 与发行说明。服务与客户端版本不要求相同，`all` 客户端发布要求桌面和 Android 版本匹配。
 
 公开下载使用 Release 列表链接，兼容通道可能只有预发行版，`/releases/latest` 不一定可用。发布凭据与签名配置留在实际运行工作流的仓库，不写入源码或文档。
 

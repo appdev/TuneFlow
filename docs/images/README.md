@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | [web-home.png](web-home.png) | TuneFlow `ccad2035` 的共享 Web，Chromium，1600 × 1000 | 首页与通用推荐 |
 | [web-playlist.png](web-playlist.png) | 同上 | “通勤时光 · 示例歌单” |
-| [android-home.png](android-home.png) | [Q-music v0.4.24 预览包](https://github.com/appdev/Q-music/releases/tag/v0.4.24)，Android 15 / API 35，1080 × 2400 | 中文首页与推荐回退 |
+| [android-home.png](android-home.png) | Q-music v0.4.24 历史预览包（原发布仓库已删除），Android 15 / API 35，1080 × 2400 | 中文首页与推荐回退 |
 | [android-playlist.png](android-playlist.png) | 同上 | 与 Web 相同的共享歌单 |
 
 Web 使用已提交界面的独立构建，Android 使用兼容通道已发布的 ARM64 APK；没有把工作区内尚未提交的客户端功能作为发布效果展示。Android APK SHA256：`849fdc3f11502ca490a503d36b3bbb8f190d2d970d1755d590303bc5f0e751fb`。

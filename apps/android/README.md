@@ -2,7 +2,7 @@
 
 本目录是 TuneFlow 的 React Native Android 客户端。Server、桌面/Web 与 Android 在同一个仓库维护，共享 API 与业务规则，各自独立安装依赖、构建和发布。
 
-[产品首页](../../README.md) · [客户端下载安装](https://github.com/appdev/Q-music/releases) · [问题反馈](https://github.com/appdev/TuneFlow/issues) · [桌面/Web](../player/README.md)
+[产品首页](../../README.md) · [客户端下载安装](https://github.com/appdev/TuneFlow/releases) · [问题反馈](https://github.com/appdev/TuneFlow/issues) · [桌面/Web](../player/README.md)
 
 ## 界面预览
 
@@ -21,7 +21,7 @@
 
 ## 安装与版本兼容
 
-在 [appdev/Q-music Releases](https://github.com/appdev/Q-music/releases) 下载与设备架构匹配的 APK，并核对校验文件。架构不确定时可选 universal。源码、反馈与开发入口统一在 TuneFlow；Release 中的 Q-music 名称是现有安装的兼容入口。
+在 [TuneFlow Releases](https://github.com/appdev/TuneFlow/releases) 的 `client-v<version>` 版本下载匹配架构的 APK，并核对校验文件。架构不确定时可选 universal。附件保留 Q-music 名称；原发布仓库已删除，旧版用户需手动覆盖安装一次，不要卸载。预览应用 ID 与签名保持不变。
 
 - Android 最低版本为 7.0（API 24）。
 - 当前预览通道使用 `io.github.nshpiter.qmusic.mobile.preview`。

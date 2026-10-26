@@ -9,9 +9,9 @@ export const downloadSources = [
   { name: '备用线路 1', prefix: 'https://ghfast.top/' },
   { name: '备用线路 2', prefix: 'https://gh-proxy.com/' },
 ]
-export const releaseBase = 'https://github.com/appdev/Q-music/releases/download/'
+export const releaseBase = 'https://github.com/appdev/TuneFlow/releases/download/'
 export const downloadUrl = (source: { prefix: string }, url: string) => {
-  if (!url.startsWith(releaseBase)) throw new Error('不是 Q-music 发布文件')
+  if (!url.startsWith(releaseBase)) throw new Error('不是 TuneFlow 发布文件')
   return mirrorBase && source.prefix == mirrorBase ? `${mirrorBase}/releases/${url.slice(releaseBase.length)}` : source.prefix + url
 }
 export interface ReleaseAsset { name: string, size?: number, digest?: string }
@@ -31,13 +31,13 @@ export const compareVersions = (a: string, b: string) => {
 }
 
 export const getUpdateVersion = async(request: Request, platform: 'desktop' | 'android'): Promise<UpdateVersion> => {
-  const path = platform == 'android' ? 'mobile-version.json' : 'version.json'
+  const path = `channels/${platform}.json`
   const urls = [
-    'https://api.github.com/repos/appdev/Q-music/releases?per_page=30',
-    `https://raw.githubusercontent.com/appdev/Q-music/master/publish/${path}`,
-    `https://cdn.jsdelivr.net/gh/appdev/Q-music@master/publish/${path}`,
-    `https://ghfast.top/https://raw.githubusercontent.com/appdev/Q-music/master/publish/${path}`,
-    `https://gh-proxy.com/https://raw.githubusercontent.com/appdev/Q-music/master/publish/${path}`,
+    'https://api.github.com/repos/appdev/TuneFlow/releases?per_page=30',
+    `https://raw.githubusercontent.com/appdev/TuneFlow/main/${path}`,
+    `https://cdn.jsdelivr.net/gh/appdev/TuneFlow@main/${path}`,
+    `https://ghfast.top/https://raw.githubusercontent.com/appdev/TuneFlow/main/${path}`,
+    `https://gh-proxy.com/https://raw.githubusercontent.com/appdev/TuneFlow/main/${path}`,
     ...(mirrorBase ? [`${mirrorBase}/channels/${platform}.json`] : []),
   ]
   // 同时检查独立线路，避免坏线路反复阻塞；比较版本，避免 CDN 旧缓存抢先返回。
@@ -46,14 +46,14 @@ export const getUpdateVersion = async(request: Request, platform: 'desktop' | 'a
     if (index == 0) {
       if (!Array.isArray(body)) throw new Error('发布信息格式错误')
       const releases = body.filter(release => !release.draft && (!release.prerelease || String(release.body).includes('<!-- qmusic-service-preview -->')) &&
-        validVersion(String(release.tag_name ?? '').replace(/^v/, '')) &&
+        String(release.tag_name ?? '').startsWith('client-v') && validVersion(String(release.tag_name).slice(8)) &&
         release.assets?.some((asset: ReleaseAsset) => platform == 'android'
           ? /^Q-music-android-v[\d.]+-.+\.apk$/.test(asset.name)
-          : /^(?:latest(?:-mac|-linux)?\.yml)$|\.(?:exe|dmg|appimage|deb|rpm|pacman)$/i.test(asset.name)))
-      releases.sort((a, b) => compareVersions(String(b.tag_name).replace(/^v/, ''), String(a.tag_name).replace(/^v/, '')))
-      if (!releases.length) throw new Error('没有找到当前平台的正式版')
+          : /^(?:Q-music-Docker-[\d.]+-(?:mac|win|linux)-(?:x64|arm64)\.(?:zip|tar\.gz)|latest(?:-mac|-linux)?\.yml)$|\.(?:exe|dmg|appimage|deb|rpm|pacman)$/i.test(asset.name)))
+      releases.sort((a, b) => compareVersions(String(b.tag_name).slice(8), String(a.tag_name).slice(8)))
+      if (!releases.length) throw new Error('没有找到当前平台已发布的版本')
       const release = releases[0]
-      return { version: release.tag_name.replace(/^v/, ''), desc: release.body || release.name || '', history: [], assets: release.assets }
+      return { version: release.tag_name.slice(8), desc: release.body || release.name || '', history: [], assets: release.assets }
     }
     if (!body || !validVersion(body.version)) throw new Error('版本信息格式错误')
     return { version: body.version, desc: typeof body.desc == 'string' ? body.desc : '', history: Array.isArray(body.history) ? body.history : [], assets: Array.isArray(body.assets) ? body.assets : undefined }
@@ -70,7 +70,7 @@ export const getUpdateVersion = async(request: Request, platform: 'desktop' | 'a
 
 export const assetUrl = (version: string, name: string) => {
   if (!validVersion(version) || !/^[\w.+-]+$/.test(name)) throw new Error('更新文件地址无效')
-  return `${releaseBase}v${version}/${name}`
+  return `${releaseBase}client-v${version}/${name}`
 }
 
 export const checksumFor = (body: unknown, name: string) => {

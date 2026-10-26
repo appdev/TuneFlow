@@ -33,9 +33,9 @@ test('更新检查跨线路、排除另一平台和预发布，并选择新版�
   const result = await sources.getUpdateVersion(async url => {
     started++
     if (url.includes('api.github')) return [
-      { tag_name: 'v0.5.0', assets: [{ name: 'Q-music-android-v0.5.0-arm64-v8a.apk' }] },
-      { tag_name: 'v0.4.11', prerelease: true, assets: [{ name: 'latest.yml' }] },
-      { tag_name: 'v0.4.10', assets: [{ name: 'latest.yml' }] },
+      { tag_name: 'client-v0.5.0', assets: [{ name: 'Q-music-android-v0.5.0-arm64-v8a.apk' }] },
+      { tag_name: 'client-v0.4.11', prerelease: true, assets: [{ name: 'latest.yml' }] },
+      { tag_name: 'client-v0.4.10', assets: [{ name: 'latest.yml' }] },
     ]
     if (url.includes('jsdelivr')) return { version: '0.4.8' }
     if (url.startsWith('https://raw.')) return { version: '0.4.12' }
@@ -52,7 +52,7 @@ test('更新检查跨线路、排除另一平台和预发布，并选择新版�
 test('自有 R2 映射只接受 Q-music 正式发布地址', () => {
   const own = load('src/common/utils/updateSources.ts', { './updateMirror.json': { baseUrl: 'https://updates.example.com/' } })
   const url = own.downloadUrl(own.downloadSources[0], own.assetUrl('0.4.10', 'latest.yml'))
-  assert.equal(url, 'https://updates.example.com/releases/v0.4.10/latest.yml')
+  assert.equal(url, 'https://updates.example.com/releases/client-v0.4.10/latest.yml')
   assert.throws(() => own.downloadUrl(own.downloadSources[0], 'https://example.net/private'))
   assert.throws(() => own.assetUrl('0.4.10', '../wrong.exe'))
 })
@@ -71,7 +71,7 @@ test('PC 镜像返回 HTML/错误版本时被排除，切线保留最初的校�
   const instance = new Custom({}, {}, { platform: 'win32' })
   assert.equal(instance.resolveFiles(info)[0].info.sha512, 'trusted-hash')
   prefix = 'https://gh-proxy.com/'
-  assert.equal(instance.resolveFiles(info)[0].url.href, 'https://gh-proxy.com/https://github.com/appdev/Q-music/releases/download/v0.4.10/Q-music-v0.4.10-x64-Setup.exe')
+  assert.equal(instance.resolveFiles(info)[0].url.href, 'https://gh-proxy.com/https://github.com/appdev/TuneFlow/releases/download/client-v0.4.10/Q-music-v0.4.10-x64-Setup.exe')
   assert.equal(instance.resolveFiles(info)[0].info.sha512, 'trusted-hash')
   await assert.rejects(provider.loadUpdateMetadata('0.4.11'))
   await assert.rejects(provider.loadUpdateMetadata('0.4.10', [{ name: 'latest.yml', digest: 'sha256:' + '0'.repeat(64) }]))

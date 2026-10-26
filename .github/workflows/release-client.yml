@@ -15,6 +15,10 @@ on:
         type: choice
         options: [all, desktop, web, android]
         default: all
+      publish:
+        description: Publish verified preview packages and update channels in TuneFlow
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       source_ref:
@@ -53,7 +57,7 @@ jobs:
           node <<'NODE'
           const fs = require('node:fs'), cp = require('node:child_process')
           if (!['all', 'desktop', 'web', 'android'].includes(process.env.COMPONENT)) throw Error('Invalid component')
-          if (process.env.PUBLISH === 'true' && process.env.GITHUB_REPOSITORY !== 'appdev/Q-music') throw Error('Publish through the Q-music compatibility caller')
+          if (process.env.PUBLISH === 'true' && process.env.GITHUB_REPOSITORY !== 'appdev/TuneFlow') throw Error('Publish only in TuneFlow')
           const desktop = require('./apps/player/package.json'), android = require('./apps/android/package.json')
           if (process.env.COMPONENT === 'all' && desktop.version !== android.version) throw Error('All-client release requires matching versions')
           const version = process.env.COMPONENT === 'android' ? android.version : desktop.version
@@ -81,6 +85,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: node --test test/releaseBundle.test.cjs
+      - run: node --test ../../test/client-release.test.cjs
 
   desktop:
     needs: metadata
@@ -224,7 +229,7 @@ jobs:
       contents: write
     env:
       GH_TOKEN: ${{ github.token }}
-      GH_REPO: appdev/Q-music
+      GH_REPO: appdev/TuneFlow
       RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
       RELEASE_SOURCE: ${{ needs.metadata.outputs.source }}
       RELEASE_COMPONENT: ${{ inputs.component || 'all' }}

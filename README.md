@@ -2,7 +2,7 @@
 
 可自行部署的多端音乐应用。一个服务管理音乐库、歌单、收藏、播放历史、音源和下载，桌面、Web 与 Android 提供统一的音乐体验。
 
-[客户端下载安装](https://github.com/appdev/Q-music/releases) · [服务端发布](https://github.com/appdev/TuneFlow/releases) · [问题反馈](https://github.com/appdev/TuneFlow/issues) · [单仓库与发布说明](docs/monorepo.md)
+[客户端下载安装](https://github.com/appdev/TuneFlow/releases) · [服务端发布](https://github.com/appdev/TuneFlow/releases) · [问题反馈](https://github.com/appdev/TuneFlow/issues) · [单仓库与发布说明](docs/monorepo.md)
 
 ## 在自己的音乐空间里听歌
 
@@ -103,7 +103,7 @@ Web 固定连接当前页面所在服务，隐藏服务器切换设置；桌面�
 
 ### 安装客户端
 
-从 [客户端 Releases](https://github.com/appdev/Q-music/releases) 选择与系统和架构匹配的附件：
+从 [客户端 Releases](https://github.com/appdev/TuneFlow/releases) 选择与系统和架构匹配的附件：
 
 | 平台 | 兼容通道附件 |
 | --- | --- |
@@ -113,7 +113,7 @@ Web 固定连接当前页面所在服务，隐藏服务器切换设置；桌面�
 | Android | `Q-music-android-v<version>-<architecture>.apk`；不确定架构时选择 universal |
 | 独立 Web 资源 | `Q-music-Web-<version>.tar.gz`；由兼容的 Server 托管 |
 
-安装包及更新通道仍保留 **Q-music** 的历史名称，发布于 **appdev/Q-music**，这是现有安装的兼容入口；功能开发与问题反馈统一在 TuneFlow。当前客户端包含预览版本，请阅读对应发布说明并核对 SHA256。升级沿用原应用 ID、签名和数据目录，不需要卸载旧预览版。
+安装包文件保留 **Q-music** 的历史名称，客户端与服务端统一发布于 **appdev/TuneFlow**；客户端标签为 `client-v<version>`，服务端为 `v<version>`。客户端包含预览版本，请阅读发布说明并核对 SHA256。原发布仓库已删除，旧版更新地址无法继续使用，首次迁移请手动下载新版覆盖安装，保留原应用 ID、签名和数据目录，无需卸载。
 
 ## 源码开发
 

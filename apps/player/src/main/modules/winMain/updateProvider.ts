@@ -2,7 +2,7 @@ import { request } from '@common/utils/request'
 import { createHash } from 'node:crypto'
 import { Provider, parseUpdateInfo, resolveFiles, type ProviderRuntimeOptions } from 'electron-updater/out/providers/Provider'
 import { type UpdateInfo } from 'builder-util-runtime'
-import { assetUrl, downloadSources, downloadUrl, probeDownloadSources, releaseBase, type ReleaseAsset } from '@common/utils/updateSources'
+import { assetUrl, downloadSources, downloadUrl, probeDownloadSources, type ReleaseAsset } from '@common/utils/updateSources'
 
 export const requestUpdate = async(url: string, json = true): Promise<any> => {
   const controller = new AbortController()
@@ -45,7 +45,7 @@ export const createUpdateProvider = (info: UpdateInfo, getPrefix: () => string) 
     async getLatestVersion() { return info }
 
     resolveFiles(updateInfo: UpdateInfo) {
-      return resolveFiles(updateInfo, new URL(downloadUrl({ prefix: getPrefix() }, `${releaseBase}v${info.version}/`)))
+      return resolveFiles(updateInfo, new URL('.', downloadUrl({ prefix: getPrefix() }, assetUrl(info.version, 'latest.yml'))))
     }
   }
 }
