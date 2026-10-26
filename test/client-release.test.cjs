@@ -30,7 +30,7 @@ function fixture(t, options = {}) {
       }
       if (args[0] === 'release' && args[1] === 'edit') state.draft = !!options.keepDraft
       if (args[0] === 'api') {
-        assert.equal(args[1], 'repos/appdev/TuneFlow/releases/tags/v' + version)
+        assert.equal(args[1], 'repos/appdev/TuneFlow/releases/tags/TuneFlow-v' + version)
         return JSON.stringify({ ...state, assets: options.missingAsset ? state.assets.slice(1) : state.assets })
       }
       return ''
@@ -66,7 +66,7 @@ test('TuneFlow publishes a frozen client tag and creates channels only after ver
     assert.equal(w.metadata.assets.length, 18)
     assert.equal(w.body.sha, undefined)
   }
-  assert.equal(releaseTag(version), 'v' + version)
+  assert.equal(releaseTag(version), 'TuneFlow-v' + version)
   assert.equal(channelPath('android'), 'channels/android.json')
   assert.throws(() => channelPath('service'))
   assert.throws(() => releaseTag('../bad'))
@@ -111,10 +111,11 @@ test('desktop and Android select their own public client release, excluding Serv
         if (!url.includes('api.github')) return { version: '99.0.0' }
         return [
           { tag_name: 'v99.0.0', assets: [{ name: 'release-manifest.json' }] },
-          { tag_name: 'v9.0.0', draft: true, assets: [{ name: 'Q-music-Docker-9.0.0-mac-arm64.zip' }] },
-          { tag_name: 'v8.0.0', assets: [{ name: 'Q-music-Web-8.0.0.tar.gz' }] },
-          { tag_name: 'v0.4.26', prerelease: true, body: '<!-- qmusic-service-preview -->', assets: [{ name: 'Q-music-android-v0.4.26-arm64-v8a.apk' }] },
-          { tag_name: 'v0.4.25', prerelease: true, body: '<!-- qmusic-service-preview -->', assets: [{ name: 'Q-music-Docker-0.4.25-linux-arm64.tar.gz' }] },
+          { tag_name: 'v98.0.0', assets: [{ name: 'latest.yml' }] },
+          { tag_name: 'TuneFlow-v9.0.0', draft: true, assets: [{ name: 'Q-music-Docker-9.0.0-mac-arm64.zip' }] },
+          { tag_name: 'TuneFlow-v8.0.0', assets: [{ name: 'Q-music-Web-8.0.0.tar.gz' }] },
+          { tag_name: 'TuneFlow-v0.4.26', prerelease: true, body: '<!-- qmusic-service-preview -->', assets: [{ name: 'Q-music-android-v0.4.26-arm64-v8a.apk' }] },
+          { tag_name: 'TuneFlow-v0.4.25', prerelease: true, body: '<!-- qmusic-service-preview -->', assets: [{ name: 'Q-music-Docker-0.4.25-linux-arm64.tar.gz' }] },
         ]
       }, platform)
       assert.equal(info.version, platform === 'android' ? '0.4.26' : '0.4.25')
@@ -125,7 +126,7 @@ test('desktop and Android select their own public client release, excluding Serv
         return { version: '0.4.25' }
       }, platform)
       assert.equal(fallback.version, '0.4.25')
-      assert.match(api.assetUrl('0.4.25', 'SHA256SUMS-android.txt'), /TuneFlow\/releases\/download\/v0\.4\.25\//)
+      assert.match(api.assetUrl('0.4.25', 'SHA256SUMS-android.txt'), /TuneFlow\/releases\/download\/TuneFlow-v0\.4\.25\//)
       assert.throws(() => api.downloadUrl({ prefix: '' }, 'https://github.com/appdev/Q-music/releases/download/v0.4.25/test.apk'))
     }
   }

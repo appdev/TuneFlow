@@ -35,7 +35,7 @@ Docker 默认托管 `apps/player` 的共享 Vue Web。Web 固定连接页面 ori
 | Android 正式 applicationId | `io.github.nshpiter.qmusic.mobile`；正式与预览签名分别保留 |
 | 桌面连接键 | `qmusic.docker.endpoint.v1` |
 | Android 连接键 | `qmusic.service.endpoint.v1` |
-| 客户端发布入口 | [TuneFlow Releases](https://github.com/appdev/TuneFlow/releases)，`v<version>` 标签，保留附件命名与应用身份 |
+| 客户端发布入口 | [TuneFlow Releases](https://github.com/appdev/TuneFlow/releases)，`TuneFlow-v<version>` 标签，保留附件命名与应用身份 |
 | Server 发布入口 | [appdev/TuneFlow Releases](https://github.com/appdev/TuneFlow/releases)，独立版本与 Docker 镜像 |
 
 应用 ID、签名和数据目录保持不变。原 Q-music 仓库已删除，客户端更新迁移到 TuneFlow，旧版需要手动覆盖安装新版一次；无法通过已删除的地址给旧版推送迁移。不会覆盖新仓库已公开的不同内容。
