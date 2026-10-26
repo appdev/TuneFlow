@@ -1,4 +1,8 @@
-# Q-music 多端同步服务
+# 旧版 Q-music 同步服务（兼容配置）
+
+此目录保留旧客户端的 LX Music Sync Server 配置，不是当前 TuneFlow 的默认服务。
+当前桌面、Web 与 Android 连接同一 TuneFlow Server 即可使用共享歌单和音乐库，无需另行部署本目录。
+新部署请使用[产品首页](../../../../README.md)的说明；下面仅供维护原有同步实例。
 
 该部署配置使用与 Q-music 桌面端、Android 客户端兼容的 LX Music Sync Server，
 用于在 Windows、Arch Linux 与 Android 之间自动同步歌单和“不喜欢”列表。

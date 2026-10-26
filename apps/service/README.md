@@ -2,7 +2,9 @@
 
 <h1 align="center">TuneFlow · 音流</h1>
 
-<p align="center">支持自行部署的 TuneFlow Web 音乐服务</p>
+<p align="center">TuneFlow 的服务端与 Web 托管组件</p>
+
+[产品首页](../../README.md) · [桌面/Web 客户端](../player/README.md) · [Android 客户端](../android/README.md) · [服务端发布](https://github.com/appdev/TuneFlow/releases)
 
 <a id="目录"></a>
 
@@ -22,26 +24,26 @@
 
 ## 产品介绍
 
-TuneFlow（音流）将音乐搜索、播放、列表、下载与本地媒体库带到浏览器：由 Node.js Service 提供数据与媒体能力，通过 Vue Web UI 使用。你可以将它部署在自己的电脑或服务器上，也可以使用 Docker 运行；播放列表、下载内容和其他持久化数据均由你自己的存储空间管理。
+TuneFlow（音流）的 Server 为桌面、Web 与 Android 提供统一的数据和媒体能力，管理歌单、收藏、历史、音源、下载与音乐库。服务可自行部署在电脑或服务器上，也可使用 Docker 运行；持久化数据由你自己的存储空间管理。
 
 所用技术栈：
 
 - Node.js 24+
 - Vue 3
 
-本仓库只构建 Node.js Service 与 Web UI，不再生成桌面安装包。未来原生客户端通过 Service API 接入。
+本目录 `apps/service` 负责服务与兼容旧 Web；桌面和共享 Web 源码位于同仓库的 `apps/player`，Android 位于 `apps/android`。Docker 默认托管共享 Vue Web，兼容旧 Web 保留在 `/V2/`。完整结构见[单仓库说明](../../docs/monorepo.md)。
 
 <a id="feature-boundaries"></a>
 
 ## 功能边界
 
-Web UI 支持导航、搜索、每日推荐、列表、播放、Service 下载与本地媒体库、网络导入自定义源、常规设置、本地快捷键和内置主题。每日推荐由 Service 根据公开歌单共现索引、长期播放偏好和明确反馈生成；正常配比为 70% 新发现与 30% 熟悉歌曲，用户可整批刷新。不支持桌面窗口/托盘、桌面歌词、全局快捷键、安装更新、原桌面同步与开放 API、原生文件对话框、系统字体枚举或文件型自定义主题编辑。
+共享 Web 支持搜索、推荐、歌单、音乐库、播放、下载、音源和设置。首页优先使用可用的平台推荐，通用推荐作为回退；服务端负责解析、自动切换平台与下载。浏览器固定连接页面所在服务，不显示服务器切换设置。桌面窗口、托盘、桌面歌词和全局快捷键等原生能力不适用于 Web，详见 [Web 能力与构建](./docs/qmusic-web.md)。
 
 <a id="user-interface"></a>
 
 ## 用户界面
 
-<p><img width="100%" src="./doc/images/app.png" alt="TuneFlow 音流 Web UI"></p>
+默认界面复用 [桌面/Web 客户端](../player/README.md)；`/V2/` 保留原服务端 Web 作为兼容入口。
 
 <a id="usage"></a>
 
@@ -128,21 +130,23 @@ curl --fail http://127.0.0.1:3124/api/v1/health
 
 升级时再次运行 `docker compose pull && docker compose up -d`。停止服务可运行 `docker compose down`；不要添加 `-v`，否则会删除持久化数据卷。
 
-当前 Docker Hub 镜像发布为 `linux/amd64`。ARM 主机需要配置 AMD64 模拟支持。上述端口映射会监听宿主机的所有网络接口，仅应在可信局域网中使用，并通过主机防火墙或反向代理限制访问。如果只需本机访问，可将端口映射改为 `127.0.0.1:3124:3124`。本服务没有身份认证、多租户隔离或公网安全加固，请勿直接暴露到互联网。
+当前 Docker Hub 镜像发布为 `linux/amd64`。ARM 主机需要配置 AMD64 模拟支持。上述端口映射会监听宿主机的所有网络接口，仅应在可信局域网中使用，并通过主机防火墙或反向代理限制访问。如果只需本机访问，可将端口映射改为 `127.0.0.1:3124:3124`。音乐库等接口采用共享实例访问模式，不提供多租户隔离，请勿将服务直接暴露到互联网。
 
 <a id="source-build"></a>
 
 ### 源码构建与启动
 
-安装 Node.js 24 或更高版本，然后运行：
+安装 Node.js 24，以下命令在 **TuneFlow 仓库根目录** 运行：
 
 ```sh
-npm ci
-npm run build:service
-npm run start:server
+npm ci --prefix apps/service
+npm ci --prefix apps/player
+npm run build:web:qmusic
+npm run prepare:service
+TUNEFLOW_WEB_ROOT="$PWD/apps/service/dist/web-qmusic" npm run start:server
 ```
 
-浏览器打开 <http://127.0.0.1:3124>。默认只监听本机回环地址；若要在可信局域网使用，可显式设置 `TUNEFLOW_HOST=0.0.0.0`，并通过主机防火墙或反向代理限制访问。
+浏览器打开 <http://127.0.0.1:3124>。`npm run build:service` 仍构建兼容旧 Web 与服务，不能替代上面的共享 Web 构建。默认只监听本机回环地址；若要在可信局域网使用，可显式设置 `TUNEFLOW_HOST=0.0.0.0`，并通过主机防火墙或反向代理限制访问。
 
 <a id="data-storage"></a>
 
@@ -178,7 +182,7 @@ Docker 默认将数据按用途拆分：
 
 ## 项目协议
 
-TuneFlow 基于 [Apache License 2.0](./LICENSE) 许可证发行。以下协议是对于 Apache License 2.0 的补充，如有冲突，以以下协议为准。
+TuneFlow 基于 [Apache License 2.0](../../LICENSE) 许可证发行。以下协议是对于 Apache License 2.0 的补充，如有冲突，以以下协议为准。
 
 ---
 

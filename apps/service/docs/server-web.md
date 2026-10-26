@@ -1,26 +1,31 @@
-# TuneFlow · 音流 Server + Web
+# TuneFlow · 音流 Server 与 Web 托管
 
-TuneFlow serves its Vue renderer in a browser while a single Node.js Service
-owns settings, lists, sources, downloads, the local library, SQLite, and media
-files. It is an early single-user iteration, not a public multi-user service.
+TuneFlow's Node.js Service owns shared settings, lists, sources, downloads,
+the music library, SQLite, and media files for desktop, Web, and Android.
+It is a shared-instance service, not a public multi-tenant service.
 
-This repository no longer builds or packages an Electron application. Future
-native clients are expected to consume the same Service APIs instead of owning
-storage or desktop-only IPC.
+This directory is the Server component of the [TuneFlow monorepo](../../../README.md).
+Desktop and shared Vue Web live in [apps/player](../../player/README.md), and
+Android lives in [apps/android](../../android/README.md). Docker defaults to the
+shared Web; the legacy Web remains available at `/V2/`.
 
 ## Local build and start
 
-Install Node.js 24 or newer, then run:
+Install Node.js 24. Run this section's commands from `apps/service`:
 
 ```sh
 npm ci
-npm run build:service
-npm run start:server
+npm ci --prefix ../player
+npm run build:web:qmusic
+npm run prepare:service
+TUNEFLOW_WEB_ROOT=./dist/web-qmusic npm run start:server
 ```
 
 Open <http://127.0.0.1:3124>. Stop the foreground Service with `Ctrl+C`.
-`npm run build:service` prepares both `dist/web` and the self-contained
-`dist/server` runtime, including the Node ABI build of `better-sqlite3`.
+`build:web:qmusic` prepares `dist/web-qmusic` with the shared Web at `/` and
+legacy Web at `/V2/`. `prepare:service` prepares the self-contained `dist/server`
+runtime, including the Node ABI build of `better-sqlite3`. `build:service`
+remains a legacy-Web-plus-Service build; it does not build the shared Vue Web.
 
 Configuration is supplied with environment variables:
 
@@ -66,6 +71,9 @@ split-root variable.
 The image uses Node 24 slim, compiles the Linux `better-sqlite3` binding in the
 builder, copies the prepared production artifact, and runs as the image's
 non-root UID/GID 1000 `node` user. It does not install FFmpeg.
+
+The following Compose commands run from the **repository root**, using its
+`Dockerfile` and `compose.yaml`:
 
 ```sh
 mkdir -p ./music
@@ -296,7 +304,7 @@ history-start requests for attribution.
 
 ## Web feature boundary
 
-The Web build supports navigation, search, lists, player,
+The default shared Web supports navigation, search, lists, player,
 same-origin playback, Service downloads/local library, settings, local
 shortcuts, and built-in themes. Electron-only integration is unavailable:
 window/tray controls, desktop lyric, global hotkeys, update installation,
@@ -304,12 +312,17 @@ sync/Open API, native backup/file dialogs, system-font operations, and custom
 theme-file editing. Unsupported settings are hidden or shown as explanatory
 pages instead of invoking desktop IPC.
 
+The browser is bound to its page origin and cannot switch servers. See the
+[shared Web guide](qmusic-web.md) for builds, static overrides, capability
+differences, and isolated browser tests.
+
 ## License and upstream conditions
 
 The upstream project is distributed under Apache-2.0 and its README expressly
 adds conditions that take precedence where they conflict. Before using or
-redistributing this derivative, read both `LICENSE` and the README's complete
-“项目协议”. In particular, the user is responsible for source/data legality,
+redistributing this derivative, read both the [LICENSE](../../../LICENSE) and
+the component README's complete [“项目协议”](../README.md#project-agreement).
+In particular, the user is responsible for source/data legality,
 must remove generated copyrighted data within 24 hours, must comply with local
 law and respect copyright, and the project is limited to non-commercial
 technical exploration and research. This summary is not a substitute for the

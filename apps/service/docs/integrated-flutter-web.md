@@ -1,5 +1,7 @@
 # 本地 Flutter Web 与 Service 集成
 
+> 历史可选集成记录。Flutter 为独立外部项目，不属于本仓库的客户端构建范围；本文保留早期集成与验收过程，旧目录和命令不应作为当前单仓库的部署入口。当前 Docker 默认使用共享 Vue Web，新部署请参阅[产品首页](../../../README.md)与[共享 Web 说明](qmusic-web.md)。
+
 ## 入口与构建
 
 在 Service 仓库执行：
