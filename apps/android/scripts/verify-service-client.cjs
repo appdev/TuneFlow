@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -18,7 +19,7 @@ function load(relative, dependencies = {}, globals = {}) {
     }
     throw new Error(`Unexpected dependency: ${id}`)
   } }
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(readSource(filename), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
   }).outputText, context, { filename })
   return context.exports

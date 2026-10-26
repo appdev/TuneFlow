@@ -82,7 +82,7 @@ test('server data round-trips canonical IDs; library paths are public Service ro
 })
 
 test('desktop, Web and Android expose playback auto-download as one shared setting without sharing device playback preferences', () => {
-  const android = load('../qmusic-client/src/service/workspace.ts')
+  const android = load('../android/src/service/workspace.ts')
   for (const workspace of [domain, android]) {
     assert.equal(workspace.isServerSetting('player.autoDownloadOnPlay'), true)
     assert.equal(workspace.downloadSettingLabels['player.autoDownloadOnPlay'], '边听边存（播放时自动下载）')
@@ -119,7 +119,7 @@ test('Android list events dispatch to Service without invoking device persistenc
   const unexpected = () => { throw new Error('old device storage was touched') }
   const writes = []
   const empty = new Proxy({}, { get: () => unexpected })
-  const { ListEvent } = load('../qmusic-client/src/event/listEvent.ts', {
+  const { ListEvent } = load('../android/src/event/listEvent.ts', {
     './Event': class { emit() { unexpected() } },
     '@/utils/data': empty,
     '@/utils/listManage': empty,

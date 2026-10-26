@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, writeFile
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 const root = fileURLToPath(new URL('../../', import.meta.url))
-const client = path.resolve(process.argv[2] || path.join(root, '../MusicFree/qmusic-desktop'))
+const client = path.resolve(process.argv[2] || path.join(root, '../player'))
 if (!existsSync(path.join(client, 'package.json')) || JSON.parse(readFileSync(path.join(client, 'package.json'))).name !== 'q-music') throw Error('Pass the current Q-music desktop project path')
 mkdirSync(path.join(root, 'dist'), { recursive: true })
 const stage = mkdtempSync(path.join(root, 'dist/web-qmusic-stage-'))

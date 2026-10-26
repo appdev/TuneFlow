@@ -65,7 +65,7 @@ const productionFiles = [
   'jsconfig.json',
   'package.json',
   'README.md',
-  '.github/workflows/build-test.yml',
+  '../../.github/workflows/build-test.yml',
 ]
 const sourceExtensions = new Set(['.cjs', '.js', '.mjs', '.ts', '.vue'])
 
@@ -126,13 +126,13 @@ test('Web-only source has no desktop capability classifications or runtime guard
 })
 
 test('maintained CI runs the Web and Service test suite', () => {
-  assert.match(readFileSync(join(root, '.github/workflows/build-test.yml'), 'utf8'), /run:\s+npm test/)
+  assert.match(readFileSync(join(root, '../../.github/workflows/build-test.yml'), 'utf8'), /run:\s+npm test/)
 })
 
 test('GitHub Actions use Node 24 runtime generations', () => {
-  const buildWorkflow = readFileSync(join(root, '.github/workflows/build-test.yml'), 'utf8')
-  const dockerWorkflow = readFileSync(join(root, '.github/workflows/docker-build.yml'), 'utf8')
-  const setupAction = readFileSync(join(root, '.github/actions/setup/action.yml'), 'utf8')
+  const buildWorkflow = readFileSync(join(root, '../../.github/workflows/build-test.yml'), 'utf8')
+  const dockerWorkflow = readFileSync(join(root, '../../.github/workflows/docker-build.yml'), 'utf8')
+  const setupAction = readFileSync(join(root, '../../.github/actions/setup/action.yml'), 'utf8')
 
   assert.match(buildWorkflow, /uses:\s+actions\/checkout@v7/)
   assert.match(buildWorkflow, /uses:\s+actions\/setup-node@v7/)
@@ -148,8 +148,8 @@ test('GitHub Actions use Node 24 runtime generations', () => {
 test('Service build and runtime target Node 24 with TagLib-Wasm packaged', () => {
   const buildConfig = readFileSync(join(root, 'build-config/server/build.mjs'), 'utf8')
   const prepareConfig = readFileSync(join(root, 'build-config/server/prepare.mjs'), 'utf8')
-  const workflow = readFileSync(join(root, '.github/workflows/build-test.yml'), 'utf8')
-  const dockerfile = readFileSync(join(root, 'Dockerfile'), 'utf8')
+  const workflow = readFileSync(join(root, '../../.github/workflows/build-test.yml'), 'utf8')
+  const dockerfile = readFileSync(join(root, '../../Dockerfile'), 'utf8')
 
   assert.equal(pkg.engines.node, '>= 24')
   assert.equal(pkg.dependencies['taglib-wasm'], '^2.0.0')
@@ -170,9 +170,9 @@ test('Service build packages the source ZIP runtime dependency', () => {
 })
 
 test('Docker storage defaults separate user media from internal state', () => {
-  const dockerfile = readFileSync(join(root, 'Dockerfile'), 'utf8')
-  const compose = readFileSync(join(root, 'compose.yaml'), 'utf8')
-  const workflow = readFileSync(join(root, '.github/workflows/docker-build.yml'), 'utf8')
+  const dockerfile = readFileSync(join(root, '../../Dockerfile'), 'utf8')
+  const compose = readFileSync(join(root, '../../compose.yaml'), 'utf8')
+  const workflow = readFileSync(join(root, '../../.github/workflows/docker-build.yml'), 'utf8')
 
   assert.match(dockerfile, /TUNEFLOW_CONFIG_ROOT=\/config/)
   assert.match(dockerfile, /TUNEFLOW_MEDIA_ROOT=\/music/)

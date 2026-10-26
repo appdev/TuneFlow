@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -18,7 +19,7 @@ function load(relative) {
       return load(path.relative(root, fs.existsSync(base + '.ts') ? base + '.ts' : base + '.js'))
     },
   }
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, context)
+  vm.runInNewContext(ts.transpileModule(readSource(file), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, context)
   return context.exports
 }
 const api = load(mobile ? 'src/theme/appearance.ts' : 'src/common/theme/appearance.ts')

@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -11,7 +12,7 @@ function load(name, deps, base = 'renderer') {
     if (id in deps) return deps[id]
     throw Error(id)
   } }
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/', base, name), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, context)
+  vm.runInNewContext(ts.transpileModule(readSource(path.join(__dirname, '../src/', base, name)), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, context)
   return context.exports
 }
 

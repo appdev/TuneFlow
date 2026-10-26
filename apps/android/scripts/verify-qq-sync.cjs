@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -14,7 +15,7 @@ function load(file, dependencies = {}, globals = {}) {
   if (file != 'src/utils/playlistMerge.ts') dependencies['@/utils/playlistMerge'] = load('src/utils/playlistMerge.ts')
   const context = { exports: {}, Error, Buffer, URL, AbortController, setTimeout, clearTimeout,
     require: id => { assert.ok(id in dependencies, `Missing mock: ${id}`); return dependencies[id] }, ...globals }
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, file), 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(readSource(path.join(root, file)), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
   }).outputText, context)
   return context.exports

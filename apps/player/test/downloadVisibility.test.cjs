@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -33,7 +34,7 @@ function mountDownloads() {
     return dependencies[name]
   } }
   const file = path.join(__dirname, '../src/renderer/service/ServerDownloads.vue')
-  const script = fs.readFileSync(file, 'utf8').match(/<script setup lang="ts">([\s\S]*?)<\/script>/)[1]
+  const script = readSource(file).match(/<script setup lang="ts">([\s\S]*?)<\/script>/)[1]
   const source = script + '\nexports.qa = { tasks, busy, error, load, act };'
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, context)
   const emit = name => hooks[name].forEach(callback => callback())

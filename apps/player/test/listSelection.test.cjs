@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -12,7 +13,7 @@ function fixture() {
   const root = { contains: element => element?.inList }
   const document = { activeElement: { inList: true } }
   const context = { exports: {}, document, window: { key_event: { on: (name, fn) => listeners.set(name, fn), off: name => listeners.delete(name) } }, require: () => ({ ...vue, onBeforeUnmount: vue.onScopeDispose }) }
-  const source = fs.readFileSync(path.join(__dirname, '../src/renderer/utils/compositions/useListSelection.ts'), 'utf8')
+  const source = readSource(path.join(__dirname, '../src/renderer/utils/compositions/useListSelection.ts'))
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, context)
   const list = [0, 1, 2, 3].map(id => ({ id }))
   const api = scope.run(() => context.exports.default(() => list, vue.ref({ $el: root })))

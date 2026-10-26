@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -7,7 +8,7 @@ const ts = require('typescript')
 const { EventEmitter } = require('node:events')
 function load(file, dependencies) {
   const exports = {}
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/main/modules/winMain', file), 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(readSource(path.join(__dirname, '../src/main/modules/winMain', file)), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText, { exports, require: id => dependencies[id], URL, Promise, setInterval, clearInterval })
   return exports

@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -13,7 +14,7 @@ function diagnostics({ enabled = false, development = false, document } = {}) {
     document: document ?? { getElementById: () => { throw Error('navigation must not force a DOM measurement') } },
     require: id => { assert.equal(id, '@common/utils'); return { log: { info: (...args) => calls.push(['info', ...args]), error: (...args) => calls.push(['error', ...args]) } } },
   }
-  const source = fs.readFileSync(path.join(__dirname, '../src/renderer/utils/debugLog.ts'), 'utf8')
+  const source = readSource(path.join(__dirname, '../src/renderer/utils/debugLog.ts'))
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, context)
   return { ...context.exports, calls }
 }

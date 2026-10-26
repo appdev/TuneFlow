@@ -4,7 +4,7 @@ const os = require('node:os')
 const path = require('node:path')
 const assert = require('node:assert/strict')
 const root = path.resolve(__dirname, '..')
-const serviceRoot = process.env.Q_SERVICE_ROOT || path.resolve(root, '../../lx-music-server-web')
+const serviceRoot = process.env.Q_SERVICE_ROOT || path.resolve(root, '../service')
 const { _electron } = require(process.env.Q_PLAYWRIGHT || path.join(serviceRoot, 'node_modules/playwright'))
 const endpoint = process.env.Q_HOME_FIXTURE
 if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(endpoint ?? '')) throw Error('Q_HOME_FIXTURE must be a disposable loopback Service')

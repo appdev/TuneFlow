@@ -1,6 +1,6 @@
 // Real isolated Service, disposable encoder-generated music; no user profile.
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path'), assert = require('node:assert/strict')
-const root = path.resolve(__dirname, '..'), service = process.env.Q_SERVICE_ROOT || path.resolve(root, '../../lx-music-server-web')
+const root = path.resolve(__dirname, '..'), service = process.env.Q_SERVICE_ROOT || path.resolve(root, '../service')
 const { chromium, _electron } = require(path.join(service, 'node_modules/playwright'))
 const proof = process.env.Q_MEDIA_PROOF || path.join(root, 'artifacts/media-management/verification/fixture')
 const fixture = JSON.parse(fs.readFileSync(path.join(proof, 'fixture.json')))

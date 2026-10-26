@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -9,7 +10,7 @@ function load(file, dependencies, extra = {}) {
   const context = { exports: {}, console, URL, AbortController, setTimeout, clearTimeout, process: { platform: 'win32', arch: 'x64', env: {}, versions: { app: '0.4.8' } }, ...extra,
     require: id => { if (!(id in dependencies)) throw new Error(id); return dependencies[id] },
   }
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(readSource(path.join(__dirname, '..', file)), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
   }).outputText, context)
   return context.exports

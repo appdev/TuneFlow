@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -17,7 +18,7 @@ function load(file, dependencies = {}, extra = {}) {
   const context = { exports: {}, Error, URL, URLSearchParams, AbortController, AbortSignal, setTimeout, clearTimeout, console, ...extra,
     require: id => { if (!(id in dependencies)) throw Error(id); return dependencies[id] },
   }
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, file), 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(readSource(path.join(root, file)), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
   }).outputText, context)
   return context.exports

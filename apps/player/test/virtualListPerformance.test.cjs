@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -17,7 +18,7 @@ function mountList() {
   const timers = []
   const context = { exports: {}, require: () => vue, requestAnimationFrame: callback => frames.push(callback), setTimeout: callback => timers.push(callback), clearTimeout() {}, window: { addEventListener() {}, removeEventListener() {}, setTimeout: callback => timers.push(callback), clearTimeout() {} } }
   const file = path.join(__dirname, '../src/renderer/components/base/VirtualizedList.vue')
-  const source = fs.readFileSync(file, 'utf8').match(/<script>([\s\S]*?)<\/script>/)[1]
+  const source = readSource(file).match(/<script>([\s\S]*?)<\/script>/)[1]
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, context)
   const props = { list: Array.from({ length: 6000 }, (_, id) => ({ id })), itemHeight: 34, keyName: 'id' }
   const component = context.exports.default.setup(props, { emit() {} })

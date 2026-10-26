@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -6,7 +7,7 @@ const vm = require('node:vm')
 const ts = require('typescript')
 const { createHmac, createDecipheriv, randomBytes } = require('node:crypto')
 const exportsObject = {}
-vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/main/modules/winMain/accountTransferServer.ts'), 'utf8'), {
+vm.runInNewContext(ts.transpileModule(readSource(path.join(__dirname, '../src/main/modules/winMain/accountTransferServer.ts')), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
 }).outputText, { exports: exportsObject, require, Buffer, setTimeout, clearTimeout })
 const { createAccountTransfer, isPrivateIPv4 } = exportsObject

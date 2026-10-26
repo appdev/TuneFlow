@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 // 用真实 Electron 网络栈验证收藏请求；所有请求只发到本地服务器，不读取真实账号。
 const { app, session } = require('electron')
 const assert = require('node:assert/strict')
@@ -11,7 +12,7 @@ const load = (file, dependencies = {}) => {
   const context = { exports: {}, Error, URL, URLSearchParams, AbortSignal, setTimeout, clearTimeout, console, Buffer,
     require: id => { if (!(id in dependencies)) throw Error(id); return dependencies[id] },
   }
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, file), 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(readSource(path.join(root, file)), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
   }).outputText, context)
   return context.exports

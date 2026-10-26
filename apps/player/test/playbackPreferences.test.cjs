@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -17,7 +18,7 @@ function load(file, dependencies = {}) {
     if (!(id in dependencies)) throw Error(id)
     return dependencies[id]
   } }
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(readSource(path.join(__dirname, '..', file)), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
   }).outputText, context)
   return context.exports
@@ -154,7 +155,7 @@ test('删除仅处理所选音频和同名歌词，拒绝目录并在预检失�
 test('音质面板勾选跟随实际回退来源和音质，仍允许重新请求原平台', async() => {
   const vue = require('vue')
   const compiler = require('@vue/compiler-sfc')
-  const source = fs.readFileSync(path.join(__dirname, '../src/renderer/components/layout/PlayDetail/components/PlayerQualityMenu.vue'), 'utf8')
+  const source = readSource(path.join(__dirname, '../src/renderer/components/layout/PlayDetail/components/PlayerQualityMenu.vue'))
   const script = compiler.compileScript(compiler.parse(source).descriptor, { id: 'quality-test' }).content
   const route = vue.ref({ musicKey: 'tx:one', requestedSource: 'tx', resolvedSource: 'wy', quality: '320k', mode: 'api', isFallback: true })
   const deps = {

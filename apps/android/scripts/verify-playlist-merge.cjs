@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -8,7 +9,7 @@ const root = path.join(__dirname, '..')
 const mobile = fs.existsSync(path.join(root, 'src/utils/playlistMerge.ts'))
 const file = mobile ? 'src/utils/playlistMerge.ts' : 'src/common/utils/playlistMerge.ts'
 const context = { exports: {} }
-vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, file), 'utf8'), {
+vm.runInNewContext(ts.transpileModule(readSource(path.join(root, file)), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
 }).outputText, context)
 const { mergeSourcePlaylist: merge, createSourceSnapshot: snapshot } = context.exports

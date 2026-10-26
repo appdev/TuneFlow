@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 // 离线回归：真实适配/加密/同步代码，只有网络、原生桥和本地存储使用夹具。
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -10,7 +11,7 @@ function load(file, dependencies, globals = {}) {
   const context = { exports: {}, Buffer, URLSearchParams, AbortController, setTimeout, clearTimeout, Error, ...globals,
     require: id => { if (!(id in dependencies)) throw new Error(`Unexpected dependency: ${id}`); return dependencies[id] },
   }
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, file), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText, context)
+  vm.runInNewContext(ts.transpileModule(readSource(path.join(root, file)), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText, context)
   return context.exports
 }
 let rawCookie = 'uin=123; qm_keyst=test-key; MUSIC_U=test-netease; __csrf=test-csrf'

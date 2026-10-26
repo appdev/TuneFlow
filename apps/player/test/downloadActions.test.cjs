@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -6,7 +7,7 @@ const vm = require('node:vm')
 const ts = require('typescript')
 
 function fixture(createDownloadTasks, list = [{ id: 'online', source: 'tx' }, { id: 'local', source: 'local' }]) {
-  const source = require('@vue/compiler-sfc').parse(fs.readFileSync(path.join(__dirname, '../src/renderer/components/common/DownloadMultipleModal.vue'), 'utf8')).descriptor.script.content
+  const source = require('@vue/compiler-sfc').parse(readSource(path.join(__dirname, '../src/renderer/components/common/DownloadMultipleModal.vue'))).descriptor.script.content
   const context = { exports: {}, require: id => {
     if (id == '@renderer/store/download/action') return { createDownloadTasks }
     if (id == './DownloadQualityOptions.vue') return {}
@@ -81,7 +82,7 @@ function menuFixture() {
     if (id == '@common/constants') return { DOWNLOAD_STATUS: { ERROR: 'error', PAUSE: 'pause' } }
     throw Error(id)
   } }
-  const source = fs.readFileSync(path.join(__dirname, '../src/renderer/views/Download/useMenu.js'), 'utf8')
+  const source = readSource(path.join(__dirname, '../src/renderer/views/Download/useMenu.js'))
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, context)
   const menu = scope.run(() => context.exports.default({ list, activeTab, isSelectionMode: vue.ref(false), selectedList: vue.ref([]), selectFromMenu: index => calls.push('select:' + list.value[index]?.id), handleRemoveTask: index => calls.push(list.value[index]?.id) }))
   return { menu, list: items, activeTab, calls, tick: vue.nextTick, stop: () => scope.stop() }

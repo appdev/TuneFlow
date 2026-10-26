@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -6,13 +7,13 @@ const vm = require('node:vm')
 const ts = require('typescript')
 const { createHash } = require('node:crypto')
 const root = path.resolve(__dirname, '..')
-const mobileRoot = path.resolve(root, '../qmusic-client')
+const mobileRoot = path.resolve(root, '../android')
 function load(file, dependencies = {}, globals = {}) {
   const context = { exports: {}, Error, URL, AbortController, AbortSignal, setTimeout, clearTimeout, fetch, console, ...globals, require: name => {
     if (!(name in dependencies)) throw Error(`Missing dependency ${name}`)
     return dependencies[name]
   } }
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText, context)
+  vm.runInNewContext(ts.transpileModule(readSource(file), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText, context)
   return context.exports
 }
 function domain(base, prefix) {

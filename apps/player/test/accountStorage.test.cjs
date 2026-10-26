@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -8,7 +9,7 @@ const ts = require('typescript')
 const { EventEmitter } = require('node:events')
 function load(file, dependencies, extra = {}) {
   const exports = {}
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/main/modules/winMain', file), 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(readSource(path.join(__dirname, '../src/main/modules/winMain', file)), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
   }).outputText, { exports, require: id => dependencies[id] ?? require(id), Buffer, process, URL, console, ...extra })
   return exports
@@ -48,13 +49,13 @@ test('legacy decryption is read-only and performed once; unavailable legacy keys
     assert.equal(h.api.readAccountCredential('kugouSession'), 'fixture-old')
     assert.equal(h.api.readAccountCredential('kugouSession'), 'fixture-old')
     assert.equal(h.reads(), 1)
-    assert.equal(JSON.parse(fs.readFileSync(path.join(folder, 'music_account_credentials.json'), 'utf8')).kugouSession, 'old-encrypted')
+    assert.equal(JSON.parse(readSource(path.join(folder, 'music_account_credentials.json'))).kugouSession, 'old-encrypted')
     h.electron.safeStorage.decryptString = () => { throw Error('unavailable') }
     assert.equal(h.api.readAccountCredential('qqDailyApiKey'), '')
     assert.equal(h.api.readAccountData('qqDailyApiKey'), '')
     fs.writeFileSync(path.join(folder, 'account-data/cookies_tx.json'), '{broken')
     assert.throws(() => h.api.readAccountData('cookies_tx'), /credential_storage/)
-    assert.equal(fs.readFileSync(path.join(folder, 'account-data/cookies_tx.json'), 'utf8'), '{broken')
+    assert.equal(readSource(path.join(folder, 'account-data/cookies_tx.json')), '{broken')
   } finally { fs.rmSync(folder, { recursive: true, force: true }) }
 })
 test('web sessions restore app-private cookies on restart, retain HttpOnly/expiry, isolate providers and persist logout', async() => {
@@ -104,7 +105,7 @@ test('legacy web cookies migrate once without clearing old data or re-opening th
     assert.equal((await create().readyAccountSession('tx')).cookies.items.length, 1)
     assert.equal((await create().readyAccountSession('tx')).cookies.items.length, 1)
     assert.equal(reads, 1)
-    assert.equal(fs.readFileSync(old, 'utf8'), 'legacy-placeholder')
-    assert.equal(fs.readFileSync(path.join(folder, 'account-data/legacy-cookies/tx/Cookies'), 'utf8'), 'legacy-placeholder')
+    assert.equal(readSource(old), 'legacy-placeholder')
+    assert.equal(readSource(path.join(folder, 'account-data/legacy-cookies/tx/Cookies')), 'legacy-placeholder')
   } finally { fs.rmSync(folder, { recursive: true, force: true }) }
 })

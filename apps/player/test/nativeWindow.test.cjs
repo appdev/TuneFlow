@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -51,7 +52,7 @@ function windowHarness(platform, transparent = false) {
     if (!(name in dependencies)) throw Error('Unexpected dependency: ' + name)
     return dependencies[name]
   } }
-  const source = fs.readFileSync(path.join(__dirname, '../src/main/modules/winMain/main.ts'), 'utf8')
+  const source = readSource(path.join(__dirname, '../src/main/modules/winMain/main.ts'))
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText, context)
   context.exports.createWindow()
   return { api: context.exports, window: windows[0], runtime, messages, appEvents }

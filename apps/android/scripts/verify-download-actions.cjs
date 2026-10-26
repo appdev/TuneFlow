@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -21,7 +22,7 @@ function fixture() {
     './store': { getDownloadTask: () => controls.removed ? undefined : task },
   }
   const context = { exports: {}, require: id => { if (id in deps) return deps[id]; throw Error(id) } }
-  const source = fs.readFileSync(path.join(__dirname, '../src/core/download/play.ts'), 'utf8')
+  const source = readSource(path.join(__dirname, '../src/core/download/play.ts'))
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText, context)
   return { ...context.exports, task, state, calls, controls }
 }
@@ -100,7 +101,7 @@ test('下载提交服务器原始曲目和所选音质，跳过曲库文件且�
     },
   }
   const context = { exports: {}, console, require: id => { assert.ok(id in deps, id); return deps[id] } }
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/core/download/worker.ts'), 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(readSource(path.join(__dirname, '../src/core/download/worker.ts')), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
   }).outputText, context)
   assert.equal(await context.exports.downloadMusics([

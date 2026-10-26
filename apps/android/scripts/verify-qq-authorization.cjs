@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 // 授权会话回归：原 WebView 保持轮询，QQ 回来后续接，失败/超时不遗留定时器。
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -5,7 +6,7 @@ const path = require('node:path')
 const vm = require('node:vm')
 const ts = require('typescript')
 const exportsContext = { exports: {} }
-vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/core/musicAccount/qqAuthorization.ts'), 'utf8'), {
+vm.runInNewContext(ts.transpileModule(readSource(path.join(__dirname, '../src/core/musicAccount/qqAuthorization.ts')), {
   compilerOptions: { module: ts.ModuleKind.CommonJS },
 }).outputText, exportsContext)
 const { QQ_AUTH_BRIDGE, QQ_START_AUTH, QQ_RESUME_AUTH, QQ_STOP_AUTH, isQQLoginPage } = exportsContext.exports

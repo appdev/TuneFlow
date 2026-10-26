@@ -1,0 +1,21 @@
+{
+  "name": "tuneflow",
+  "private": true,
+  "description": "TuneFlow applications with isolated dependencies and shared music business rules",
+  "scripts": {
+    "build:service": "npm --prefix apps/service run build:service",
+    "build:server": "npm --prefix apps/service run build:server",
+    "prepare:service": "npm --prefix apps/service run prepare:service",
+    "build:web": "npm --prefix apps/service run build:web",
+    "build:web:qmusic": "npm --prefix apps/service run build:web:qmusic",
+    "build:player": "npm --prefix apps/player run build",
+    "build:android": "npm --prefix apps/android run pack:android:standalone --",
+    "pack:player": "npm --prefix apps/player run pack:service --",
+    "start:server": "npm --prefix apps/service run start:server",
+    "test": "node --test test/*.test.cjs",
+    "test:service": "npm --prefix apps/service test",
+    "test:player": "npm --prefix apps/player test",
+    "test:android": "npm --prefix apps/android run test:service",
+    "test:contract": "npm --prefix apps/player run test:service"
+  }
+}

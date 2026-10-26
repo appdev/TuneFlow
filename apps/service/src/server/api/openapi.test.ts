@@ -68,7 +68,7 @@ describe('Service OpenAPI contract', () => {
       '/api/v1/library/tracks', '/api/v1/library/scan', '/api/v1/library/tracks/{id}', '/api/v1/library/tracks/{id}/stream',
       '/api/v1/library/tracks/{id}/picture', '/api/v1/library/tracks/{id}/lyrics',
     ]
-    expect(Object.keys(document.paths).sort()).toEqual(expectedPaths.sort())
+    expect(Object.keys(document.paths).sort()).toEqual([...expectedPaths, '/api/v1/sources/{id}/update-alert'].sort())
     expect(JSON.stringify(document.paths)).not.toMatch(/\/api\/v1\/(?:lists|search|lyrics|stream\/|playback\/resolve|library\{)/)
     const successDataSchema = (pathName: string, method = 'post') => document.paths[pathName][method].responses['200'].content['application/json'].schema.properties.data
     expect(successDataSchema('/api/v1/health', 'get')).toMatchObject({

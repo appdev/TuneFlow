@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -14,7 +15,7 @@ function load(file, dependencies = {}) {
     if (!(id in dependencies)) throw Error(id)
     return dependencies[id]
   } }
-  const source = fs.readFileSync(path.join(__dirname, '..', file), 'utf8')
+  const source = readSource(path.join(__dirname, '..', file))
   let script = source
   if (file.endsWith('.vue')) {
     const compiler = require('@vue/compiler-sfc')

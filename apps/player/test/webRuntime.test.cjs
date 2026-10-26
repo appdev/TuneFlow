@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -6,7 +7,7 @@ const vm = require('node:vm')
 const ts = require('typescript')
 const load = (file, dependencies, globals = {}) => {
   const context = { exports: {}, Map, Set, URL, console, ...globals, require: name => { if (!(name in dependencies)) throw Error('Unexpected dependency: ' + name); return dependencies[name] } }
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.resolve(__dirname, '..', file), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText, context)
+  vm.runInNewContext(ts.transpileModule(readSource(path.resolve(__dirname, '..', file)), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText, context)
   return context.exports
 }
 const runtime = () => {

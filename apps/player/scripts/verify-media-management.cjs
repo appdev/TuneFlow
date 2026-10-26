@@ -1,13 +1,14 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm'), ts = require('typescript')
-const roots = [path.resolve(__dirname, '../src/renderer/service'), path.resolve(__dirname, '../../qmusic-client/src/service')]
+const roots = [path.resolve(__dirname, '../src/renderer/service'), path.resolve(__dirname, '../../android/src/service')]
 function loader(root, overrides = {}) {
   const cache = new Map()
   const load = name => {
     if (cache.has(name)) return cache.get(name)
     const context = { exports: {}, fetch, AbortController, setTimeout, clearTimeout, require: id => id in overrides ? overrides[id] : load(id.replace('./', '')) }
-    vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, name + '.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, context)
+    vm.runInNewContext(ts.transpileModule(readSource(path.join(root, name + '.ts')), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, context)
     cache.set(name, context.exports); return context.exports
   }
   return load

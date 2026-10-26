@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -14,7 +15,7 @@ function fixture(options = {}) {
     '@/service/client': { ServiceError: class extends Error {} },
   }
   const context = { exports: {}, global: { i18n: { t: text => text } }, require: id => { assert.ok(id in deps, id); return deps[id] } }
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/core/download/selection.ts'), 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(readSource(path.join(__dirname, '../src/core/download/selection.ts')), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
   }).outputText, context)
   return { ...context.exports, calls, messages }

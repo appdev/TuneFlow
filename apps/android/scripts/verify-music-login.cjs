@@ -1,10 +1,11 @@
+const readSource = require('../../../scripts/read-source.cjs')
 // 无设备的授权路由回归检查：node scripts/verify-music-login.cjs
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const vm = require('node:vm')
 const ts = require('typescript')
-const source = fs.readFileSync(path.join(__dirname, '../src/core/musicAccount/login.ts'), 'utf8')
+const source = readSource(path.join(__dirname, '../src/core/musicAccount/login.ts'))
 const context = { exports: {} }
 vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, context)
 const { LOGIN_URLS, QQ_CALLBACK, QQ_RETURN, isQQCallback, getQQCallbackUrl, getLoginAppUrl } = context.exports

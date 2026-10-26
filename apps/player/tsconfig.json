@@ -7,7 +7,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
-    "rootDir": "./",
+    "rootDir": "../../",
     "outDir": "./dist",
     // "paths": {                                           /* Specify a set of entries that re-map imports to additional lookup locations. */
     //   "@common/*": ["common/*"],

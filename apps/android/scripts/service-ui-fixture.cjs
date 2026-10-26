@@ -4,7 +4,7 @@ const os = require('node:os')
 const path = require('node:path')
 const { spawn } = require('node:child_process')
 const http = require('node:http')
-const serverRoot = process.env.Q_SERVICE_ROOT || path.resolve(__dirname, '../../..', 'lx-music-server-web')
+const serverRoot = process.env.Q_SERVICE_ROOT || path.resolve(__dirname, '../..', 'service')
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qmusic-native-fixture-'))
 fs.mkdirSync(path.join(root, 'audio'))
 const sampleRate = 22050

@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -11,7 +12,7 @@ function load(file, dependencies, globals = {}) {
     if (id.startsWith('node:')) return require(id)
     throw Error(id)
   } }
-  let source = fs.readFileSync(path.join(__dirname, '..', file), 'utf8')
+  let source = readSource(path.join(__dirname, '..', file))
   if (file.endsWith('.vue')) source = require('@vue/compiler-sfc').parse(source).descriptor.script.content
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, context)
   return context.exports

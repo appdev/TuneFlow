@@ -5,7 +5,7 @@ services:
       TUNEFLOW_WEB_ROOT: /app/dist/web-qmusic
     volumes:
       - type: bind
-        source: ${Q_MUSIC_WEB_ROOT:-./dist/web-qmusic}
+        source: ${Q_MUSIC_WEB_ROOT:-./apps/service/dist/web-qmusic}
         target: /app/dist/web-qmusic
         read_only: true
         bind:

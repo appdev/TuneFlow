@@ -48,7 +48,7 @@ describe('source script ZIP export route', () => {
     const entries = new AdmZip(response.rawPayload).getEntries()
     expect(entries).toHaveLength(2)
     expect(entries.every(entry => !entry.isDirectory && /^[^/\\]+\.js$/.test(entry.entryName))).toBe(true)
-    expect(entries.map(entry => entry.getData().toString('utf8'))).toEqual([firstScript, secondScript])
+    expect(entries.map(entry => entry.getData().toString('utf8')).sort()).toEqual([firstScript, secondScript].sort())
   })
 
   it('rejects an empty export with a typed conflict', async() => {

@@ -8,16 +8,16 @@ const fs = require('node:fs')
 const { spawn } = require('node:child_process')
 const { api, adapter, load } = require('./verify-service-client.cjs')
 const domain = load('src/renderer/service/workspace.ts', { './client': api, './tracks': adapter })
-const androidApi = load('../qmusic-client/src/service/client.ts')
-const androidTracks = load('../qmusic-client/src/service/tracks.ts', { './client': androidApi })
-const androidDomain = load('../qmusic-client/src/service/workspace.ts', { './client': androidApi, './tracks': androidTracks })
+const androidApi = load('../android/src/service/client.ts')
+const androidTracks = load('../android/src/service/tracks.ts', { './client': androidApi })
+const androidDomain = load('../android/src/service/workspace.ts', { './client': androidApi, './tracks': androidTracks })
 
 const listen = server => new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve(server.address().port)))
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 test('Q client → actual isolated Service: search, playlist CRUD, sources, playback/Range/lyrics/artwork, downloads/library, history/settings', { timeout: 120000 }, async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qmusic-service-contract-'))
-  const serverRoot = process.env.Q_SERVICE_ROOT || path.resolve(__dirname, '../../..', 'lx-music-server-web')
+  const serverRoot = process.env.Q_SERVICE_ROOT || path.resolve(__dirname, '../..', 'service')
   const wave = fs.readFileSync(path.join(serverRoot, 'src/renderer/assets/medias/Silence02s.mp3'))
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jNOkAAAAASUVORK5CYII=', 'base64')
   let script = ''
@@ -156,7 +156,7 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, { sources: { kw: { type
   assert.equal((await client.downloads()).length, 0, 'Resolve/preload alone does not download')
   const errors = []
   const DesktopHistory = load('src/renderer/service/history.ts', { './client': api }).ServicePlaybackHistory
-  const AndroidHistory = load('../qmusic-client/src/service/history.ts', { './client': androidApi }).ServicePlaybackHistory
+  const AndroidHistory = load('../android/src/service/history.ts', { './client': androidApi }).ServicePlaybackHistory
   const desktopHistory = new DesktopHistory(() => errors.push('desktop'))
   const androidHistory = new AndroidHistory(() => errors.push('android'))
   const provenance = { endpoint: client.endpoint, track: autoTrack }
@@ -222,7 +222,7 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, { sources: { kw: { type
   assert.equal((await fetch(android.client.resourceUrl(androidFallback.url), { headers: { Range: 'bytes=0-127' } })).status, 206)
 
   const desktopAccounts = load('src/renderer/service/accountLibrary.ts', { './client': api })
-  const androidAccounts = load('../qmusic-client/src/service/accountLibrary.ts', { './client': androidApi })
+  const androidAccounts = load('../android/src/service/accountLibrary.ts', { './client': androidApi })
   const account = { provider: 'tx', owner: 'a'.repeat(32), id: 'dir:201', name: 'Shared account playlist' }
   const accountSong = { ...track, source: 'tx', id: 'tx_account_fixture', meta: { ...track.meta, songId: 'fixture-mid', strMediaMid: 'fixture-media', cookie: 'never-send-this', officialUrl: 'https://official.invalid/secret' } }
   const imported = await desktopAccounts.importAccountCollection(desktop, account, [accountSong], async() => {})

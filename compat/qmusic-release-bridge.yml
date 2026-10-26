@@ -1,0 +1,27 @@
+name: TuneFlow client release
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Frozen commit or tag in appdev/TuneFlow
+        required: true
+        type: string
+      component:
+        type: choice
+        options: [all, desktop, web, android]
+        default: all
+      publish:
+        description: Publish verified packages to the existing update channel
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  release:
+    permissions:
+      contents: write
+    uses: appdev/TuneFlow/.github/workflows/release-client.yml@main
+    with:
+      source_ref: ${{ inputs.source_ref }}
+      component: ${{ inputs.component }}
+      publish: ${{ inputs.publish }}

@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -5,13 +6,13 @@ const path = require('node:path')
 const vm = require('node:vm')
 const ts = require('typescript')
 const root = path.resolve(__dirname, '..')
-const mobileRoot = path.resolve(root, '../qmusic-client')
+const mobileRoot = path.resolve(root, '../android')
 function load(file, dependencies = {}, globals = {}) {
   const context = { exports: {}, Error, URL, AbortController, setTimeout, clearTimeout, fetch, console, ...globals, require: name => {
     if (!(name in dependencies)) throw Error(`Missing dependency ${name}`)
     return dependencies[name]
   } }
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText, context)
+  vm.runInNewContext(ts.transpileModule(readSource(file), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText, context)
   return context.exports
 }
 function domain(base, prefix) {
@@ -190,7 +191,7 @@ test('Android homepage keeps snapshots across appearance, foreground, provider s
     './recommendations': { ...client.recommendations, loadDailyFeed: async(_workspace, source, _personal, force) => { calls.push({ source, force }); return { list: [{ ...song, source }], origin: 'public', kind: source + '_public', status: 'ready', reason: '' } } },
   }
   const context = { exports: {}, AbortController, setTimeout, clearTimeout, require: id => dependencies[id] ?? { default: 'UI', Icon: 'Icon' } }
-  const source = fs.readFileSync(path.join(client.folder, 'DailyRecommendations.tsx'), 'utf8')
+  const source = readSource(path.join(client.folder, 'DailyRecommendations.tsx'))
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText, context)
   let tree
   const render = () => { cursor = 0; dirty = false; tree = context.exports.default(); const pending = effects; effects = []; pending.forEach(fn => fn()) }
@@ -244,7 +245,7 @@ test('desktop homepage keeps songs on transient refresh failure, clears changed 
   const client = clients[0]
   const compiler = require('@vue/compiler-sfc')
   const filename = path.join(client.folder, 'ServerHome.vue')
-  const script = compiler.compileScript(compiler.parse(fs.readFileSync(filename, 'utf8')).descriptor, { id: 'home-state-test' }).content
+  const script = compiler.compileScript(compiler.parse(readSource(filename)).descriptor, { id: 'home-state-test' }).content
   let calls = 0, visibility
   let next = async() => ({ list: [song], origin: 'account', kind: 'radar', status: 'ready', reason: '' })
   const vue = {

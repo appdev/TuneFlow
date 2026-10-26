@@ -2,13 +2,13 @@ const fs = require('node:fs')
 const path = require('node:path')
 const assert = require('node:assert/strict')
 const root = path.resolve(__dirname, '..')
-const serviceRoot = process.env.Q_SERVICE_ROOT || path.resolve(root, '../../lx-music-server-web')
+const serviceRoot = process.env.Q_SERVICE_ROOT || path.resolve(root, '../service')
 const { chromium } = require(path.join(serviceRoot, 'node_modules/playwright'))
 const proof = process.env.Q_WEB_PROOF || path.join(root, 'artifacts/web-client/verification')
 const fixture = JSON.parse(fs.readFileSync(path.join(proof, 'fixture.json')))
 if (!fixture.testOnly || !/^http:\/\/127\.0\.0\.1:\d+$/.test(fixture.endpoint)) throw Error('Disposable loopback fixture required')
 const api = async(route, method = 'GET', body) => {
-  const response = await fetch(fixture.endpoint + '/api/v1/' + route, { method, headers: { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
+  const response = await fetch(fixture.endpoint + '/api/v1/' + route, { method, headers: body === undefined ? { accept: 'application/json' } : { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
   if (response.status === 204) return
   const value = await response.json(); assert.ok(response.ok, route + ': ' + JSON.stringify(value)); return value.data
 }

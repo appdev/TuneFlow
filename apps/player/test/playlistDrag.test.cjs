@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -17,7 +18,7 @@ function fixture(save) {
     if (id == '@renderer/plugins/Dialog') return { dialog: async() => calls.push(['error']) }
     throw Error(id)
   } }
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/renderer/views/List/MyList/useDarg.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, context)
+  vm.runInNewContext(ts.transpileModule(readSource(path.join(__dirname, '../src/renderer/views/List/MyList/useDarg.ts')), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, context)
   const api = context.exports.default({ dom_lists_list: vue.ref(null), handleMenuClick: () => {} })
   const event = { item: { dataset: { listId: 'local' }, remove: () => calls.push(['restore-dom']) }, from: { children: [], insertBefore: () => {} } }
   return { options, api, event, calls }

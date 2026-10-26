@@ -1,3 +1,4 @@
+const readSource = require('../../../scripts/read-source.cjs')
 // 权限往返、播放器并发初始化、词幕时间轴的离线回归。加载真实源码，只替换系统边界。
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -12,7 +13,7 @@ function load(file, dependencies, globals = {}) {
   const context = { exports: {}, console, setTimeout, clearTimeout, ...globals,
     require: id => { if (!(id in dependencies)) throw new Error(`Unexpected dependency: ${id}`); return dependencies[id] },
   }
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, 'src', file), 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(readSource(path.join(root, 'src', file)), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, context)
   return context.exports
@@ -158,7 +159,7 @@ async function initializationCases() {
 
 function lyricCases() {
   const parserContext = { module: { exports: {} }, performance, setTimeout, clearTimeout }
-  vm.runInNewContext(fs.readFileSync(require.resolve('lrc-file-parser'), 'utf8'), parserContext)
+  vm.runInNewContext(readSource(require.resolve('lrc-file-parser')), parserContext)
   const api = load('utils/statusBarLyrics.ts', { 'lrc-file-parser': { default: parserContext.module.exports } })
   let lines = api.buildStatusBarLyrics('[00:01.00]Hello\n[00:03.00]World', '[00:01.00]你好', '[00:03.00]world', 5000)
   equal(lines[0].begin, 1000, '秒转为毫秒')

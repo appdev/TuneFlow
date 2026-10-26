@@ -1,8 +1,9 @@
+const readSource = require('../../../scripts/read-source.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm'), ts = require('typescript')
 function load(file, globals) {
   const context = { exports: {}, ...globals }
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/core/musicAccount', file), 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(readSource(path.join(__dirname, '../src/core/musicAccount', file)), {
     compilerOptions: { module: ts.ModuleKind.CommonJS },
   }).outputText, context)
   return context.exports
