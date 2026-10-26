@@ -3,7 +3,7 @@ name: Docker build
 on:
   pull_request:
     branches: [main, dev]
-    paths: ['apps/service/**', 'Dockerfile', '.dockerignore', '.github/workflows/docker-build.yml']
+    paths: ['apps/service/**', 'apps/player/**', 'packages/**', 'Dockerfile', '.dockerignore', '.github/workflows/docker-build.yml']
   workflow_dispatch:
     inputs:
       push_image:

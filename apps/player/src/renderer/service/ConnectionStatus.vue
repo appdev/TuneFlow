@@ -2,12 +2,12 @@
   <div v-if="!status.connected" :class="$style.status" role="status">
     <span>{{ status.busy ? '正在连接…' : status.error || '尚未连接' }}</span>
     <button :disabled="status.busy" @click="checkService(true)">重试</button>
-    <router-link to="/setting?name=SettingService">连接设置</router-link>
+    <router-link v-if="!isServerBoundWeb" to="/setting?name=SettingService">连接设置</router-link>
   </div>
 </template>
 <script setup lang="ts">
 import { onBeforeUnmount, ref } from 'vue'
-import { serviceStatus, subscribeService, checkService } from './session'
+import { serviceStatus, subscribeService, checkService, isServerBoundWeb } from './session'
 const status = ref({ ...serviceStatus })
 onBeforeUnmount(subscribeService(() => { status.value = { ...serviceStatus } }))
 </script>

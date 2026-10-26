@@ -108,7 +108,7 @@ test('Docker integration keeps one Node runtime and the existing Compose service
   const dockerfile = readFileSync(path.join(root, '../../Dockerfile'), 'utf8')
   const compose = readFileSync(path.join(root, '../../compose.integrated.yaml'), 'utf8')
   const ignore = readFileSync(path.join(root, '../../.dockerignore'), 'utf8')
-  assert.match(dockerfile, /ARG TUNEFLOW_WEB_VARIANT=legacy/)
+  assert.match(dockerfile, /ARG TUNEFLOW_WEB_VARIANT=qmusic/)
   assert.match(dockerfile, /install-integrated-web\.mjs && npm run prepare:service/)
   assert.match(dockerfile, /COPY --from=build --chown=node:node \/app\/dist\/web \.\/dist\/web/)
   assert.match(dockerfile, /CMD \["node", "dist\/server\/index.cjs"\]/)

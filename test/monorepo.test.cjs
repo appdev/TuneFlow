@@ -35,8 +35,9 @@ test('both client facades point to the same portable API and business implementa
     assert.doesNotMatch(read('packages/' + dir + '/src/' + name), /from ['"](?:vue|react|react-native|electron|@renderer|@\/)/)
   }
 })
-test('Docker keeps legacy default, original volume contract and isolated Service dependencies', () => {
-  assert.match(read('Dockerfile'), /ARG TUNEFLOW_WEB_VARIANT=legacy/)
+test('Docker defaults to shared Web and keeps the original volume contract and isolated Service dependencies', () => {
+  assert.match(read('Dockerfile'), /ARG TUNEFLOW_WEB_VARIANT=qmusic/)
+  for (const source of ['apps/service/**', 'apps/player/**', 'packages/**']) assert.ok(read('.github/workflows/docker-build.yml').includes(source), 'Docker checks must follow every image source')
   assert.match(read('Dockerfile'), /COPY apps\/service\//)
   assert.match(read('compose.yaml'), /tuneflow-config:\/config/)
   assert.match(read('compose.yaml'), /TUNEFLOW_MUSIC_DIR:-\.\/music/)

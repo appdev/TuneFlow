@@ -1,3 +1,20 @@
 html.web .native-only { display: none !important; }
 html.web, html.web body { background: var(--color-content-background, #f6f8fa); }
 html.web #container { -webkit-app-region: no-drag; }
+
+/* Keep the player, navigation and content on the same centered Web canvas. */
+@media (min-width: 1100px) {
+  html.web #root {
+    width: calc(100% - 64px);
+    max-width: 1440px;
+    margin-inline: auto;
+  }
+}
+
+html.web:fullscreen #root,
+html.web body:fullscreen #root,
+html.web #root:fullscreen {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+}

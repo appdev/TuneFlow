@@ -4,7 +4,7 @@ TuneFlow 服务端、桌面/Web 和 Android 源码在同一仓库维护；各应
 
 | 目录 | 用途 |
 | --- | --- |
-| apps/service | Node.js 服务与过渡期旧 Web；Docker 默认入口保持旧 Web |
+| apps/service | Node.js 服务与兼容旧 Web；Docker 默认使用共享 Vue Web，旧版保留在 /V2/ |
 | apps/player | Electron 桌面与共享 Vue Web，Web 适配层位于 src/web-runtime |
 | apps/android | React Native Android 客户端 |
 | packages/service-client | 可移植的 API、DTO、超时和安全地址规则 |
@@ -22,7 +22,7 @@ Flutter 不在此次迁移范围。旧客户端仓库继续保留历史 Release 
 - `npm run build:android -- -PreactNativeArchitectures=arm64-v8a`：独立预览 APK。
 - `npm test`、`npm run test:contract` 与各应用测试验证边界和业务契约。
 
-根目录 Dockerfile/compose.yaml 继续使用同一服务名、端口、卷和默认 Web。迁移源码不移动音乐、配置、歌单、账号资料或任何运行目录；新构建输出不会覆盖根目录保留的旧 dist。
+根目录 Dockerfile/compose.yaml 保持同一服务名、端口和卷。Docker 默认构建共享 Vue Web，自动固定连接当前页面所在服务，不显示服务器切换设置；桌面和 Android 仍可选择连接地址。可用构建参数 `TUNEFLOW_WEB_VARIANT=legacy` 回退旧 Web。构建不移动音乐、配置、歌单、账号资料或运行目录。
 
 ## 发布兼容
 

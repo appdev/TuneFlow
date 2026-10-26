@@ -14,6 +14,7 @@ const api = async(route, method = 'GET', body) => {
 }
 const until = async(check, timeout = 45000) => { const end = Date.now() + timeout; while (Date.now() < end) { const value = await check(); if (value) return value; await new Promise(resolve => setTimeout(resolve, 150)) } throw Error('Asynchronous Service state did not settle') }
 const browserInit = () => {
+  localStorage.setItem('qmusic.docker.endpoint.v1', 'http://stale-profile.invalid:3124')
   if (!localStorage.getItem('qmusic.web.v1.settings')) localStorage.setItem('qmusic.web.v1.settings', JSON.stringify({ 'common.isAgreePact': true, 'common.langId': 'zh-cn' }))
   window.qaAudio = []
   const Original = window.Audio
@@ -40,6 +41,11 @@ const browserInit = () => {
     await page.goto(fixture.endpoint, { waitUntil: 'domcontentloaded' })
     const nav = page.locator('[role="toolbar"]')
     await nav.getByRole('tab').nth(5).click()
+    assert.equal(await page.locator('#SettingService-tab').count(), 0)
+    assert.equal(await page.getByLabel('连接地址', { exact: true }).count(), 0)
+    assert.equal(await page.getByRole('link', { name: '连接设置', exact: true }).count(), 0)
+    assert.equal(await page.evaluate(() => localStorage.getItem('qmusic.docker.endpoint.v1')), fixture.endpoint)
+    console.log('PASS Web is bound to its origin with server-switch settings hidden')
     await page.locator('#SettingSource-tab').click()
     await page.waitForFunction(() => document.querySelector('input[type="file"]')?.disabled === false)
     await page.locator('input[type="file"]').setInputFiles(fixture.sourcePath)

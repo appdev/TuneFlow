@@ -1,3 +1,11 @@
+FROM node:24-bookworm-slim AS player-web
+WORKDIR /web/apps/player
+COPY apps/player/package.json apps/player/package-lock.json ./
+RUN npm ci --ignore-scripts --no-audit --no-fund
+COPY apps/player/ ./
+COPY packages/ /web/packages/
+RUN npm run build:web
+
 FROM node:24-bookworm-slim AS build
 
 WORKDIR /app
@@ -11,8 +19,13 @@ RUN npm ci --ignore-scripts --no-audit --no-fund
 
 COPY apps/service/ .
 COPY LICENSE NOTICE ./
-ARG TUNEFLOW_WEB_VARIANT=legacy
-RUN if [ "$TUNEFLOW_WEB_VARIANT" = "integrated" ]; then \
+COPY --from=player-web /web/apps/player/dist/web-client /tmp/player-web
+ARG TUNEFLOW_WEB_VARIANT=qmusic
+RUN if [ "$TUNEFLOW_WEB_VARIANT" = "qmusic" ]; then \
+      mkdir -p dist/web && cp -a /tmp/player-web/. dist/web/ \
+      && TUNEFLOW_LEGACY_WEB_OUTPUT=/app/dist/web/V2 TUNEFLOW_LEGACY_WEB_BASE=/V2/ npm run build:web \
+      && npm run prepare:service; \
+    elif [ "$TUNEFLOW_WEB_VARIANT" = "integrated" ]; then \
       node build-config/server/install-integrated-web.mjs && npm run prepare:service; \
     elif [ "$TUNEFLOW_WEB_VARIANT" = "legacy" ]; then \
       npm run build:service; \

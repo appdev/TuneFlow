@@ -123,7 +123,7 @@ export default {
         { id: 'SettingOther', title: t('setting__other'), icon: 'tune-variant' },
         { id: 'SettingUpdate', title: t('setting__update'), icon: 'refresh' },
         { id: 'SettingAbout', title: t('setting__about'), icon: 'information-slab-circle-outline' },
-      ].filter(item => !isWeb || !['SettingDesktopLyric', 'SettingHotKey', 'SettingOdc', 'SettingOther', 'SettingUpdate'].includes(item.id))
+      ].filter(item => !isWeb || !['SettingService', 'SettingDesktopLyric', 'SettingHotKey', 'SettingOdc', 'SettingOther', 'SettingUpdate'].includes(item.id))
     })
 
     const avtiveComponentName = ref(route.query.name && tocList.value.some(t => t.id == route.query.name)

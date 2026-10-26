@@ -1,11 +1,6 @@
 <template>
   <section :class="$style.panel">
-    <template v-if="section === 'connection'">
-      <h2>连接设置</h2><p>连接地址：{{ origin }}</p>
-      <p>歌单、收藏、音乐库、播放记录与下载在各设备间保持一致。</p>
-      <button @click="refresh">重新连接 / 刷新</button><p role="status">{{ message }}</p>
-    </template>
-    <template v-else-if="section === 'appearance'">
+    <template v-if="section === 'appearance'">
       <h2>外观</h2>
       <label>界面字号 <input aria-label="界面字号" type="number" min="12" max="24" :value="appSetting['common.fontSize']" @change="save({ 'common.fontSize': Math.max(12, Math.min(24, Number($event.target.value))) })"></label>
       <label>主题 <select aria-label="主题" :value="appSetting['theme.id']" @change="save({ 'theme.id': $event.target.value })"><option v-for="theme in themes" :key="theme.id" :value="theme.id">{{ theme.name }}</option></select></label>
@@ -28,16 +23,11 @@
   </section>
 </template>
 <script setup lang="ts">
-import { ref } from 'vue'
 import themes from '@common/theme/index.json'
 import { appSetting } from '@renderer/store/setting'
 import { updateSetting } from '@renderer/utils/ipc'
-import { checkService } from './session'
 defineProps<{ section: string }>()
-const origin = location.origin
-const message = ref('')
 const save = (patch: Partial<LX.AppSetting>) => { void updateSetting(patch) }
-const refresh = async() => { await checkService(true); message.value = '已完成连接检查' }
 </script>
 <style module lang="less">
 .panel { padding: 20px; line-height: 1.8; color: var(--color-font); h2 { font-size: 20px; } p { margin: 12px 0; } label { display: flex; gap: 16px; align-items: center; margin: 16px 0; } input, select, button { color: inherit; background: transparent; border: 1px solid currentColor; padding: 6px; border-radius: 5px; } select { max-width: 240px; } }

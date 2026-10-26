@@ -20,8 +20,10 @@ npm-debug.log*
 **/.git
 **/.codex
 **/artifacts
-apps/player
 apps/android
+apps/player/dist
+apps/service/dist
+**/build-config/lib/*.node
 **/AGENTS.md
 **/docs/superpowers
 **/src/**/*-internal.js

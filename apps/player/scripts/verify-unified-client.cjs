@@ -62,6 +62,23 @@ test('native reload IPC accepts only the main renderer and takes no external nav
   handler({ event: { sender: main } }); assert.equal(count, 1)
 })
 
+test('hosted Web always uses its origin and rejects server changes before network or storage writes', async() => {
+  const stored = new Map([[domain.PROFILE_KEY, 'http://old-server:3124']])
+  let probes = 0, writes = 0, reloads = 0
+  class Client extends api.ServiceClient { async connect() { probes++ } }
+  const session = load('src/renderer/service/session.ts', { './client': { ...api, ServiceClient: Client }, './workspace': domain }, {
+    process: { platform: 'web' }, location: { origin: 'http://hosted-server:3125' },
+    localStorage: { getItem: key => stored.get(key), setItem: () => { writes++ } },
+  })
+  assert.equal(session.isServerBoundWeb, true)
+  assert.equal(session.getWorkspace().client.endpoint, 'http://hosted-server:3125')
+  await assert.rejects(session.connectService('http://other-server:3124', () => { reloads++ }), { code: 'SERVER_CONNECTION_LOCKED' })
+  assert.equal(probes, 0)
+  assert.equal(writes, 0)
+  assert.equal(reloads, 0)
+  assert.equal(stored.get(domain.PROFILE_KEY), 'http://old-server:3124', 'unrelated saved profile data is preserved')
+})
+
 test('server data round-trips canonical IDs; library paths are public Service routes; scoped device metadata is isolated', async() => {
   const workspace = new domain.ServiceWorkspace(new api.ServiceClient('http://one'))
   const track = workspace.native({ id: 'wy_12', source: 'wy', name: 'Song', meta: { songId: 12 } })

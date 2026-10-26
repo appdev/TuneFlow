@@ -8,6 +8,7 @@
 - 桌面：Electron 40.9.2 的 ABI 143 原生绑定单独打包；appId io.github.qmusic.docker.preview，profile q-music-docker-preview。
 - Android：io.github.nshpiter.qmusic.mobile.preview；现有 standalone 签名及正式签名配置保持不变。
 - Web：继续复用桌面 Vue 页面；官方授权、本地存储和原生能力通过各自适配器完成。
+- Docker 默认 Web 使用 apps/player 的共享 Vue 页面，并固定连接页面同源服务；不显示连接设置，保存的其他地址也不能覆盖该连接。桌面和 Android 保留选择服务器的能力。旧 Web 在 /V2/，镜像可通过 TUNEFLOW_WEB_VARIANT=legacy 构建回退。
 - 配置键：桌面 qmusic.docker.endpoint.v1、Android qmusic.service.endpoint.v1 都保留。
 - Flutter 不导入、不安装、不构建。旧 Web 暂留 apps/service 内，因服务端 provider SDK 仍依赖部分旧音乐 SDK，不在本次重写。
 

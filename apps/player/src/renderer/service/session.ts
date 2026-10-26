@@ -1,4 +1,4 @@
-import { ServiceClient } from './client'
+import { ServiceClient, ServiceError } from './client'
 import { DEFAULT_ENDPOINT, PROFILE_KEY, ServiceWorkspace, LIBRARY_ID } from './workspace'
 
 const listeners = new Map<string, Set<(payload: any) => void>>()
@@ -14,9 +14,10 @@ export const serviceStatus = { connected: false, busy: false, error: '', endpoin
 export let serverDownloadSettings: Record<string, unknown> = {}
 export const subscribeService = (listener: () => void) => { subscribers.add(listener); return () => { subscribers.delete(listener) } }
 const changed = () => { for (const listener of subscribers) listener() }
+export const isServerBoundWeb = typeof process !== 'undefined' && String(process.platform) === 'web'
 
 export const getWorkspace = () => {
-  if (!workspace) workspace = new ServiceWorkspace(new ServiceClient(localStorage.getItem(PROFILE_KEY) ?? DEFAULT_ENDPOINT))
+  if (!workspace) workspace = new ServiceWorkspace(new ServiceClient(isServerBoundWeb ? location.origin : localStorage.getItem(PROFILE_KEY) ?? DEFAULT_ENDPOINT))
   serviceStatus.endpoint = workspace.client.endpoint
   return workspace
 }
@@ -95,6 +96,7 @@ export const startServiceSession = () => {
 }
 
 export const connectService = async(endpoint: string, reload: () => void) => {
+  if (isServerBoundWeb) throw new ServiceError('SERVER_CONNECTION_LOCKED')
   const next = new ServiceClient(endpoint)
   await next.connect()
   // Reload releases all endpoint-bound caches and playback state. Native DBs
