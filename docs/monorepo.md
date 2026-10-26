@@ -49,6 +49,8 @@ Docker 默认托管 `apps/player` 的共享 Vue Web。Web 固定连接页面 ori
 | [Build and release clients from monorepo](../.github/workflows/release-client.yml) | 按 `desktop`、`web`、`android` 或 `all` 独立构建客户端 |
 | [兼容发布调用器](https://github.com/appdev/Q-music/blob/master/.github/workflows/tuneflow-client.yml) | 在原发布仓库调用 TuneFlow 构建，并按需发布到原客户端通道 |
 
+当前通道可用性、产物覆盖和手动触发要求见[多平台发布检查](release-readiness.md)。版本提交不代表安装包或镜像已经发布。
+
 客户端工作流先解析 `source_ref`，后续任务只检出同一固定 SHA。直接在 TuneFlow 手动运行客户端工作流只构建和上传 Actions artifacts；发布到现有更新通道须使用兼容调用器并选择 `publish`。构建所用源码仍来自 TuneFlow。
 
 所选端安装包与校验文件完整上传后，才更新旧仓库公开的版本元数据；API、raw 与 CDN 回退线路保留，更新通道不能降回旧版本。服务端发布从 `apps/service/package.json` 读取版本；发布服务 Release 时工作流要求匹配的 `v<version>` tag 与发行说明。服务与客户端版本不要求相同，`all` 客户端发布要求桌面和 Android 版本匹配。

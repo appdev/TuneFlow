@@ -1,7 +1,7 @@
 {
   "name": "q-music-mobile",
-  "version": "0.4.24",
-  "versionCode": 52,
+  "version": "0.4.25",
+  "versionCode": 53,
   "private": true,
   "scripts": {
     "test:service": "node --test scripts/verify-service-client.cjs scripts/verify-service-integration.cjs",
