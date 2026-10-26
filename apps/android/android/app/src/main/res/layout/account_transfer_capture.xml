@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/transfer_capture_root"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="#11161B">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:gravity="center_vertical" android:paddingHorizontal="8dp" android:paddingVertical="4dp">
+        <ImageButton android:id="@+id/transfer_scan_back" android:layout_width="48dp" android:layout_height="48dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless" android:src="@drawable/transfer_scan_back"
+            android:contentDescription="返回" android:padding="12dp" />
+        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="扫描电脑配对码" android:textColor="#FFFFFF" android:textSize="18sp"
+            android:textStyle="bold" android:gravity="center" />
+        <View android:layout_width="48dp" android:layout_height="1dp" />
+    </LinearLayout>
+    <com.journeyapps.barcodescanner.DecoratedBarcodeView android:id="@+id/transfer_barcode_scanner"
+        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        app:zxing_scanner_layout="@layout/account_transfer_scanner" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:gravity="center" android:paddingHorizontal="24dp" android:paddingVertical="12dp">
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="对准电脑 Q-music「连接手机」中的二维码" android:textSize="14sp"
+            android:textColor="#FFFFFF" android:gravity="center" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp"
+            android:text="保持在同一 Wi-Fi，识别后自动连接" android:textSize="12sp"
+            android:textColor="#B8C2CC" android:gravity="center" />
+        <Button android:id="@+id/transfer_scan_torch" android:layout_width="wrap_content" android:layout_height="48dp"
+            android:layout_marginTop="8dp" android:paddingHorizontal="20dp" android:backgroundTint="#28323C"
+            android:text="光线较暗？打开补光" android:textSize="13sp" android:textColor="#FFFFFF" />
+    </LinearLayout>
+</LinearLayout>

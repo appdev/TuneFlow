@@ -1,0 +1,195 @@
+import { addListMusics, removeListMusics, updateListMusicPosition, updateListMusics } from '@/core/list'
+import { playListById, playNext } from '@/core/player/player'
+import { addTempPlayList } from '@/core/player/tempPlayList'
+import settingState from '@/store/setting/state'
+import { similar, sortInsert, toOldMusicInfo } from '@/utils'
+import { confirmDialog, openUrl, shareMusic, toast } from '@/utils/tools'
+import { addDislikeInfo, hasDislike } from '@/core/dislikeList'
+import playerState from '@/store/player/state'
+import { playFromList } from '@/core/player/selection'
+import { LIBRARY_ID } from '@/service/workspace'
+import { deleteLibrarySelection } from '@/service/libraryActions'
+
+import type { SelectInfo } from './ListMenu'
+import { type Metadata } from '@/components/MetadataEditModal'
+import musicSdk from '@/utils/musicSdk'
+import { getListMusicSync } from '@/utils/listManage'
+import { Alert } from 'react-native'
+import { deleteLocalMusicFiles } from '@/utils/removeLocalMusic'
+
+export const handlePlay = (listId: SelectInfo['listId'], index: SelectInfo['index']) => {
+  void playFromList(listId, index)
+}
+export const handlePlayLater = (listId: SelectInfo['listId'], musicInfo: SelectInfo['musicInfo'], selectedList: SelectInfo['selectedList'], onCancelSelect: () => void) => {
+  if (selectedList.length) {
+    addTempPlayList(selectedList.map(s => ({ listId, musicInfo: s })))
+    onCancelSelect()
+  } else {
+    addTempPlayList([{ listId, musicInfo }])
+  }
+}
+
+export const handleRemove = (listId: SelectInfo['listId'], musicInfo: SelectInfo['musicInfo'], selectedList: SelectInfo['selectedList'], onCancelSelect: () => void) => {
+  const targets = selectedList.length ? [...selectedList] : [musicInfo]
+  if (listId === LIBRARY_ID) {
+    void deleteLibrarySelection(targets).then(deleted => { if (deleted) onCancelSelect() })
+    return
+  }
+  if (targets.some(music => music.source == 'local')) {
+    const remove = async(deleteFiles: boolean) => {
+      const removed: string[] = []
+      let failed = 0
+      for (const music of targets) {
+        try {
+          if (deleteFiles && music.source == 'local') await deleteLocalMusicFiles(music)
+          removed.push(music.id)
+        } catch { failed++ }
+      }
+      if (removed.length) await removeListMusics(listId, removed)
+      onCancelSelect()
+      if (failed) toast(global.i18n.t('local_remove_failed', { count: failed }))
+    }
+    Alert.alert(global.i18n.t('list_remove_tip_button'), global.i18n.t('local_remove_tip', { count: targets.length }), [
+      { text: global.i18n.t('cancel'), style: 'cancel' },
+      { text: global.i18n.t('local_remove_only'), onPress: () => { void remove(false) } },
+      { text: global.i18n.t('local_remove_files'), style: 'destructive', onPress: () => { void remove(true) } },
+    ])
+    return
+  }
+  if (selectedList.length) {
+    void confirmDialog({
+      message: global.i18n.t('list_remove_music_multi_tip', { num: selectedList.length }),
+      confirmButtonText: global.i18n.t('list_remove_tip_button'),
+    }).then(isRemove => {
+      if (!isRemove) return
+      void removeListMusics(listId, selectedList.map(s => s.id))
+      onCancelSelect()
+    })
+  } else {
+    void removeListMusics(listId, [musicInfo.id])
+  }
+}
+
+export const handleUpdateMusicPosition = (position: number, listId: SelectInfo['listId'], musicInfo: SelectInfo['musicInfo'], selectedList: SelectInfo['selectedList'], onCancelSelect: () => void) => {
+  if (selectedList.length) {
+    void updateListMusicPosition(listId, position, selectedList.map(s => s.id))
+    onCancelSelect()
+  } else {
+    // console.log(listId, position, [musicInfo.id])
+    void updateListMusicPosition(listId, position, [musicInfo.id])
+  }
+}
+
+export const handleUpdateMusicInfo = (listId: SelectInfo['listId'], musicInfo: LX.Music.MusicInfoLocal, newInfo: Metadata) => {
+  void updateListMusics([
+    {
+      id: listId,
+      musicInfo: {
+        ...musicInfo,
+        name: newInfo.name,
+        singer: newInfo.singer,
+        meta: {
+          ...musicInfo.meta,
+          albumName: newInfo.albumName,
+        },
+      },
+    },
+  ])
+}
+
+
+export const handleShare = (musicInfo: SelectInfo['musicInfo']) => {
+  shareMusic(settingState.setting['common.shareType'], settingState.setting['download.fileName'], musicInfo)
+}
+
+
+export const searchListMusic = (list: LX.Music.MusicInfo[], text: string) => {
+  const fullMathNameResults = new Set<LX.Music.MusicInfo>()
+  const fullMathSingerResults = new Set<LX.Music.MusicInfo>()
+  const fullMathAlbumResults = new Set<LX.Music.MusicInfo>()
+  const textLower = text.toLowerCase()
+  for (const mInfo of list) {
+    if (mInfo.name?.toLowerCase().includes(textLower)) {
+      fullMathNameResults.add(mInfo)
+    } else if (mInfo.singer?.toLowerCase().includes(textLower)) {
+      fullMathSingerResults.add(mInfo)
+    } else if (mInfo.meta.albumName?.toLowerCase().includes(textLower)) {
+      fullMathAlbumResults.add(mInfo)
+    }
+  }
+  let result: LX.Music.MusicInfo[] = []
+  let rxp = new RegExp(text.split('').map(s => s.replace(/[.*+?^${}()|[\]\\]/, '\\$&')).join('.*') + '.*', 'i')
+  for (const mInfo of list) {
+    if (fullMathNameResults.has(mInfo) || fullMathSingerResults.has(mInfo) || fullMathAlbumResults.has(mInfo)) continue
+
+    const str = `${mInfo.name}${mInfo.singer}${mInfo.meta.albumName ? mInfo.meta.albumName : ''}`
+    if (rxp.test(str)) result.push(mInfo)
+  }
+
+  const sortedList: Array<{ num: number, data: LX.Music.MusicInfo }> = []
+
+  for (const mInfo of result) {
+    sortInsert(sortedList, {
+      num: similar(text, `${mInfo.name}${mInfo.singer}${mInfo.meta.albumName ? mInfo.meta.albumName : ''}`),
+      data: mInfo,
+    })
+  }
+  return [
+    ...fullMathNameResults.values(),
+    ...fullMathSingerResults.values(),
+    ...fullMathAlbumResults.values(),
+    ...sortedList.map(item => item.data).reverse(),
+  ]
+}
+
+export const handleShowMusicSourceDetail = async(minfo: SelectInfo['musicInfo']) => {
+  const url = musicSdk[minfo.source as LX.OnlineSource]?.getMusicDetailPageUrl(toOldMusicInfo(minfo))
+  if (!url) return
+  void openUrl(url)
+}
+
+
+export const handleDislikeMusic = async(musicInfo: SelectInfo['musicInfo']) => {
+  const confirm = await confirmDialog({
+    message: musicInfo.singer ? global.i18n.t('lists_dislike_music_singer_tip', { name: musicInfo.name, singer: musicInfo.singer }) : global.i18n.t('lists_dislike_music_tip', { name: musicInfo.name }),
+    cancelButtonText: global.i18n.t('cancel_button_text_2'),
+    confirmButtonText: global.i18n.t('confirm_button_text'),
+    bgClose: false,
+  })
+  if (!confirm) return
+  await addDislikeInfo([{ name: musicInfo.name, singer: musicInfo.singer }])
+  toast(global.i18n.t('lists_dislike_music_add_tip'))
+  if (hasDislike(playerState.playMusicInfo.musicInfo)) {
+    void playNext(true)
+  }
+}
+
+export const handleToggleSource = async(listId: string, musicInfo: LX.Music.MusicInfo, toggleMusicInfo: LX.Music.MusicInfoOnline) => {
+  const list = getListMusicSync(listId)
+  const oldId = musicInfo.id
+  let oldIdx = list.findIndex(m => m.id == oldId)
+  if (oldIdx < 0) {
+    void addListMusics(listId, [toggleMusicInfo], settingState.setting['list.addMusicLocationType'])
+    return true
+  }
+  const id = toggleMusicInfo.id
+  const index = list.findIndex(m => m.id == id)
+  const removeIds = [oldId]
+  if (index > -1) {
+    if (!await confirmDialog({
+      message: global.i18n.t('music_toggle__duplicate_tip'),
+      cancelButtonText: global.i18n.t('dialog_cancel'),
+      confirmButtonText: global.i18n.t('dialog_confirm'),
+    })) return false
+    removeIds.push(id)
+  }
+  void removeListMusics(listId, removeIds).then(async() => {
+    await addListMusics(listId, [toggleMusicInfo], 'bottom')
+    if (index != -1 && index < oldIdx) oldIdx--
+    await updateListMusicPosition(listId, oldIdx, [id])
+    if (playerState.playMusicInfo.listId == listId && playerState.playMusicInfo.musicInfo?.id == oldId) {
+      void playListById(listId, toggleMusicInfo.id)
+    }
+  })
+  return true
+}
