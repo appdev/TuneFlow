@@ -7,7 +7,7 @@ const { expectedAssets } = require('../apps/player/scripts/prepare-release.cjs')
 const components = ['desktop', 'web', 'android']
 const releaseTag = version => {
   if (!/^\d+\.\d+\.\d+$/.test(version)) throw Error('Invalid client release version')
-  return 'client-v' + version
+  return 'v' + version
 }
 const channelPath = channel => {
   if (!['desktop', 'android'].includes(channel)) throw Error('Invalid update channel')

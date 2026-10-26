@@ -21,7 +21,7 @@
 
 ## 安装与版本兼容
 
-在 [TuneFlow Releases](https://github.com/appdev/TuneFlow/releases) 的 `client-v<version>` 版本下载匹配架构的 APK，并核对校验文件。架构不确定时可选 universal。附件保留 Q-music 名称；原发布仓库已删除，旧版用户需手动覆盖安装一次，不要卸载。预览应用 ID 与签名保持不变。
+在 [TuneFlow Releases](https://github.com/appdev/TuneFlow/releases) 的 `v<version>` 版本下载匹配架构的 APK，并核对校验文件。架构不确定时可选 universal。附件保留 Q-music 名称；原发布仓库已删除，旧版用户需手动覆盖安装一次，不要卸载。预览应用 ID 与签名保持不变。
 
 - Android 最低版本为 7.0（API 24）。
 - 当前预览通道使用 `io.github.nshpiter.qmusic.mobile.preview`。

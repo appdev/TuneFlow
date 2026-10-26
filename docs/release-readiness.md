@@ -19,7 +19,7 @@
 
 - [客户端构建 run 40262806341](https://github.com/appdev/TuneFlow/actions/runs/40262806341)：版本元数据、验证、六个桌面目标、Web、Android 均成功，`publish` 跳过。它证明当时源码的打包能力，不代表本次版本已经构建或发布。
 - [Docker run 40257488152](https://github.com/appdev/TuneFlow/actions/runs/40257488152)：构建、健康和存储检查成功；镜像推送与发布未执行。
-- 用户确认原 Q-music 发布仓库已删除。当前源码将客户端发布、下载及 API／raw／CDN 更新线路统一迁移到 TuneFlow，使用独立 `client-v<version>` 标签；不再需要旧仓库调用器。`appdev/TuneFlow-Client` 是独立 Flutter 仓库，不参与发布。
+- 用户确认原 Q-music 发布仓库已删除。当前源码将客户端发布、下载及 API／raw／CDN 更新线路统一迁移到 TuneFlow，沿用 `v<version>` 标签；不再需要旧仓库调用器。`appdev/TuneFlow-Client` 是独立 Flutter 仓库，不参与发布。
 - TuneFlow 中已配置 Docker Hub 用户变量和令牌名称；未读取令牌值。它们的存在不等于本次已完成推送验证。
 
 结论：已有跨平台预览包构建能力，源码已解除对旧发布仓库的依赖。新仓库的首次公开客户端发布仍需实际运行确认，不能将离线测试等同于公开发布成功。服务镜像缺少 arm64，正式签名与公证也未覆盖。

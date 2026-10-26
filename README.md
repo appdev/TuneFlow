@@ -113,7 +113,7 @@ Web 固定连接当前页面所在服务，隐藏服务器切换设置；桌面�
 | Android | `Q-music-android-v<version>-<architecture>.apk`；不确定架构时选择 universal |
 | 独立 Web 资源 | `Q-music-Web-<version>.tar.gz`；由兼容的 Server 托管 |
 
-安装包文件保留 **Q-music** 的历史名称，客户端与服务端统一发布于 **appdev/TuneFlow**；客户端标签为 `client-v<version>`，服务端为 `v<version>`。客户端包含预览版本，请阅读发布说明并核对 SHA256。原发布仓库已删除，旧版更新地址无法继续使用，首次迁移请手动下载新版覆盖安装，保留原应用 ID、签名和数据目录，无需卸载。
+安装包文件保留 **Q-music** 的历史名称，客户端安装包统一发布于 **appdev/TuneFlow**，沿用 `v<version>` 标签；Docker 镜像发布到 Docker Hub。客户端包含预览版本，请阅读发布说明并核对 SHA256。原发布仓库已删除，旧版更新地址无法继续使用，首次迁移请手动下载新版覆盖安装，保留原应用 ID、签名和数据目录，无需卸载。
 
 ## 源码开发
 

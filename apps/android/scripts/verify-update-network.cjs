@@ -22,9 +22,9 @@ test('整合版只使用自有更新仓库，并识别已公开的预览通道',
   const result = await sources.getUpdateVersion(async url => {
     assert.ok(url.includes('appdev/TuneFlow'))
     if (url.includes('api.github')) return [
-      { tag_name: 'client-v0.4.25', prerelease: true, body: 'unrelated prerelease', assets: [{ name }] },
-      { tag_name: 'client-v0.4.24', prerelease: true, body: '<!-- qmusic-service-preview -->', assets: [{ name }] },
-      { tag_name: 'client-v0.4.26', draft: true, body: '<!-- qmusic-service-preview -->', assets: [{ name }] },
+      { tag_name: 'v0.4.25', prerelease: true, body: 'unrelated prerelease', assets: [{ name }] },
+      { tag_name: 'v0.4.24', prerelease: true, body: '<!-- qmusic-service-preview -->', assets: [{ name }] },
+      { tag_name: 'v0.4.26', draft: true, body: '<!-- qmusic-service-preview -->', assets: [{ name }] },
     ]
     throw Error('offline')
   }, 'android')
@@ -62,8 +62,8 @@ function setup(outcomes) {
 test('安卓 GitHub 断网时从镜像取得版本，过滤 PC 独立版本', async() => {
   const result = await sources.getUpdateVersion(async url => {
     if (url.includes('api.github')) return [
-      { tag_name: 'client-v0.5.0', assets: [{ name: 'latest.yml' }] },
-      { tag_name: 'client-v0.4.10', assets: [{ name }] },
+      { tag_name: 'v0.5.0', assets: [{ name: 'latest.yml' }] },
+      { tag_name: 'v0.4.10', assets: [{ name }] },
     ]
     throw Error('offline')
   }, 'android')

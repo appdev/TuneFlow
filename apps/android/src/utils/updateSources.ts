@@ -46,14 +46,14 @@ export const getUpdateVersion = async(request: Request, platform: 'desktop' | 'a
     if (index == 0) {
       if (!Array.isArray(body)) throw new Error('发布信息格式错误')
       const releases = body.filter(release => !release.draft && (!release.prerelease || String(release.body).includes('<!-- qmusic-service-preview -->')) &&
-        String(release.tag_name ?? '').startsWith('client-v') && validVersion(String(release.tag_name).slice(8)) &&
+        String(release.tag_name ?? '').startsWith('v') && validVersion(String(release.tag_name).slice(1)) &&
         release.assets?.some((asset: ReleaseAsset) => platform == 'android'
           ? /^Q-music-android-v[\d.]+-.+\.apk$/.test(asset.name)
           : /^(?:Q-music-Docker-[\d.]+-(?:mac|win|linux)-(?:x64|arm64)\.(?:zip|tar\.gz)|latest(?:-mac|-linux)?\.yml)$|\.(?:exe|dmg|appimage|deb|rpm|pacman)$/i.test(asset.name)))
-      releases.sort((a, b) => compareVersions(String(b.tag_name).slice(8), String(a.tag_name).slice(8)))
+      releases.sort((a, b) => compareVersions(String(b.tag_name).slice(1), String(a.tag_name).slice(1)))
       if (!releases.length) throw new Error('没有找到当前平台已发布的版本')
       const release = releases[0]
-      return { version: release.tag_name.slice(8), desc: release.body || release.name || '', history: [], assets: release.assets }
+      return { version: release.tag_name.slice(1), desc: release.body || release.name || '', history: [], assets: release.assets }
     }
     if (!body || !validVersion(body.version)) throw new Error('版本信息格式错误')
     return { version: body.version, desc: typeof body.desc == 'string' ? body.desc : '', history: Array.isArray(body.history) ? body.history : [], assets: Array.isArray(body.assets) ? body.assets : undefined }
@@ -70,7 +70,7 @@ export const getUpdateVersion = async(request: Request, platform: 'desktop' | 'a
 
 export const assetUrl = (version: string, name: string) => {
   if (!validVersion(version) || !/^[\w.+-]+$/.test(name)) throw new Error('更新文件地址无效')
-  return `${releaseBase}client-v${version}/${name}`
+  return `${releaseBase}v${version}/${name}`
 }
 
 export const checksumFor = (body: unknown, name: string) => {
