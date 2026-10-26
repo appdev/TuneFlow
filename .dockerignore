@@ -22,3 +22,7 @@ npm-debug.log*
 **/artifacts
 apps/player
 apps/android
+**/AGENTS.md
+**/docs/superpowers
+**/src/**/*-internal.js
+**/publish/utils/githubToken.js
