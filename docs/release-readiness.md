@@ -17,9 +17,10 @@
 
 ## 实际检查结果
 
-- 本次冻结源码为 `e2a0bdcb1227180fb48c8fc306907f5ccc0278bc`，客户端标签为 `TuneFlow-v0.4.26`。
-- [客户端 run 40337085432](https://github.com/appdev/TuneFlow/actions/runs/40337085432)：版本检查、六个桌面目标、Web、Android 及发布全部成功。首次创建 Release 遇到 GitHub HTTP 500，仅重试失败发布任务后成功，复用原构建附件。
-- [客户端 0.4.26 预览版](https://github.com/appdev/TuneFlow/releases/tag/TuneFlow-v0.4.26) 已公开，包含 12 个平台包及 6 个摘要／清单附件。独立下载清单和校验文件，与 GitHub 公开附件摘要、大小核对通过；桌面与 Android 更新通道均指向本次冻结源码和已公开附件。
+- 本次客户端冻结源码为 `0e839202b2b9d6f63b4d222cb3d85e7c03de2cc7`，标签为 `TuneFlow-v0.4.27`；服务镜像仍为上一轮冻结源码 `e2a0bdcb1227180fb48c8fc306907f5ccc0278bc`。
+- [客户端 run 40343194638](https://github.com/appdev/TuneFlow/actions/runs/40343194638)：版本检查、六个桌面目标、Web、Android 及发布全部成功。Android 额外验证应用 ID、签名、arm64 版本码 `55003`、通用版版本码 `55005` 及通用包的四种原生架构。
+- [客户端 0.4.27 预览版](https://github.com/appdev/TuneFlow/releases/tag/TuneFlow-v0.4.27) 已公开，包含 9 个 TuneFlow 平台包及 6 个摘要／清单附件。Android 仅发布 arm64-v8a、universal 两个 APK。独立下载清单和校验文件，与 GitHub 公开附件摘要、大小核对通过；桌面与 Android 更新通道均指向本次客户端冻结源码和已公开附件。
+- 应用户要求，在新版公开验证后删除 `TuneFlow-v0.4.26` Release 及其附件；已确认旧 Release 查询返回 404，源码标签保留以便追溯。已安装 0.4.26 的 Android 使用旧下载文件名，需要手动下载新版覆盖安装一次，无需卸载。新版更新下载已使用 TuneFlow 文件名和两种 APK 选择。
 - [Docker run 40337092339](https://github.com/appdev/TuneFlow/actions/runs/40337092339)：构建、健康、存储检查和镜像推送成功，服务端 GitHub Release 步骤跳过。Docker Hub `apkdv/tuneflow-server:2.13.8` 与 `latest` 摘要一致：`sha256:332f4c8e6666f0b524dc4540b27fb8ee2f3b6db073116094cae354c52430c0a0`，平台 `linux/amd64`。
 - [共享契约 run 40335883068](https://github.com/appdev/TuneFlow/actions/runs/40335883068) 与 [服务端完整检查 run 40335875429](https://github.com/appdev/TuneFlow/actions/runs/40335875429) 均通过。
 - 用户确认原 Q-music 发布仓库已删除。当前源码将客户端发布、下载及 API／raw／CDN 更新线路统一迁移到 TuneFlow，使用 `TuneFlow-v<version>` 标签；不再需要旧仓库调用器。`appdev/TuneFlow-Client` 是独立 Flutter 仓库，不参与发布。
