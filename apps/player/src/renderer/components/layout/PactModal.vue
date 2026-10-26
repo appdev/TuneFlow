@@ -5,7 +5,7 @@
       <div class="select scroll" :class="$style.content">
         <template v-if="!isAgreePact"><p><strong>在使用本软件前，你（使用者）需签署本协议才可继续使用！</strong></p><br></template>
         <p>本项目基于&nbsp;<strong class="hover underline" @click="openUrl('http://www.apache.org/licenses/LICENSE-2.0')">Apache License 2.0</strong>&nbsp;许可证发行。以下协议是对于 Apache License 2.0 的补充，如有冲突，以以下协议为准。</p><br>
-        <p>词语约定：本协议中的“本项目”指 Q-music 桌面版项目；“使用者”指签署本协议的使用者；“官方音乐平台”指对本项目内置的包括酷我、酷狗、咪咕等音乐源的官方平台统称；“版权数据”指包括但不限于图像、音频、名字等在内的他人拥有所属版权的数据。</p><br>
+        <p>词语约定：本协议中的“本项目”指 TuneFlow 桌面版项目；“使用者”指签署本协议的使用者；“官方音乐平台”指对本项目内置的包括酷我、酷狗、咪咕等音乐源的官方平台统称；“版权数据”指包括但不限于图像、音频、名字等在内的他人拥有所属版权的数据。</p><br>
         <p><strong>一、数据来源</strong></p><br>
         <p>1.1&nbsp;本项目的各官方平台在线数据来源原理是从其公开服务器中拉取数据（与未登录状态在官方平台 APP 获取的数据相同），经过对数据简单地筛选与合并后进行展示，因此本项目不对数据的合法性、准确性负责。</p><br>
         <p>1.2&nbsp;本项目本身没有获取某个音频数据的能力，本项目使用的在线音频数据来源来自软件设置内“自定义源”设置所选择的“源”返回的在线链接。例如播放某首歌，本项目所做的只是将希望播放的歌曲名、艺术家等信息传递给“源”，若“源”返回了一个链接，则本项目将认为这就是该歌曲的音频数据而进行使用，至于这是不是正确的音频数据本项目无法校验其准确性，所以使用本项目的过程中可能会出现希望播放的音频与实际播放的音频不对应或者无法播放的问题。</p><br>
@@ -27,7 +27,7 @@
         <p>8.1&nbsp;本项目仅用于对技术可行性的探索及研究，不接受任何商业（包括但不限于广告等）合作及捐赠。</p><br>
         <p><strong>九、接受协议</strong></p><br>
         <p>9.1&nbsp;若你使用了本项目，即代表你接受本协议。</p><br>
-        <p><strong>*</strong>&nbsp;若协议更新，恕不另行通知，可到&nbsp;<span class="hover underline" @click="openUrl('https://github.com/Nshpiter/Q-music#readme')">Q-music 仓库</span>&nbsp;查看。</p>
+        <p><strong>*</strong>&nbsp;若协议更新，恕不另行通知，可到&nbsp;<span class="hover underline" @click="openUrl('https://github.com/appdev/TuneFlow#readme')">TuneFlow 仓库</span>&nbsp;查看。</p>
         <p v-if="!isAgreePact"><strong>若你（使用者）接受以上协议，请点击下面的“接受”按钮签署本协议，若不接受，请点击“不接受”后退出软件并清除本软件的所有数据。</strong></p>
       </div>
       <div v-if="!isAgreePact" :class="$style.btns">

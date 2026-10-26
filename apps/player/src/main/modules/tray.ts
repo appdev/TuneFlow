@@ -147,7 +147,7 @@ export const createTray = () => {
   // 托盘
   tray = new Tray(nativeImage.createFromPath(getIconPath(global.lx.appSetting['tray.themeId'])))
 
-  // tray.setToolTip('Q-music')
+  // tray.setToolTip('TuneFlow')
   // createMenu()
   tray.setIgnoreDoubleClickEvents(true)
   if (isWin) {
@@ -306,7 +306,7 @@ const setLyric = (lyricLineText?: string) => {
   }
 }
 
-const defaultTip = 'Q-music'
+const defaultTip = 'TuneFlow'
 const setTip = () => {
   if (!tray) return
 

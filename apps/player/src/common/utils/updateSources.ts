@@ -46,11 +46,11 @@ export const getUpdateVersion = async(request: Request, platform: 'desktop' | 'a
     const body = await request(url)
     if (index == 0) {
       if (!Array.isArray(body)) throw new Error('发布信息格式错误')
-      const releases = body.filter(release => !release.draft && (!release.prerelease || String(release.body).includes('<!-- qmusic-service-preview -->')) &&
+      const releases = body.filter(release => !release.draft && (!release.prerelease || /<!-- (?:tuneflow|qmusic)-service-preview -->/.test(String(release.body))) &&
         String(release.tag_name ?? '').startsWith(releaseTagPrefix) && validVersion(String(release.tag_name).slice(releaseTagPrefix.length)) &&
         release.assets?.some((asset: ReleaseAsset) => platform == 'android'
-          ? /^Q-music-android-v[\d.]+-.+\.apk$/.test(asset.name)
-          : /^(?:Q-music-Docker-[\d.]+-(?:mac|win|linux)-(?:x64|arm64)\.(?:zip|tar\.gz)|latest(?:-mac|-linux)?\.yml)$|\.(?:exe|dmg|appimage|deb|rpm|pacman)$/i.test(asset.name)))
+          ? /^(?:TuneFlow-Android-|Q-music-android-v)[\d.]+-.+\.apk$/.test(asset.name)
+          : /^(?:(?:TuneFlow|Q-music-Docker)-[\d.]+-(?:mac|win|linux)-(?:x64|arm64)\.(?:zip|tar\.gz)|latest(?:-mac|-linux)?\.yml)$|\.(?:exe|dmg|appimage|deb|rpm|pacman)$/i.test(asset.name)))
       releases.sort((a, b) => compareVersions(String(b.tag_name).slice(releaseTagPrefix.length), String(a.tag_name).slice(releaseTagPrefix.length)))
       if (!releases.length) throw new Error('没有找到当前平台已发布的版本')
       const release = releases[0]

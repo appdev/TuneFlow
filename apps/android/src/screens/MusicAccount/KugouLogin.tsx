@@ -65,7 +65,7 @@ export default ({ onConnected }: { onConnected: () => void }) => {
 
   return <ScrollView contentContainerStyle={styles.container}>
     <Text size={20} style={styles.title}>酷狗音乐登录</Text>
-    <Text size={13} color={theme['q-text-secondary']} style={styles.tip}>登录后可选择自己的歌单导入 Q-music</Text>
+    <Text size={13} color={theme['q-text-secondary']} style={styles.tip}>登录后可选择自己的歌单导入 TuneFlow</Text>
     <View style={[styles.code, { width: size, height: size }]}>
       {qr ? <Image source={{ uri: qr.image }} style={{ width: size, height: size }} resizeMode="contain" accessibilityLabel="酷狗音乐登录二维码" /> : <ActivityIndicator color={theme['q-accent']} />}
     </View>

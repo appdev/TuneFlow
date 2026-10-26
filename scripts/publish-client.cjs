@@ -13,7 +13,7 @@ const channelPath = channel => {
   if (!['desktop', 'android'].includes(channel)) throw Error('Invalid update channel')
   return 'channels/' + channel + '.json'
 }
-const assetComponent = name => name.endsWith('.apk') ? 'android' : name.startsWith('Q-music-Web-') ? 'web' : 'desktop'
+const assetComponent = name => name.endsWith('.apk') ? 'android' : name.startsWith('TuneFlow-Web-') ? 'web' : 'desktop'
 const compareVersions = (a, b) => {
   for (let i = 0; i < 3; i++) {
     const difference = Number(a.split('.')[i]) - Number(b.split('.')[i])
@@ -67,7 +67,7 @@ function publish(directory, env = process.env, runner = cp) {
     const metadata = require(mobile ? '../apps/android/publish/mobile-version.json' : '../apps/player/publish/version.json')
     if (metadata.version !== env.RELEASE_VERSION || metadata.desc.length < 80) throw Error('Missing matching release notes')
     const notes = path.join(directory, 'release-notes.md')
-    fs.writeFileSync(notes, '<!-- qmusic-service-preview -->\n' + metadata.desc + '\n\n源码： https://github.com/appdev/TuneFlow/tree/' + source + '\n各端按需分批提供安装包；以当前附件为准。\n')
+    fs.writeFileSync(notes, '<!-- tuneflow-service-preview -->\n' + metadata.desc + '\n\n源码： https://github.com/appdev/TuneFlow/tree/' + source + '\n各端按需分批提供安装包；以当前附件为准。\n')
     gh(['release', 'create', tag, '--draft', '--prerelease', '--target', source, '--title', 'TuneFlow 客户端 ' + env.RELEASE_VERSION + ' 预览版', '--notes-file', notes])
     release = { isDraft: true, assets: [] }
   }

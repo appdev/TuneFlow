@@ -1,6 +1,6 @@
 {
   "name": "q-music",
-  "version": "0.4.26",
+  "version": "0.4.27",
   "description": "一个免费的音乐查找助手",
   "main": "./dist/main.js",
   "private": true,
@@ -95,16 +95,16 @@
   },
   "macLanguagesInfoPlistStrings": {
     "en": {
-      "CFBundleDisplayName": "Q-music",
-      "CFBundleName": "Q-music"
+      "CFBundleDisplayName": "TuneFlow",
+      "CFBundleName": "TuneFlow"
     },
     "zh_CN": {
-      "CFBundleDisplayName": "Q-music",
-      "CFBundleName": "Q-music"
+      "CFBundleDisplayName": "TuneFlow",
+      "CFBundleName": "TuneFlow"
     },
     "zh_TW": {
-      "CFBundleDisplayName": "Q-music",
-      "CFBundleName": "Q-music"
+      "CFBundleDisplayName": "TuneFlow",
+      "CFBundleName": "TuneFlow"
     }
   },
   "keywords": [
@@ -115,7 +115,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Nshpiter/Q-music.git"
+    "url": "git+https://github.com/appdev/TuneFlow.git"
   },
   "author": {
     "name": "Nshpiter",
@@ -130,9 +130,9 @@
   ],
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/Nshpiter/Q-music/issues"
+    "url": "https://github.com/appdev/TuneFlow/issues"
   },
-  "homepage": "https://github.com/Nshpiter/Q-music#readme",
+  "homepage": "https://github.com/appdev/TuneFlow#readme",
   "devDependencies": {
     "@tsconfig/recommended": "^1.0.13",
     "@types/better-sqlite3": "^7.6.13",

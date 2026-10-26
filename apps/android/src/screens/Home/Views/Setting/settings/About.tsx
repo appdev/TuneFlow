@@ -13,7 +13,7 @@ import { showPactModal } from '@/core/common'
 import Button from '@/components/common/Button'
 import { Q_TOUCH_HIT_SLOP } from '@/theme/ui'
 
-const PROJECT_URL = 'https://github.com/Nshpiter/Q-music'
+const PROJECT_URL = 'https://github.com/appdev/TuneFlow'
 
 // const qqGroupUrl = 'mqqopensdkapi://bizAgent/qm/qr?url=http%3A%2F%2Fqm.qq.com%2Fcgi-bin%2Fqm%2Fqr%3Ffrom%3Dapp%26p%3Dandroid%26jump_from%3Dwebapi%26k%3Du1zyxek8roQAwic44nOkBXtG9CfbAxFw'
 // const qqGroupUrl2 = 'mqqopensdkapi://bizAgent/qm/qr?url=http%3A%2F%2Fqm.qq.com%2Fcgi-bin%2Fqm%2Fqr%3Ffrom%3Dapp%26p%3Dandroid%26jump_from%3Dwebapi%26k%3D-l4kNZ2bPQAuvfCQFFhl1UoibvF5wcrQ'
@@ -105,7 +105,7 @@ export default memo(() => {
         <Text style={styles.text}>。</Text>
       </View>
       <View style={styles.part}>
-        <Text style={styles.text}>Q-music 基于 LX Music Mobile 二次开发，感谢 lyswhut 与所有上游贡献者。</Text>
+        <Text style={styles.text}>TuneFlow 基于 LX Music Mobile 二次开发，感谢 lyswhut 与所有上游贡献者。</Text>
       </View>
     </Section>
   )

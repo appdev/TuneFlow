@@ -26,7 +26,7 @@ const Header = () => {
     >
       <View style={styles.header}>
         <Image source={require('../../../resources/images/q-music.png')} style={styles.logo} />
-        <Text style={styles.headerText} size={17} color={theme['q-text-primary']}>Q-music</Text>
+        <Text style={styles.headerText} size={17} color={theme['q-text-primary']}>TuneFlow</Text>
       </View>
     </View>
   )

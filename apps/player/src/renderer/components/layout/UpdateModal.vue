@@ -9,7 +9,7 @@ material-modal(:show="versionInfo.showModal" max-width="60%" @close="handleClose
           p 更新信息获取失败，可能是无法访问 GitHub 导致的，请手动检查更新！
           p
             | 检查方法：打开
-            base-btn(min aria-label="点击打开" @click="handleOpenUrl('https://github.com/Nshpiter/Q-music/releases')") 软件发布页
+            base-btn(min aria-label="点击打开" @click="handleOpenUrl('https://github.com/appdev/TuneFlow/releases')") 软件发布页
             | ，查看「Latest」发布的
             strong 版本号
             | 与当前版本({{ versionInfo.version }})对比是否一致。
@@ -75,7 +75,7 @@ material-modal(:show="versionInfo.showModal" max-width="60%" @close="handleClose
         p(v-if="isPackageManagerInstall") 当前安装由 pacman 管理，请从发布页下载新版软件包并使用 pacman 安装。
         p(v-else) 发现有新版本啦，你可以选择自动更新或手动更新。
         p 手动更新可以去&nbsp;
-          strong.hover.underline(aria-label="点击打开" @click="handleOpenUrl('https://github.com/Nshpiter/Q-music/releases')") 软件发布页
+          strong.hover.underline(aria-label="点击打开" @click="handleOpenUrl('https://github.com/appdev/TuneFlow/releases')") 软件发布页
           | 下载。
         p 若遇到问题可以阅读
           strong.hover.underline(aria-label="点击打开" @click="handleOpenUrl('https://lyswhut.github.io/lx-music-doc/desktop/faq')") 桌面版常见问题
@@ -85,7 +85,7 @@ material-modal(:show="versionInfo.showModal" max-width="60%" @close="handleClose
         p(v-else) &nbsp;
       div(:class="$style.btns")
         base-btn(:class="$style.btn2" @click="handleIgnoreClick") {{ isIgnored ? '取消忽略' : '忽略更新该版本' }}
-        base-btn(v-if="isPackageManagerInstall" :class="$style.btn2" @click="handleOpenUrl('https://github.com/Nshpiter/Q-music/releases')") 打开发布页
+        base-btn(v-if="isPackageManagerInstall" :class="$style.btn2" @click="handleOpenUrl('https://github.com/appdev/TuneFlow/releases')") 打开发布页
         base-btn(v-else-if="versionInfo.status == 'downloading'" :class="$style.btn2" disabled) 下载更新中...
         base-btn(v-else :class="$style.btn2" @click="handleDownloadClick") 下载更新
 </template>

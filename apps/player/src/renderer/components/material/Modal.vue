@@ -4,7 +4,7 @@
       <transition enter-active-class="animated fadeIn" leave-active-class="animated fadeOut">
         <div v-show="showContent" :class="[$style.modal, {[$style.filter]: filter, [$style.viewModal]: isViewModal}]" @click="bgClose && close()">
           <transition :enter-active-class="inClass" :leave-active-class="outClass" @after-enter="$emit('after-enter', $event)" @after-leave="handleAfterLeave">
-            <div v-show="showContent" ref="dom_content" :class="[$style.content, { [$style.headed]: heading }]" :style="contentStyle" role="dialog" aria-modal="true" :aria-labelledby="dialogTitleId || undefined" :aria-label="$attrs['aria-label'] || (!dialogTitleId ? 'Q-music' : undefined)" tabindex="-1" @click.stop>
+            <div v-show="showContent" ref="dom_content" :class="[$style.content, { [$style.headed]: heading }]" :style="contentStyle" role="dialog" aria-modal="true" :aria-labelledby="dialogTitleId || undefined" :aria-label="$attrs['aria-label'] || (!dialogTitleId ? 'TuneFlow' : undefined)" tabindex="-1" @click.stop>
               <header :class="$style.header">
                 <h2 v-if="heading">{{ heading }}</h2>
                 <button v-if="closeBtn" type="button" :aria-label="$t('close')" @click="close">

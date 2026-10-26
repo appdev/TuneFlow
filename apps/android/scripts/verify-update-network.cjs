@@ -16,21 +16,21 @@ function load(file, dependencies, extra = {}) {
 }
 const sources = load('src/utils/updateSources.ts', { './updateMirror.json': { baseUrl: '' } })
 const digest = 'a'.repeat(64)
-const name = 'Q-music-android-v0.4.10-arm64-v8a.apk'
+const name = 'TuneFlow-Android-0.4.10-arm64-v8a.apk'
 test('整合版只使用自有更新仓库，并识别已公开的预览通道', async() => {
   assert.equal(sources.releaseBase, 'https://github.com/appdev/TuneFlow/releases/download/')
   const result = await sources.getUpdateVersion(async url => {
     assert.ok(url.includes('appdev/TuneFlow'))
     if (url.includes('api.github')) return [
       { tag_name: 'TuneFlow-v0.4.25', prerelease: true, body: 'unrelated prerelease', assets: [{ name }] },
-      { tag_name: 'TuneFlow-v0.4.24', prerelease: true, body: '<!-- qmusic-service-preview -->', assets: [{ name }] },
-      { tag_name: 'TuneFlow-v0.4.26', draft: true, body: '<!-- qmusic-service-preview -->', assets: [{ name }] },
+      { tag_name: 'TuneFlow-v0.4.24', prerelease: true, body: '<!-- tuneflow-service-preview -->', assets: [{ name }] },
+      { tag_name: 'TuneFlow-v0.4.26', draft: true, body: '<!-- tuneflow-service-preview -->', assets: [{ name }] },
     ]
     throw Error('offline')
   }, 'android')
   assert.equal(result.version, '0.4.24')
 })
-function setup(outcomes) {
+function setup(outcomes, supported = ['arm64-v8a']) {
   let attempts = 0
   let installed = 0
   let present = false
@@ -40,9 +40,9 @@ function setup(outcomes) {
   let timerId = 0
   let rejectStalled
   const api = load('src/utils/version.js', {
-    '@/utils/request': { httpGet: (url, options, callback) => callback(null, { statusCode: 200 }, `${digest}  ${name}\n`) },
+    '@/utils/request': { httpGet: (url, options, callback) => callback(null, { statusCode: 200 }, `${digest}  TuneFlow-Android-0.4.10-${supported.includes('arm64-v8a') ? 'arm64-v8a' : 'universal'}.apk\n`) },
     './updateSources': sources,
-    '@/utils/nativeModules/utils': { getSupportedAbis: async() => ['arm64-v8a'], installApk: async() => { installed++ } },
+    '@/utils/nativeModules/utils': { getSupportedAbis: async() => supported, installApk: async() => { installed++ } },
     '@/config/constant': { APP_PROVIDER_NAME: 'preview' },
     '@/utils/fs': {
       temporaryDirectoryPath: '/cache', existsFile: async() => present,
@@ -109,4 +109,14 @@ test('安卓下载无进展时停止旧任务并自动切线，完成后清理�
   await pending
   assert.equal(run.attempts(), 2)
   assert.equal(run.timers.size, 0)
+})
+
+test('Android selects only arm64 or universal, retaining support for other device architectures', async() => {
+  for (const supported of [['arm64-v8a', 'armeabi-v7a'], ['armeabi-v7a'], ['x86_64', 'x86'], []]) {
+    const run = setup(['ok'], supported)
+    await run.api.downloadNewVersion('0.4.10')
+    assert.ok(run.urls.every(url => url.endsWith(`TuneFlow-Android-0.4.10-${supported.includes('arm64-v8a') ? 'arm64-v8a' : 'universal'}.apk`)))
+    await run.api.updateApp()
+    assert.equal(run.installed(), 1)
+  }
 })

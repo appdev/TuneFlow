@@ -117,13 +117,13 @@ public class UtilsModule extends ReactContextBaseJavaModule {
         if (bytes.length < 8 || bytes[0] != (byte) 0x89 || bytes[1] != 0x50 || bytes[2] != 0x4e || bytes[3] != 0x47) {
           throw new IllegalArgumentException("Invalid PNG image");
         }
-        String name = "Q-music-WeChat-" + System.currentTimeMillis() + ".png";
+        String name = "TuneFlow-WeChat-" + System.currentTimeMillis() + ".png";
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
           // Android 10+ 通过媒体库保存自己的图片，无需申请所有文件访问权限。
           ContentValues values = new ContentValues();
           values.put(MediaStore.Images.Media.DISPLAY_NAME, name);
           values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
-          values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Q-music");
+          values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/TuneFlow");
           values.put(MediaStore.Images.Media.IS_PENDING, 1);
           saved = reactContext.getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
           if (saved == null) throw new IllegalStateException("Unable to create image");
@@ -136,7 +136,7 @@ public class UtilsModule extends ReactContextBaseJavaModule {
           reactContext.getContentResolver().update(saved, values, null, null);
           promise.resolve(saved.toString());
         } else {
-          File folder = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "Q-music");
+          File folder = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "TuneFlow");
           if (!folder.isDirectory() && !folder.mkdirs()) throw new IllegalStateException("Unable to create directory");
           File file = new File(folder, name);
           try (OutputStream stream = new FileOutputStream(file)) { stream.write(bytes); }

@@ -3,9 +3,9 @@ const path = require('node:path')
 const crypto = require('node:crypto')
 
 const expectedAssets = version => [
-  ...['mac', 'win', 'linux'].flatMap(os => ['arm64', 'x64'].map(arch => `Q-music-Docker-${version}-${os}-${arch}.${os === 'linux' ? 'tar.gz' : 'zip'}`)),
-  `Q-music-Web-${version}.tar.gz`,
-  ...['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64', 'universal'].map(abi => `Q-music-android-v${version}-${abi}.apk`),
+  ...['mac', 'win', 'linux'].flatMap(os => ['arm64', 'x64'].map(arch => `TuneFlow-${version}-${os}-${arch}.${os === 'linux' ? 'tar.gz' : 'zip'}`)),
+  `TuneFlow-Web-${version}.tar.gz`,
+  ...['arm64-v8a', 'universal'].map(abi => `TuneFlow-Android-${version}-${abi}.apk`),
 ]
 
 function prepareRelease(directory, metadata) {

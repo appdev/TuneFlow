@@ -11,6 +11,16 @@ const { expectedAssets } = require('../apps/player/scripts/prepare-release.cjs')
 const source = 'a'.repeat(40)
 const version = require('../apps/player/package.json').version
 
+test('release contains TuneFlow packages and exactly arm64 plus universal Android', () => {
+  const names = expectedAssets(version)
+  assert.equal(names.length, 9)
+  assert.ok(names.every(name => name.startsWith('TuneFlow-') && !/Q.?music/i.test(name)))
+  assert.deepEqual(names.filter(name => name.endsWith('.apk')), [
+    `TuneFlow-Android-${version}-arm64-v8a.apk`,
+    `TuneFlow-Android-${version}-universal.apk`,
+  ])
+})
+
 function fixture(t, options = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tuneflow-publication-'))
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
@@ -40,7 +50,7 @@ function fixture(t, options = {}) {
       if (args[0] === 'release') return { status: 1, stderr: '404 not found' }
       if (args.includes('PUT')) {
         assert.equal(state.draft, false)
-        assert.equal(state.assets.length, 18)
+        assert.equal(state.assets.length, 15)
         const body = JSON.parse(opts.input)
         assert.equal(body.branch, 'main')
         writes.push({ api: args[3], body, metadata: JSON.parse(Buffer.from(body.content, 'base64')) })
@@ -63,7 +73,7 @@ test('TuneFlow publishes a frozen client tag and creates channels only after ver
   for (const w of f.writes) {
     assert.equal(w.metadata.version, version)
     assert.equal(w.metadata.commit, source)
-    assert.equal(w.metadata.assets.length, 18)
+    assert.equal(w.metadata.assets.length, 15)
     assert.equal(w.body.sha, undefined)
   }
   assert.equal(releaseTag(version), 'TuneFlow-v' + version)
@@ -112,10 +122,10 @@ test('desktop and Android select their own public client release, excluding Serv
         return [
           { tag_name: 'v99.0.0', assets: [{ name: 'release-manifest.json' }] },
           { tag_name: 'v98.0.0', assets: [{ name: 'latest.yml' }] },
-          { tag_name: 'TuneFlow-v9.0.0', draft: true, assets: [{ name: 'Q-music-Docker-9.0.0-mac-arm64.zip' }] },
-          { tag_name: 'TuneFlow-v8.0.0', assets: [{ name: 'Q-music-Web-8.0.0.tar.gz' }] },
-          { tag_name: 'TuneFlow-v0.4.26', prerelease: true, body: '<!-- qmusic-service-preview -->', assets: [{ name: 'Q-music-android-v0.4.26-arm64-v8a.apk' }] },
-          { tag_name: 'TuneFlow-v0.4.25', prerelease: true, body: '<!-- qmusic-service-preview -->', assets: [{ name: 'Q-music-Docker-0.4.25-linux-arm64.tar.gz' }] },
+          { tag_name: 'TuneFlow-v9.0.0', draft: true, assets: [{ name: 'TuneFlow-9.0.0-mac-arm64.zip' }] },
+          { tag_name: 'TuneFlow-v8.0.0', assets: [{ name: 'TuneFlow-Web-8.0.0.tar.gz' }] },
+          { tag_name: 'TuneFlow-v0.4.26', prerelease: true, body: '<!-- tuneflow-service-preview -->', assets: [{ name: 'TuneFlow-Android-0.4.26-arm64-v8a.apk' }] },
+          { tag_name: 'TuneFlow-v0.4.25', prerelease: true, body: '<!-- tuneflow-service-preview -->', assets: [{ name: 'TuneFlow-0.4.25-linux-arm64.tar.gz' }] },
         ]
       }, platform)
       assert.equal(info.version, platform === 'android' ? '0.4.26' : '0.4.25')

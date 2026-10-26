@@ -123,7 +123,7 @@ jobs:
       - run: npm run pack:service -- ${{ matrix.target }}
       - uses: actions/upload-artifact@v6
         with:
-          name: qmusic-release-${{ matrix.target }}
+          name: tuneflow-release-${{ matrix.target }}
           path: |
             apps/player/artifacts/release/${{ matrix.target }}/*.zip
             apps/player/artifacts/release/${{ matrix.target }}/*.tar.gz
@@ -154,11 +154,11 @@ jobs:
       - name: Archive Web
         env:
           VERSION: ${{ needs.metadata.outputs.version }}
-        run: tar -czf "Q-music-Web-$VERSION.tar.gz" -C apps/service/dist/web-qmusic .
+        run: tar -czf "TuneFlow-Web-$VERSION.tar.gz" -C apps/service/dist/web-qmusic .
       - uses: actions/upload-artifact@v6
         with:
-          name: qmusic-release-web
-          path: Q-music-Web-*.tar.gz
+          name: tuneflow-release-web
+          path: TuneFlow-Web-*.tar.gz
           if-no-files-found: error
 
   android:
@@ -201,6 +201,27 @@ jobs:
           npm run test:playback-preferences
           npm run test:background
       - run: npm run pack:android:standalone
+      - name: Verify the two published Android packages and universal architectures
+        shell: bash
+        env:
+          VERSION: ${{ needs.metadata.outputs.version }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, zipfile
+          root = pathlib.Path('android/app/build/outputs/apk/standalone')
+          version = os.environ['VERSION']
+          base = json.loads(pathlib.Path('package.json').read_text())['versionCode']
+          for abi, code in [('arm64-v8a', 3), ('universal', 5)]:
+              apk = root / f'TuneFlow-Android-{version}-{abi}.apk'
+              assert apk.is_file(), apk
+              with zipfile.ZipFile(apk) as archive:
+                  architectures = {name.split('/')[1] for name in archive.namelist() if name.startswith('lib/') and name.endswith('.so')}
+              expected = {'arm64-v8a'} if abi == 'arm64-v8a' else {'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'}
+              assert architectures == expected, (apk.name, architectures)
+              import subprocess
+              badging = subprocess.check_output([os.environ['ANDROID_HOME'] + '/build-tools/35.0.0/aapt', 'dump', 'badging', str(apk)], text=True)
+              assert f"versionCode='{base * 1000 + code}'" in badging
+          PY
       - name: Verify preview identity and APK signatures
         shell: bash
         env:
@@ -214,8 +235,10 @@ jobs:
           done
       - uses: actions/upload-artifact@v6
         with:
-          name: qmusic-release-android
-          path: apps/android/android/app/build/outputs/apk/standalone/*.apk
+          name: tuneflow-release-android
+          path: |
+            apps/android/android/app/build/outputs/apk/standalone/*-arm64-v8a.apk
+            apps/android/android/app/build/outputs/apk/standalone/*-universal.apk
           if-no-files-found: error
 
   publish:
@@ -240,7 +263,7 @@ jobs:
           ref: ${{ needs.metadata.outputs.source }}
       - uses: actions/download-artifact@v7
         with:
-          pattern: qmusic-release-*
+          pattern: tuneflow-release-*
           path: release-assets
           merge-multiple: true
       - run: node scripts/publish-client.cjs release-assets

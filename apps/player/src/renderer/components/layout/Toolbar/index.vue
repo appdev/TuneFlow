@@ -6,7 +6,7 @@
       <span>{{ $t('search__resume') }}</span>
     </router-link>
     <SearchInput />
-    <div v-if="isMac || appSetting['common.controlBtnPosition'] == 'left'" :class="$style.logo">Q-music</div>
+    <div v-if="isMac || appSetting['common.controlBtnPosition'] == 'left'" :class="$style.logo">TuneFlow</div>
   </div>
 </template>
 

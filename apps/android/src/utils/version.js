@@ -18,7 +18,7 @@ export const getVersionInfo = async() => {
 
 const getTargetAbi = async() => {
   const supported = await getSupportedAbis()
-  return ['arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'].find(abi => supported.includes(abi)) || 'universal'
+  return supported.includes('arm64-v8a') ? 'arm64-v8a' : 'universal'
 }
 let downloadPromise = null
 let apkSavePath
@@ -36,7 +36,7 @@ const getDownloadPlan = async(version, name) => {
 
 const downloadApk = async(version, onDownload, onStatus) => {
   const abi = await getTargetAbi()
-  const name = `Q-music-android-v${version}-${abi}.apk`
+  const name = `TuneFlow-Android-${version}-${abi}.apk`
   const url = assetUrl(version, name)
   const savePath = `${temporaryDirectoryPath}/${name}`
   onStatus('正在检测下载线路并获取校验信息…')

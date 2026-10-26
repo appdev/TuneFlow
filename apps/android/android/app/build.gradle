@@ -100,7 +100,7 @@ def getNpmPackageJson() {
 def npmPackageJson = getNpmPackageJson()
 def verCode = npmPackageJson["versionCode"]
 def verName = npmPackageJson["version"]
-def applicationName = "Q-music-android"
+def applicationName = "TuneFlow-Android"
 def uploadSigningPropertyNames = [
     'MYAPP_UPLOAD_STORE_FILE',
     'MYAPP_UPLOAD_STORE_PASSWORD',
@@ -205,13 +205,15 @@ android {
             def versionCodes = ["armeabi-v7a": 1, "x86": 2, "arm64-v8a": 3, "x86_64": 4]
             def abi = output.getFilter(OutputFile.ABI)
             if (abi == null) {  // null for the universal-debug, universal-release variants
+                // Keep universal upgrades higher than every ABI split of the previous version.
+                output.versionCodeOverride = defaultConfig.versionCode * 1000 + 5
                 output.outputFileName =
-                        "${applicationName}-v${defaultConfig.versionName}-universal.apk"
+                        "${applicationName}-${defaultConfig.versionName}-universal.apk"
             } else {
                 output.versionCodeOverride =
                         defaultConfig.versionCode * 1000 + versionCodes.get(abi)
                 output.outputFileName =
-                        "${applicationName}-v${defaultConfig.versionName}-${abi}.apk"
+                        "${applicationName}-${defaultConfig.versionName}-${abi}.apk"
             }
 
         }

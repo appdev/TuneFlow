@@ -36,7 +36,7 @@
       tools:targetApi="n">
       <meta-data android:name="lyricon_module" android:value="true" />
       <meta-data android:name="lyricon_module_author" android:value="Nshpiter" />
-      <meta-data android:name="lyricon_module_description" android:value="Q-music 原生状态栏歌词" />
+      <meta-data android:name="lyricon_module_description" android:value="TuneFlow 原生状态栏歌词" />
       <service android:name="com.guichaguri.trackplayer.service.MusicService"
         android:foregroundServiceType="mediaPlayback" />
       <activity

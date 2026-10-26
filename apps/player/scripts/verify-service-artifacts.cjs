@@ -29,7 +29,7 @@ if (process.argv[2] === 'freeze') {
     const folder = path.join(root, 'artifacts/navigation-performance', target)
     const native = JSON.parse(fs.readFileSync(path.join(folder, 'native-bindings.json'), 'utf8'))
     const unpacked = platform === 'darwin'
-      ? path.join(folder, arch === 'arm64' ? 'mac-arm64' : 'mac', 'Q-music Docker Preview.app/Contents/Resources')
+      ? path.join(folder, arch === 'arm64' ? 'mac-arm64' : 'mac', 'TuneFlow.app/Contents/Resources')
       : path.join(folder, platform === 'win32' ? arch === 'arm64' ? 'win-arm64-unpacked' : 'win-unpacked' : arch === 'arm64' ? 'linux-arm64-unpacked' : 'linux-unpacked', 'resources')
     const archive = path.join(unpacked, 'app.asar')
     for (const file of frozen.dist) {

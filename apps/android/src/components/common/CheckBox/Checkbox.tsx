@@ -41,7 +41,7 @@ export interface Props {
 const ANIMATION_DURATION = 200
 
 /**
- * Q-music 的玻璃勾选控件。视觉尺寸保持紧凑，外层保留足够触控区域。
+ * TuneFlow 的玻璃勾选控件。视觉尺寸保持紧凑，外层保留足够触控区域。
  */
 const Checkbox = ({
   status,

@@ -81,17 +81,17 @@ const run = async(target) => {
   await verifyNative(qrc, platform, arch)
   await fs.mkdir(path.join(stage, 'build/Release'), { recursive: true })
   await fs.copyFile(qrc, path.join(stage, 'build/Release/qrc_decode.node'))
-  await fs.writeFile(path.join(stage, 'package.json'), JSON.stringify({ name: 'q-music-docker-preview', version: process.env.Q_PREVIEW_VERSION || pkg.version, main: 'dist/main.js', description: 'Q-music unified Docker Service client', author: pkg.author, license: pkg.license, dependencies }, null, 2))
+  await fs.writeFile(path.join(stage, 'package.json'), JSON.stringify({ name: 'tuneflow', version: process.env.Q_PREVIEW_VERSION || pkg.version, main: 'dist/main.js', description: 'TuneFlow music client', author: pkg.author, license: pkg.license, dependencies }, null, 2))
   const config = {
-    appId: 'io.github.qmusic.docker.preview', productName: 'Q-music Docker Preview', electronVersion,
+    appId: 'io.github.qmusic.docker.preview', productName: 'TuneFlow', electronVersion,
     directories: { app: stage, output, buildResources: path.join(root, 'resources') },
     npmRebuild: false, nodeGypRebuild: false, asar: { smartUnpack: false },
     files: ['dist/**/*', 'build/Release/qrc_decode.node', 'package.json', 'node_modules/**/*'],
     extraResources: [{ from: path.join(root, 'licenses'), to: 'licenses' }, { from: path.join(root, 'NOTICE'), to: 'NOTICE' }, { from: path.join(root, 'LICENSE'), to: 'LICENSE' }],
-    publish: null, artifactName: 'Q-music-Docker-${version}-${os}-${arch}.${ext}',
+    publish: null, artifactName: 'TuneFlow-${version}-${os}-${arch}.${ext}',
     mac: { identity: '-', hardenedRuntime: false, gatekeeperAssess: false, icon: path.join(root, 'resources/icons/icon.icns'), category: 'public.app-category.music', target: ['zip'] },
     win: { icon: path.join(root, 'resources/icons/icon.ico'), target: ['zip'], signAndEditExecutable: false },
-    linux: { executableName: 'q-music-docker-preview', icon: path.join(root, 'resources/icons'), category: 'AudioVideo', target: ['tar.gz'], maintainer: 'Q-music contributors' },
+    linux: { executableName: 'TuneFlow', icon: path.join(root, 'resources/icons'), category: 'AudioVideo', target: ['tar.gz'], maintainer: 'TuneFlow contributors' },
   }
   const option = platform === 'darwin' ? 'mac' : platform === 'win32' ? 'win' : 'linux'
   await builder.build({ [option]: config[option].target, [arch]: true, publish: 'never', config })
