@@ -57,7 +57,7 @@ material-modal(:show="modelValue" bg-close teleport="#view" @close="handleClose"
     div(:class="$style.note")
       p(:class="[$style.ruleLink]")
         | {{ $t('user_api__readme') }}
-        span.hover.underline(aria-label="https://github.com/appdev/TuneFlow/blob/main/FAQ.md" @click="handleOpenUrl('https://github.com/appdev/TuneFlow/blob/main/FAQ.md')") FAQ
+        span.hover.underline(aria-label="https://github.com/appdev/TuneFlow/blob/main/apps/service/FAQ.md" @click="handleOpenUrl('https://github.com/appdev/TuneFlow/blob/main/apps/service/FAQ.md')") FAQ
       p {{ $t('user_api__note') }}
       p(v-if="isWebRuntime") {{ $t('user_api__export_sensitive_tip') }}
     div(:class="$style.footer")

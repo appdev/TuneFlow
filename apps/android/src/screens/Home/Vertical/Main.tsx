@@ -15,6 +15,8 @@ import Header from './Header'
 import { useNavActiveId } from '@/store/common/hook'
 import { useTheme } from '@/store/theme/hook'
 import useAdaptiveLayout from '@/utils/hooks/useAdaptiveLayout'
+import { useServiceStatus } from '@/service/useSession'
+import ConnectionSetup from '@/service/ConnectionSetup'
 
 const hideKeys = [
   'list.isShowAlbumName',
@@ -221,6 +223,7 @@ const indexMap = [
 ] as const
 
 const Main = () => {
+  const status = useServiceStatus()
   const { isCar } = useAdaptiveLayout()
   const activeId = useNavActiveId()
   const theme = useTheme()
@@ -340,6 +343,7 @@ const Main = () => {
   ), [onPageScrollStateChanged, onPageSelected, isCar])
 
   const secondary = activeId == 'download' || activeId == 'nav_setting'
+  if (!status.hasConnected) return activeId === 'nav_setting' ? <SettingPage /> : <ConnectionSetup />
   return <View style={styles.pageStyle}>
     <View collapsable={false} style={styles.pageStyle} pointerEvents={secondary ? 'none' : 'auto'} accessibilityElementsHidden={secondary} importantForAccessibility={secondary ? 'no-hide-descendants' : 'auto'}>{component}</View>
     {secondary ? <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: theme['c-content-background'] }}>

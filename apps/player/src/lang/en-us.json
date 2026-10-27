@@ -1,4 +1,5 @@
 {
+  "app_name": "TuneFlow",
   "local_import_title": "Local music",
   "local_import_description": "Import downloaded songs or music folders to play them from My playlists.",
   "local_import_files": "Choose songs",

@@ -73,7 +73,7 @@ const LoginPage = ({ provider, connected, onConnected, initialUrl = LOGIN_URLS[p
     try {
       await NativeModules.UtilsModule.saveWechatLoginQr(image)
       if (!active.current || revision != qrRevision.current) return
-      setWechatNotice('二维码已保存到 Pictures/TuneFlow。请在电脑或另一台设备展示这张图片，用当前手机的微信摄像头扫码，确认后返回 TuneFlow。期间不要刷新本页；过期后需重新保存。')
+      setWechatNotice('二维码已保存到 Pictures/TuneFlow。请在电脑或另一台设备展示这张图片，用当前手机的微信摄像头扫码，确认后返回音流。期间不要刷新本页；过期后需重新保存。')
     } catch {
       if (active.current && revision == qrRevision.current) setWechatNotice('无法保存二维码。可截屏后在另一台设备展示，用当前手机的微信摄像头扫码。')
     } finally {
@@ -189,7 +189,7 @@ const LoginPage = ({ provider, connected, onConnected, initialUrl = LOGIN_URLS[p
         {wechatBusy ? <ActivityIndicator size="small" color={theme['q-accent']} /> : null}
         <Text size={13} color={theme['q-accent-text']}>{wechatBusy ? '正在准备二维码…' : '保存二维码，在另一台设备展示'}</Text>
       </Button>
-      <Text accessibilityLiveRegion="polite" size={11} color={theme['q-text-secondary']} style={styles.wechatTip}>{wechatNotice || '请用微信摄像头扫描另一块屏幕上的本页二维码，不要在微信相册内识别。确认后返回 TuneFlow，本页会继续接收登录结果。'}</Text>
+      <Text accessibilityLiveRegion="polite" size={11} color={theme['q-text-secondary']} style={styles.wechatTip}>{wechatNotice || '请用微信摄像头扫描另一块屏幕上的本页二维码，不要在微信相册内识别。确认后返回音流，本页会继续接收登录结果。'}</Text>
     </View> : null}
     {appError ? <Text accessibilityLiveRegion="polite" size={12} color={theme['q-text-secondary']} style={styles.notice}>{t('music_account_app_unavailable')}</Text> : null}
     {authorization != 'idle' && !connected ? <View style={styles.authNotice}>

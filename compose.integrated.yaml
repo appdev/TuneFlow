@@ -1,7 +1,0 @@
-# Use together with compose.yaml. This overrides the existing service, not its
-# port, volumes, runtime user, health check, or restart policy.
-services:
-  tuneflow-web:
-    build:
-      args:
-        TUNEFLOW_WEB_VARIANT: integrated

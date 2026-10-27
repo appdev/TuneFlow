@@ -67,6 +67,7 @@ export default {
     },
     handleContextMenu(event) {
       if (this.stopContentEventPropagation) event.stopPropagation()
+      if (String(process.platform) === 'web') return
       if (!this.autoPaste) return
       let dom_input = this.$refs.dom_input
       if (dom_input.selectionStart === null) return

@@ -116,6 +116,7 @@ export default ({
 
   const showMenu = (event, musicInfo) => {
     if (!musicInfo) return
+    event.preventDefault()
     menuMusic.value = musicInfo
     itemMenuControl.sourceDetail = !!musicSdk[musicInfo.source]?.getMusicDetailPageUrl
     // itemMenuControl.play =

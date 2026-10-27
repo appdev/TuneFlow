@@ -184,6 +184,7 @@ export default {
       this.sendEvent('selectionChange', this.selectIndex)
     },
     handleContextMenu() {
+      if (String(process.platform) === 'web') return
       let str = clipboardReadText()
       str = str.trim()
       str = str.replace(/\t|\r\n|\n|\r/g, ' ')

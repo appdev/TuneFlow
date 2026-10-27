@@ -139,12 +139,9 @@ const browserInit = () => {
     await until(async() => await grid.first().innerText() !== oldFirst)
     await page.screenshot({ path: path.join(proof, 'web-home.png') })
     console.log('PASS Docker recommendations, nine discovery cards and batch refresh')
-    const legacy = await fetch(fixture.endpoint + '/V2/')
-    assert.equal(legacy.status, 200)
-    const html = await legacy.text()
-    const scripts = [...html.matchAll(/<script[^>]+src="([^"]+)"/g)].map(match => match[1])
-    assert.ok(scripts.length)
-    for (const script of scripts) assert.equal((await fetch(new URL(script, fixture.endpoint + '/V2/'))).status, 200)
+    for (const route of ['/V2', '/V2/', '/V2/renderer.js']) {
+      assert.equal((await fetch(fixture.endpoint + route)).status, 404)
+    }
     const lan = await browser.newPage({ locale: 'zh-CN', viewport: { width: 1440, height: 900 } })
     lan.on('pageerror', error => errors.push('HTTP LAN: ' + error.message))
     await lan.addInitScript(browserInit)
@@ -158,7 +155,7 @@ const browserInit = () => {
     await lan.screenshot({ path: path.join(proof, 'web-http-library.png') })
     console.log('PASS non-secure HTTP browser playback and shared library')
     assert.deepEqual(errors, [])
-    const record = { passed: true, sourceImported: true, sourceEnabled: true, sharedDownloadSettings: true, browserPreferencePersistence: true, localPreferencesIsolated: true, unsupportedCapabilitiesMarked: true, existingPlaylistPreserved: true, playlistCreation: true, servicePlayback: true, recoverablePlatformFallback: 'KW → WY, actual audio stream', download: { pause: true, resume: true, completion: true, fileOnDisk: true, libraryPlayback: true, removalPreservesFile: true }, playbackHistory: true, recommendationCards: 9, recommendationRefresh: true, legacyV2Assets: true, httpLan: { ...capabilities, libraryPlayback: true }, rendererErrors: errors, isolatedService: true, productionDefaultChanged: false }
+    const record = { passed: true, sourceImported: true, sourceEnabled: true, sharedDownloadSettings: true, browserPreferencePersistence: true, localPreferencesIsolated: true, unsupportedCapabilitiesMarked: true, existingPlaylistPreserved: true, playlistCreation: true, servicePlayback: true, recoverablePlatformFallback: 'KW → WY, actual audio stream', download: { pause: true, resume: true, completion: true, fileOnDisk: true, libraryPlayback: true, removalPreservesFile: true }, playbackHistory: true, recommendationCards: 9, recommendationRefresh: true, retiredWebRoutesRejected: true, httpLan: { ...capabilities, libraryPlayback: true }, rendererErrors: errors, isolatedService: true, productionDefaultChanged: false }
     fs.writeFileSync(path.join(proof, 'web-ui.json'), JSON.stringify(record, null, 2))
     console.log(JSON.stringify(record, null, 2))
   } catch (error) {

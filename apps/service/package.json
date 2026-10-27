@@ -1,14 +1,12 @@
 {
   "name": "tuneflow-server-web",
-  "version": "2.13.8",
+  "version": "2.13.9",
   "description": "TuneFlow (音流) Web UI and Node.js Service",
   "scripts": {
     "build:theme": "node src/common/theme/createThemes.js",
     "dev:web": "cross-env NODE_ENV=development webpack serve --config build-config/renderer-web/webpack.config.dev.js",
     "build:web": "cross-env NODE_ENV=production webpack --config build-config/renderer-web/webpack.config.prod.js",
-    "build:web:integrated": "node build-config/server/build-integrated-web.mjs",
     "build:web:qmusic": "node build-config/server/build-qmusic-web.mjs",
-    "build:docker:integrated": "node build-config/server/build-integrated-docker.mjs",
     "build:server": "node build-config/server/build.mjs",
     "prepare:service": "npm run build:server && node build-config/server/prepare.mjs",
     "verify:service-runtime": "node build-config/server/verify-native-runtimes.mjs",
@@ -118,6 +116,7 @@
     "music-metadata": "^11.12.3",
     "needle": "^3.5.0",
     "pako": "1.0.11",
+    "playwright-core": "1.62.1",
     "qrc-decoder": "1.0.2",
     "qrcode": "^1.5.4",
     "sortablejs": "^1.15.7",

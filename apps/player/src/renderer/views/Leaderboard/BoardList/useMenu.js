@@ -31,6 +31,7 @@ export default ({
 
 
   const showMenu = (event, index) => {
+    event.preventDefault()
     menuLocation.x = event.pageX
     menuLocation.y = event.pageY
 

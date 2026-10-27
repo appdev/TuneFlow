@@ -39,7 +39,7 @@ export default memo(() => {
     showPactModal()
   }
   const openPartPage = () => {
-    void openUrl(`${PROJECT_URL}#%E8%AE%B8%E5%8F%AF%E4%B8%8E%E5%85%8D%E8%B4%A3%E5%A3%B0%E6%98%8E`)
+    void openUrl(`${PROJECT_URL}/blob/main/apps/service/README.md#project-agreement`)
   }
 
   // const goToQQGroup = () => {
@@ -101,11 +101,11 @@ export default memo(() => {
         <Text style={styles.text}>你已签署本软件的</Text>
         <Button accessibilityLabel="许可协议" hitSlop={Q_TOUCH_HIT_SLOP} style={styles.linkButton} onPress={openPactModal}><Text style={styles.text} color={theme['c-primary-font']}>许可协议</Text></Button>
         <Text style={styles.text}>，协议的在线版本在</Text>
-        <Button accessibilityLabel="在线许可协议" hitSlop={Q_TOUCH_HIT_SLOP} style={styles.linkButton} onPress={openPartPage}><Text style={textLinkStyle}>这里</Text></Button>
+        <Button accessibilityLabel="在线许可协议" hitSlop={Q_TOUCH_HIT_SLOP} style={styles.linkButton} onPress={openPartPage}><Text style={textLinkStyle}>在线许可协议</Text></Button>
         <Text style={styles.text}>。</Text>
       </View>
       <View style={styles.part}>
-        <Text style={styles.text}>TuneFlow 基于 LX Music Mobile 二次开发，感谢 lyswhut 与所有上游贡献者。</Text>
+        <Text style={styles.text}>音流基于 LX Music Mobile 二次开发，感谢 lyswhut 与所有上游贡献者。</Text>
       </View>
     </Section>
   )

@@ -460,7 +460,7 @@ export class DownloadManager {
             if (controller.signal.aborted || record.status === 'paused') return
             try {
               await this.transfer(record, candidate, controller.signal, resolved.candidates == null && allowResume && candidateIndex === 0)
-              if (resolved.candidates != null || record.replacement != null) await this.requireParseableAudio(record)
+              await this.requireParseableAudio(record)
               this.resolvedResources.set(record.id, this.mergeResources(
                 this.resolvedResources.get(record.id),
                 candidate.resources ?? resolved.resources,
@@ -560,13 +560,26 @@ export class DownloadManager {
   }
 
   private async requireParseableAudio(record: DownloadJobRecord): Promise<void> {
+    let metadata: Awaited<ReturnType<typeof parseFile>>
     try {
-      const metadata = await parseFile(this.resolveTemp(record.partRelativePath), { duration: false, skipCovers: true })
-      if (metadata.format.container == null || metadata.format.container === '' || metadata.format.codec == null || metadata.format.codec === '') {
+      // The .part suffix lets the parser detect the actual content instead of
+      // trusting the requested quality or an upstream Content-Type header.
+      metadata = await parseFile(this.resolveTemp(record.partRelativePath), { duration: false, skipCovers: true })
+      if (metadata.format.container == null || metadata.format.container === '') {
         throw new Error('Audio container or codec is missing')
       }
     } catch {
       throw new SourceServiceError('SOURCE_MEDIA_INVALID', 'Downloaded audio is not parseable', 'service-network')
+    }
+    const { container, codec } = metadata.format
+    const matches = {
+      mp3: container === 'MPEG' && /Layer 3$/.test(codec ?? ''),
+      flac: container === 'FLAC' && codec === 'FLAC',
+      wav: container === 'WAVE' && codec != null && codec !== '',
+      ape: container === "Monkey's Audio",
+    }
+    if (!matches[record.extension]) {
+      throw new SourceServiceError('SOURCE_MEDIA_INVALID', `Downloaded audio format mismatch: expected ${record.extension}, received ${container}${codec == null ? '' : ` (${codec})`}`, 'service-network')
     }
   }
 
@@ -952,6 +965,14 @@ export class DownloadManager {
   private async finalizeCompletePart(record: DownloadJobRecord): Promise<boolean> {
     const part = this.resolveTemp(record.partRelativePath)
     if (!existsSync(part) || record.total <= 0 || record.downloaded !== record.total || statSync(part).size !== record.total) return false
+    try {
+      await this.requireParseableAudio(record)
+    } catch {
+      rmSync(part, { force: true })
+      rmSync(part + '.lrc', { force: true })
+      this.update(record, { downloaded: 0, total: 0, etag: undefined, lastModified: undefined })
+      return false
+    }
     this.update(record, { status: 'running', error: undefined })
     await this.finalize(record)
     return true

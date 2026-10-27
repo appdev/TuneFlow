@@ -102,6 +102,7 @@ export class PlatformAccounts {
     }
     const reader = this.reader(provider, credential)
     const result = await reader.getMusicAccountStatus()
+    if (result.accounts[provider].state === 'unavailable') throw new ApiError(502, 'ACCOUNT_PROVIDER_ERROR', 'Official account verification is temporarily unavailable')
     if (!result[provider]) throw new ApiError(401, 'PLATFORM_LOGIN_REQUIRED', 'Official authorization must be renewed')
     guard()
     const revision = this.vault.put(provider, credential, expectedRevision)

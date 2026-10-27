@@ -99,6 +99,7 @@ export default ({
 
   const showMenu = (event, index) => {
     if (index >= 0 && isReadOnlyList(userLists[index]?.id)) return
+    event.preventDefault()
     let source
     switch (index) {
       case -1:

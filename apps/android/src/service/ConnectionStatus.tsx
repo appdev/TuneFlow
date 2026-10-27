@@ -9,7 +9,7 @@ import { useServiceStatus } from './useSession'
 export default () => {
   const status = useServiceStatus()
   const theme = useTheme()
-  if (status.connected) return null
+  if (status.connected || !status.hasConnected) return null
   return <View accessibilityLiveRegion="polite" style={{ backgroundColor: theme['q-surface-tint'], paddingHorizontal: 14, paddingVertical: 8, gap: 6 }}>
     <Text size={12}>{status.busy ? '正在连接…' : status.error || '尚未连接'}</Text>
     <View style={{ flexDirection: 'row', gap: 16 }}>

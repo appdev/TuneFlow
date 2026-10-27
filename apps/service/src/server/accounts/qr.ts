@@ -5,20 +5,34 @@ import type { AccountCredential } from './vault'
 import { ApiError } from '../errors'
 import { createKugouApi } from '../../../../../packages/platform-accounts/src/kugouAccount'
 import type { MusicAccountProvider } from '../../../../../packages/platform-accounts/src/reader'
+import { buildNeteaseWeapiForm } from '../../../../../packages/platform-accounts/src/neteaseWeapi'
+import { openNeteaseBrowser } from './neteaseBrowser'
 
 export interface QrFlow {
   image: string
   expiresAt: number
   poll: () => Promise<{ status: 'waiting' | 'scanned' | 'expired' | 'connected', credential?: AccountCredential }>
+  close?: () => Promise<void>
 }
 const hash33 = (value: string, initial = 0) => { let hash = initial; for (const char of value) hash += (hash << 5) + char.charCodeAt(0); return hash & 0x7fffffff }
 const unavailable = (phase = 'qr') => new ApiError(502, 'ACCOUNT_LOGIN_UNAVAILABLE', 'Official login is unavailable; retry or authorize in the app', { phase })
+const neteaseUnavailable = (phase: 'wy-key' | 'wy-poll', response: Response, result: unknown) => {
+  const code = result != null && typeof result === 'object' && 'code' in result ? result.code : undefined
+  // Never include the provider body, headers, QR key or account data in errors.
+  const verificationRequired = code === 8821
+  return new ApiError(verificationRequired ? 409 : 502, verificationRequired ? 'ACCOUNT_VERIFICATION_REQUIRED' : 'ACCOUNT_LOGIN_UNAVAILABLE', verificationRequired ? 'Complete official account security verification before signing in' : 'Official login is unavailable; retry or authorize in the app', {
+    phase,
+    upstreamStatus: response.status,
+    ...(typeof code === 'number' && Number.isSafeInteger(code) ? { upstreamCode: code } : {}),
+  })
+}
 const params = (value: Record<string, string>) => new URLSearchParams(value).toString()
 
 // Official QR endpoints only. QR cookies/tickets never leave this process;
 // clients receive an image and an opaque, device-scoped attempt identifier.
-export const createOfficialQr = async(provider: MusicAccountProvider): Promise<QrFlow> => {
-  const http = new OfficialHttp(provider)
+export const createOfficialQr = async(provider: MusicAccountProvider, signal?: AbortSignal): Promise<QrFlow> => {
+  const browser = provider === 'wy' ? await openNeteaseBrowser(signal) : undefined
+  const http = new OfficialHttp(provider, { cookies: {} }, browser?.fetch)
   // Honor the provider's expired state; cap a pending attempt at five minutes.
   const expiresAt = Date.now() + 300_000
   if (provider === 'kg') {
@@ -34,22 +48,41 @@ export const createOfficialQr = async(provider: MusicAccountProvider): Promise<Q
     }
   }
   if (provider === 'wy') {
-    const first = await http.fetch('https://music.163.com/api/login/qrcode/unikey?type=1', { method: 'POST' }).then(async response => response.json())
-    const key = first.unikey ?? first.data?.unikey
-    if (first.code !== 200 || typeof key !== 'string' || !/^[\w-]{8,256}$/.test(key)) throw unavailable()
-    const image = await QRCode.toDataURL(`https://music.163.com/login?codekey=${key}`, { margin: 2, width: 256 })
-    return {
-      image,
-      expiresAt,
-      poll: async() => {
-        const result = await http.fetch(`https://music.163.com/api/login/qrcode/client/login?${params({ key, type: '1' })}`, { method: 'POST' }).then(async response => response.json())
-        if (result.code === 803) return { status: 'connected', credential: http.musicCredential() }
-        if (result.code === 801) return { status: 'waiting' }
-        if (result.code === 802) return { status: 'scanned' }
-        if (result.code === 800) return { status: 'expired' }
-        throw unavailable()
-      },
-    }
+    try {
+    // Bootstrap and redeem in one isolated browser-style session. The official
+    // Web request wrapper rewrites /api to /weapi and encrypts the POST body.
+      const landing = await http.follow('https://music.163.com/')
+      if (!landing.response.ok) throw neteaseUnavailable('wy-key', landing.response, null)
+      const request = async(path: string, data: Record<string, unknown>) => http.fetch(`https://music.163.com/weapi/login/qrcode/${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Origin: 'https://music.163.com', Referer: 'https://music.163.com/' },
+        body: buildNeteaseWeapiForm({ ...data, csrf_token: http.cookies().find(cookie => cookie.name === '__csrf')?.value ?? '' }),
+      })
+      const firstResponse = await request('unikey', { type: 1 })
+      const first = await firstResponse.json().catch(() => null)
+      const key = first?.unikey ?? first?.data?.unikey
+      if (first?.code !== 200 || typeof key !== 'string' || !/^[\w-]{8,256}$/.test(key)) throw neteaseUnavailable('wy-key', firstResponse, first)
+      const image = await QRCode.toDataURL(`https://music.163.com/login?${params({ codekey: key })}`, { margin: 2, width: 256 })
+      return {
+        image,
+        expiresAt,
+        close: browser!.close,
+        poll: async() => {
+          const response = await request('client/login', { key, type: 1 })
+          const result = await response.json().catch(() => null)
+          if (result?.code === 803) {
+            const credential = http.musicCredential()
+            await browser!.close()
+            return { status: 'connected', credential }
+          }
+          if (result?.code === 801) return { status: 'waiting' }
+          if (result?.code === 802) return { status: 'scanned' }
+          if (result?.code === 800) { await browser!.close(); return { status: 'expired' } }
+          await browser!.close()
+          throw neteaseUnavailable('wy-poll', response, result)
+        },
+      }
+    } catch (error) { await browser!.close(); throw error }
   }
 
   const redirect = 'https://graph.qq.com/oauth2.0/login_jump'

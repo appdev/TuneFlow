@@ -1,4 +1,5 @@
 {
+  "app_name": "音流",
   "action": "操作",
   "agree": "接受",
   "alert_button_text": "好吧",
@@ -332,7 +333,7 @@
   "search__type_songlist": "歌单",
   "search__welcome": "搜我所想~~😉",
   "setting": "设置",
-  "setting__about": "关于 音流",
+  "setting__about": "关于音流",
   "setting__backup": "备份与恢复",
   "setting__backup_all": "所有数据（列表数据与设置数据）",
   "setting__backup_all_export": "导出",
@@ -536,7 +537,7 @@
   "setting__open_api_enable": "启用开放 API 服务",
   "setting__open_api_port": "服务端口",
   "setting__open_api_port_tip": "请输入开放 API 服务端口",
-  "setting__open_api_tip": "该功能用于为第三方软件提供调用 音流 的能力，目前可用的功能可以看：",
+  "setting__open_api_tip": "该功能用于为第三方软件提供调用音流的能力，目前可用的功能可以看：",
   "setting__open_api_tip_link": "接入文档",
   "setting__other": "其他",
   "setting__other_dislike_list": "「不喜欢的歌曲」规则",

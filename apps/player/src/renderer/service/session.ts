@@ -1,6 +1,7 @@
 import { ServiceClient, ServiceError } from './client'
 import { DEFAULT_ENDPOINT, PROFILE_KEY, ServiceWorkspace, LIBRARY_ID } from './workspace'
 import { probeAccountAccess } from '../../../../../packages/service-client/src/accounts'
+import { connectionKey, createConnectionState } from '../../../../../packages/service-client/src/connection'
 
 const listeners = new Map<string, Set<(payload: any) => void>>()
 const subscribers = new Set<() => void>()
@@ -13,11 +14,14 @@ let workspace: ServiceWorkspace | undefined
 let polling = false
 let sequence = -1
 let refreshing: Promise<void> | undefined
-export const serviceStatus = { connected: false, busy: false, error: '', endpoint: '' }
+let checking: Promise<void> | undefined
+export const isServerBoundWeb = typeof process !== 'undefined' && String(process.platform) === 'web'
+const savedEndpoint = isServerBoundWeb ? location.origin : localStorage.getItem(PROFILE_KEY)
+const initialEndpoint = savedEndpoint || DEFAULT_ENDPOINT
+export const serviceStatus = createConnectionState(initialEndpoint, !!savedEndpoint, isServerBoundWeb ? localStorage.getItem(connectionKey(initialEndpoint)) === '1' : !!savedEndpoint)
 export let serverDownloadSettings: Record<string, unknown> = {}
 export const subscribeService = (listener: () => void) => { subscribers.add(listener); return () => { subscribers.delete(listener) } }
 const changed = () => { for (const listener of subscribers) listener() }
-export const isServerBoundWeb = typeof process !== 'undefined' && String(process.platform) === 'web'
 
 export const getWorkspace = () => {
   if (!workspace) workspace = new ServiceWorkspace(new ServiceClient(isServerBoundWeb ? location.origin : localStorage.getItem(PROFILE_KEY) ?? DEFAULT_ENDPOINT))
@@ -42,6 +46,7 @@ export const refreshServiceLists = async() => {
     const current = getWorkspace()
     const lists = await current.playlists()
     const [defaultList, loveList, ...tracks] = await Promise.all(['default', 'love', ...lists.map(list => list.id)].map(async id => current.tracks(id)))
+    if (current !== getWorkspace()) return
     const params = { defaultList, loveList, userList: lists.map((list, index) => ({ ...list, list: tracks[index] })) }
     for (const listener of listeners.get('player_list_data_overwire') ?? []) listener({ event: null, params })
   })().finally(() => { refreshing = undefined })
@@ -62,12 +67,18 @@ export const invokeServiceList = async(name: string, data: unknown) => {
   return result
 }
 
-export const checkService = async(refresh = false) => {
-  if (serviceStatus.busy) return
+const performCheck = async(refresh: boolean) => {
+  const current = getWorkspace()
+  let reached = false
   serviceStatus.busy = true; changed()
   try {
-    const current = getWorkspace()
     await current.client.connect()
+    if (current !== getWorkspace()) return
+    reached = true
+    const reconnecting = !serviceStatus.connected
+    serviceStatus.connected = true; serviceStatus.hasConnected = true; serviceStatus.error = ''
+    try { localStorage.setItem(connectionKey(current.client.endpoint), '1') } catch {}
+    changed()
     const snapshot = await current.client.request<{ sequence: number, events?: Array<{ type: string, sequence: number }> }>('/api/v1/events/snapshot')
     if (current !== getWorkspace()) return
     const recommendation = snapshot.events?.find(event => event.type === 'recommendations.updated')
@@ -84,7 +95,7 @@ export const checkService = async(refresh = false) => {
       recommendationSequence = recommendation.sequence
       for (const listener of recommendationSubscribers) listener()
     }
-    if (refresh || snapshot.sequence !== sequence || !serviceStatus.connected) {
+    if (refresh || snapshot.sequence !== sequence || reconnecting) {
       const settings = await current.client.settings()
       serverDownloadSettings = Object.fromEntries(Object.entries(settings).filter(([key]) => key.startsWith('download.')))
       await refreshServiceLists()
@@ -94,14 +105,24 @@ export const checkService = async(refresh = false) => {
     sequence = snapshot.sequence
     serviceStatus.connected = true; serviceStatus.error = ''
   } catch (error) {
-    serviceStatus.connected = false
+    if (current !== getWorkspace()) return
+    serviceStatus.connected = reached
     serviceStatus.error = error instanceof Error ? error.message : '连接失败'
   } finally { serviceStatus.busy = false; changed() }
+}
+
+export const checkService = (refresh = false): Promise<void> => {
+  if (!serviceStatus.configured) return Promise.resolve()
+  if (checking) return checking
+  checking = performCheck(refresh).finally(() => { checking = undefined })
+  return checking
 }
 
 export const startServiceSession = () => {
   if (polling) return
   polling = true
+  window.addEventListener?.('online', () => { void checkService() })
+  window.addEventListener?.('focus', () => { void checkService() })
   void checkService(true)
   const poll = () => { void checkService().finally(() => { if (polling) setTimeout(poll, 5000) }) }
   setTimeout(poll, 5000)
@@ -111,6 +132,12 @@ export const connectService = async(endpoint: string, reload: () => void) => {
   if (isServerBoundWeb) throw new ServiceError('SERVER_CONNECTION_LOCKED')
   const next = new ServiceClient(endpoint)
   await next.connect()
+  if (next.endpoint === getWorkspace().client.endpoint) {
+    localStorage.setItem(PROFILE_KEY, next.endpoint)
+    serviceStatus.configured = true
+    await checkService(true)
+    return
+  }
   // Reload releases all endpoint-bound caches and playback state. Native DBs
   // and the old endpoint's queues/lists remain untouched.
   localStorage.setItem(PROFILE_KEY, next.endpoint)

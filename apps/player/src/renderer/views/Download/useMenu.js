@@ -99,6 +99,7 @@ export default ({
 
   const showMenu = (event, taskInfo) => {
     if (!taskInfo) return
+    event.preventDefault()
     menuTask.current = taskInfo
     itemMenuControl.sourceDetail = !!musicSdk[taskInfo.metadata.musicInfo.source]?.getMusicDetailPageUrl
 

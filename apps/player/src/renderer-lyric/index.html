@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Lyric - TuneFlow</title>
+    <title>Lyrics - TuneFlow</title>
   </head>
   <body id="body" style="background-color: transparent;">
     <div id="root"></div>
@@ -15,6 +15,7 @@
       }
       window.setLang = (lang = navigator.language.toLocaleLowerCase()) => {
         document.documentElement.setAttribute('lang', formatLang(lang))
+        document.title = lang.startsWith('zh') ? '歌词 - 音流' : 'Lyrics - TuneFlow'
       }
       window.setLang()
       window.os = /os=(\w+)/.exec(window.location.search)[1]

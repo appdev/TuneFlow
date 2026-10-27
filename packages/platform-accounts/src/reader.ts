@@ -1,5 +1,6 @@
 // Portable reader extracted from the native account adapter. No UI, OS storage or logging.
-import { constants, createCipheriv, createHash, publicEncrypt, randomBytes } from 'node:crypto'
+import { createHash } from 'node:crypto'
+import { buildNeteaseWeapiForm } from './neteaseWeapi'
 import { getQQCredentials, getQQRequestComm, getQQWebRequestComm } from './qqCredentials'
 import { signQQRequest } from './qqSign'
 import { collectQQPlaylistIds } from './qqPlaylist'
@@ -78,29 +79,6 @@ const getKugouPlaylists = dependencies.kugou.playlists
 const getKugouDailyHashes = dependencies.kugou.daily
 const getKugouPlaylistHashes = dependencies.kugou.detail
 const accountValidationCache = new Map<MusicAccountProvider, { connected: boolean, state: MusicAccountConnectionState, expiresAt: number }>()
-
-const neteaseIv = Buffer.from('0102030405060708')
-
-const neteasePresetKey = Buffer.from('0CoJUm6Qyw8W8jud')
-
-const neteaseBase62 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-
-const neteasePublicKey = '-----BEGIN PUBLIC KEY-----\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDgtQn2JZ34ZC28NWYpAUd98iZ37BUrX/aKzmFbt7clFSs6sXqHauqKWqdtLkF2KexO40H1YTX8z2lSgBBOAxLsvaklV8k4cBFK9snQXE9/DDaFt6Rr7iVZMldczhC0JNgTz+SHXT6CBHuX3e9SdB1Ua44oncaTWz7OBGLbCiK45wIDAQAB\n-----END PUBLIC KEY-----'
-
-const aesEncrypt = (buffer: Buffer, key: Buffer) => {
-  const cipher = createCipheriv('aes-128-cbc', key, neteaseIv)
-  return Buffer.concat([cipher.update(buffer), cipher.final()])
-}
-
-const buildNeteaseWeapiForm = (data: Record<string, unknown>) => {
-  const secretKey = Buffer.from(Array.from(randomBytes(16), value => neteaseBase62.charCodeAt(value % neteaseBase62.length)))
-  const firstPass = aesEncrypt(Buffer.from(JSON.stringify(data)), neteasePresetKey).toString('base64')
-  const params = aesEncrypt(Buffer.from(firstPass), secretKey).toString('base64')
-  const reversedKey = Buffer.from(secretKey).reverse()
-  const paddedKey = Buffer.concat([Buffer.alloc(128 - reversedKey.length), reversedKey])
-  const encSecKey = publicEncrypt({ key: neteasePublicKey, padding: constants.RSA_NO_PADDING }, paddedKey).toString('hex')
-  return new URLSearchParams({ params, encSecKey })
-}
 
 const hasLoginCookie = async(provider: MusicAccountProvider) => {
   if (provider == 'kg') return Boolean(readKugouSession())
@@ -808,7 +786,9 @@ const readMusicAccountPlaylistDetail = async(
     if (result.code == 301) throw new Error('login_required')
     if (result.code != 200 || !Array.isArray(result.playlist?.trackIds)) throw new Error('playlist_incomplete')
     const ids = result.playlist.trackIds.map(item => String(item.id ?? ''))
-    if (ids.some(songId => !/^\d+$/.test(songId)) || (result.playlist.trackCount != null && result.playlist.trackCount != ids.length)) throw new Error('playlist_incomplete')
+    // The summary count can exclude entries still present in the full trackIds
+    // list. Only a count larger than that list proves the response is truncated.
+    if (ids.some(songId => !/^\d+$/.test(songId)) || (result.playlist.trackCount != null && result.playlist.trackCount > ids.length)) throw new Error('playlist_incomplete')
     const tracks: Array<Record<string, any>> = []
     const privileges: Array<Record<string, any>> = []
     for (let offset = 0; offset < ids.length; offset += 200) {

@@ -199,6 +199,7 @@ export default {
       this.$refs.dom_scrollContainer.scrollTo(0, top)
     },
     handleContextMenu() {
+      if (String(process.platform) === 'web') return
       let str = clipboardReadText()
       str = str.trim()
       str = str.replace(/\t|\r\n|\n|\r/g, ' ')

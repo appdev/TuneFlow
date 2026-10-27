@@ -19,7 +19,7 @@ dd.gap-top
   div
     .p
       | {{ $t('setting__open_api_tip') }}
-      strong.hover.underline(aria-label="https://lyswhut.github.io/lx-music-doc/desktop/faq/open-api" @click="openUrl('https://lyswhut.github.io/lx-music-doc/desktop/open-api')") {{ $t('setting__open_api_tip_link') }}
+      strong.hover.underline(aria-label="https://lyswhut.github.io/lx-music-doc/desktop/open-api" @click="openUrl('https://lyswhut.github.io/lx-music-doc/desktop/open-api')") {{ $t('setting__open_api_tip_link') }}
 </template>
 
 <script>

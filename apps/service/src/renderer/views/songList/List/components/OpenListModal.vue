@@ -22,8 +22,8 @@
               {{ $t('songlist__import_input_tip_4') }}
               <span
                 class="hover underline"
-                aria-label="https://github.com/appdev/TuneFlow/blob/main/FAQ.md"
-                @click="openUrl('https://github.com/appdev/TuneFlow/blob/main/FAQ.md')"
+                aria-label="https://github.com/appdev/TuneFlow/blob/main/apps/service/FAQ.md"
+                @click="openUrl('https://github.com/appdev/TuneFlow/blob/main/apps/service/FAQ.md')"
               >FAQ</span>
             </li>
           </ul>

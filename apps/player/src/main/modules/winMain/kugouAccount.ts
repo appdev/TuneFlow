@@ -63,7 +63,7 @@ export const getKugouPlaylistHashes = async(id: string) => {
 const loginHtml = `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
 <title>酷狗音乐登录</title><style>body{margin:0;padding:24px 20px;text-align:center;font:14px system-ui;color:#23302e;background:#f7faf8}h1{font-size:22px;margin:0 0 10px}img{width:240px;height:240px;max-width:100%;object-fit:contain;background:white;border-radius:16px}p{line-height:1.6;color:#53625e;margin:14px 0}button{border:0;border-radius:12px;padding:12px 24px;background:#def1e9;color:#235e4b;cursor:pointer}</style>
-<h1>酷狗音乐登录</h1><p>使用酷狗音乐 App 扫码，在手机上确认授权</p><img id="qr" alt="正在获取登录二维码"><p id="status" role="status">正在获取二维码…</p><button onclick="window.open('about:blank#refresh')">刷新二维码</button><p>登录后可选择歌单导入 TuneFlow</p></html>`
+<h1>酷狗音乐登录</h1><p>使用酷狗音乐 App 扫码，在手机上确认授权</p><img id="qr" alt="正在获取登录二维码"><p id="status" role="status">正在获取二维码…</p><button onclick="window.open('about:blank#refresh')">刷新二维码</button><p>登录后可选择歌单导入音流</p></html>`
 export const openKugouLogin = async(): Promise<'connected' | 'cancelled'> => {
   if (loginTask && loginWindow && !loginWindow.isDestroyed()) { loginWindow.show(); loginWindow.focus(); return loginTask }
   if (!accountStorageAvailable()) throw new Error('credential_storage')

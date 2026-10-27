@@ -401,14 +401,16 @@ export const createServer = async(options: ServerOptionsInput): Promise<FastifyI
   })
 
   await app.register(fastifyStatic, { root: serverOptions.webRoot, serve: false })
-  app.get('/V2', { schema: { hide: true } }, async(_request, reply) => reply.redirect('/V2/'))
   app.get('/*', { schema: { hide: true } }, async(request, reply) => {
     const pathname = new URL(request.raw.url ?? '/', 'http://localhost').pathname
+    if (pathname === '/V2' || pathname.startsWith('/V2/')) {
+      throw new ApiError(404, 'NOT_FOUND', 'Web route not found')
+    }
     const filePath = path.resolve(serverOptions.webRoot, `.${pathname}`)
     if (filePath.startsWith(`${serverOptions.webRoot}${path.sep}`) && existsSync(filePath) && statSync(filePath).isFile()) {
       return reply.sendFile(path.relative(serverOptions.webRoot, filePath))
     }
-    return reply.sendFile(pathname.startsWith('/V2/') ? 'V2/index.html' : 'index.html')
+    return reply.sendFile('index.html')
   })
   return app
 }

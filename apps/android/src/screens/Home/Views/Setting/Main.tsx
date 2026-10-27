@@ -1,6 +1,8 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react'
 import ServerSettings from '@/service/ServerSettings'
 import MusicAccountEntry from './settings/Basic/MusicAccountEntry'
+import ServiceRequired from '@/service/ServiceRequired'
+import { requiresService } from '../../../../../../../packages/service-client/src/connection'
 
 import Basic from './settings/Basic'
 import Player from './settings/Player'
@@ -74,7 +76,7 @@ const Main = forwardRef<MainType, {}>((props, ref) => {
     }
   }, [id])
 
-  return component
+  return requiresService(id) ? <ServiceRequired key={id}>{component}</ServiceRequired> : component
 })
 
 

@@ -31,7 +31,7 @@ module.exports = {
   module: { rules: base.module.rules.filter(rule => String(rule.test) !== String(/\.node$/)).map(rule => String(rule.test) === String(/\.tsx?$/) ? { ...rule, use: { ...rule.use, options: { ...rule.use.options, transpileOnly: true } } } : rule) },
   plugins: [
     ...base.plugins.filter(plugin => !['HtmlWebpackPlugin', 'ESLintWebpackPlugin'].includes(plugin.constructor.name)),
-    new HTMLPlugin({ template: path.join(web, 'index.html'), title: 'TuneFlow Web' }),
+    new HTMLPlugin({ template: path.join(web, 'index.html'), title: 'TuneFlow Web', favicon: path.resolve(__dirname, '../../resources/icons/icon.ico') }),
     new CopyWebpackPlugin({ patterns: [{ from: path.resolve(__dirname, '../../src/static'), to: 'static' }, { from: path.resolve(__dirname, '../../src/common/theme/images'), to: 'theme_images' }] }),
     new webpack.DefinePlugin({ 'process.env.NODE_ENV': JSON.stringify('production'), __VUE_OPTIONS_API__: 'true', __VUE_PROD_DEVTOOLS__: 'false', __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false', COMMIT_ID: '""', COMMIT_DATE: '""' }),
     new webpack.ProvidePlugin({ Buffer: ['buffer', 'Buffer'], process: [path.join(web, 'process.ts'), 'default'] }),

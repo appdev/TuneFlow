@@ -1,6 +1,6 @@
 <template>
   <teleport to="#root">
-    <ul ref="dom_menu" :class="$style.list" :style="menuStyles" role="menu" :aria-hidden="!modelValue" @keydown="handleKeydown">
+    <ul ref="dom_menu" :class="$style.list" :style="menuStyles" role="menu" :aria-hidden="!modelValue" @keydown="handleKeydown" @contextmenu.prevent>
       <li v-for="item in visibleMenus" :key="item.action" role="none">
         <button
           type="button" :class="$style.listItem" role="menuitem"

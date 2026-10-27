@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Alert, TextInput, View } from 'react-native'
 import Text from '@/components/common/Text'
 import Button from '@/components/common/Button'
 import { useTheme } from '@/store/theme/hook'
 import { stop } from '@/core/player/player'
-import { getWorkspace, connectService, checkService } from './session'
+import { getWorkspace, connectService, checkService, serviceStatus } from './session'
 import { downloadSettingLabels } from './workspace'
 import { type SourceDto } from './client'
+import SourceManager from './SourceManager'
+import { moveSource, toggleSource } from './sourceChain'
+import { importSourceFile } from './importSourceFile'
 import { useServiceStatus } from './useSession'
 
 export default ({ section = 'connection' }: { section?: 'connection' | 'sources' | 'downloads' | 'compatibility' }) => {
@@ -18,22 +21,28 @@ export default ({ section = 'connection' }: { section?: 'connection' | 'sources'
   const [settings, setSettings] = useState<Record<string, unknown>>({})
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
+  const busyRef = useRef(false)
   const [error, setError] = useState('')
+  const loadedFor = useRef('')
   const client = getWorkspace().client
   const run = async(action: () => Promise<unknown>) => {
-    if (busy) return
+    if (busyRef.current) return
+    if (['sources', 'downloads'].includes(section) && !serviceStatus.connected) return
+    busyRef.current = true
     setBusy(true); setError('')
-    try { await action() } catch (e) { setError(e instanceof Error ? e.message : '操作失败') } finally { setBusy(false) }
+    try { await action() } catch (e) { setError(e instanceof Error ? e.message : '操作失败') } finally { busyRef.current = false; setBusy(false) }
   }
   const load = async() => {
+    if (['sources', 'downloads'].includes(section) && !serviceStatus.connected) return
     if (section === 'sources') setSources(await client.sources())
     if (section === 'downloads') { setSettings(await client.settings()); setDrafts({}) }
+    loadedFor.current = `${section}:${status.endpoint}`
   }
-  useEffect(() => { void run(load) }, [section, status.endpoint]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (loadedFor.current !== `${section}:${status.endpoint}`) void run(load)
+  }, [section, status.endpoint, status.connected]) // eslint-disable-line react-hooks/exhaustive-deps
   const action = (label: string, onPress: () => void) => <Button key={label} accessibilityLabel={label} disabled={busy} onPress={onPress} style={{ padding: 10, minHeight: 44, borderWidth: 1, borderColor: theme['q-outline'], borderRadius: 10, marginVertical: 4 }}><Text size={13}>{label}</Text></Button>
   const input = (label: string, value: string, onChange: (value: string) => void, numeric = false) => <TextInput accessibilityLabel={label} placeholder={label} placeholderTextColor={theme['q-text-secondary']} value={value} onChangeText={onChange} autoCapitalize="none" autoCorrect={false} keyboardType={numeric ? 'numeric' : 'default'} editable={!busy} style={{ color: theme['q-text-primary'], borderColor: theme['q-outline'], borderWidth: 1, padding: 10, minHeight: 44, borderRadius: 8 }} />
-  const ordered = [...sources].sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999))
-  const enabled = ordered.filter(item => item.enabled).map(item => item.id)
   return <View style={{ gap: 12, paddingBottom: 20 }}>
     {section === 'connection' ? <>
       <Text size={18}>连接设置</Text>
@@ -44,20 +53,14 @@ export default ({ section = 'connection' }: { section?: 'connection' | 'sources'
       <Text size={12}>{status.connected ? '已连接' : '连接不可用'} · {status.endpoint}</Text>
       <Text size={14}>设置归属</Text>
       <Text size={13}>在这里管理连接、音源和下载；外观、播放与歌词可按自己的习惯调整。</Text>
-    </> : section === 'sources' ? <>
-      <Text size={18}>音源与解析</Text>
-      <Text size={13}>按启用顺序尝试音源；可恢复的解析失败继续尝试其他平台。安全拦截和取消不会被重试绕过。</Text>
-      {input('音源脚本地址', sourceUrl, setSourceUrl)}
-      {action('从地址导入音源', () => { void run(async() => { await client.importSource(sourceUrl); await load() }) })}
-      {action('刷新音源', () => { void run(load) })}
-      {!sources.length ? <Text>暂无音源，请导入后启用。</Text> : null}
-      {ordered.map(source => <View key={source.id} style={{ paddingVertical: 10, borderBottomWidth: 1, borderColor: theme['q-outline'] }}>
-        <Text>{source.name} {source.version}</Text><Text size={12}>{source.enabled ? `已启用 · 第 ${(source.priority ?? 0) + 1} 位` : '未启用'}</Text>
-        {action(source.enabled ? '停用' : '启用', () => { void run(async() => { setSources(await client.enableSources(source.enabled ? enabled.filter(id => id !== source.id) : [...enabled, source.id])) }) })}
-        {source.enabled && source.priority !== 0 ? action('移至首位', () => { void run(async() => { setSources(await client.enableSources([source.id, ...enabled.filter(id => id !== source.id)])) }) }) : null}
-        {action('移除此音源', () => { Alert.alert('移除此音源？', '移除后将使用更新后的音源顺序。', [{ text: '取消', style: 'cancel' }, { text: '移除', style: 'destructive', onPress: () => { void run(async() => { await client.request(`/api/v1/sources/${encodeURIComponent(source.id)}`, 'DELETE'); await load() }) } }]) })}
-      </View>)}
-    </> : section === 'downloads' ? <>
+    </> : section === 'sources' ? <SourceManager sources={sources} busy={busy} sourceUrl={sourceUrl} onSourceUrl={setSourceUrl}
+      onImport={() => { void run(async() => { await client.importSource(sourceUrl.trim()); setSourceUrl(''); await load() }) }}
+      onFile={() => { void run(async() => { if (await importSourceFile(async(script) => client.request('/api/v1/sources', 'POST', { script }))) await load() }) }}
+      onRefresh={() => { void run(load) }}
+      onEnable={(id, value) => { void run(async() => { setSources(await client.enableSources(toggleSource(sources, id, value))) }) }}
+      onMove={(id, position) => { void run(async() => { setSources(await client.enableSources(moveSource(sources, id, position))) }) }}
+      onRemove={id => { Alert.alert('移除此音源？', '移除后将使用更新后的音源顺序。', [{ text: '取消', style: 'cancel' }, { text: '移除', style: 'destructive', onPress: () => { void run(async() => { await client.request(`/api/v1/sources/${encodeURIComponent(id)}`, 'DELETE'); await load() }) } }]) }}
+    /> : section === 'downloads' ? <>
       <Text size={18}>下载设置</Text>
       <Text size={13}>下载完成后可在“我的音乐 → 音乐库”中播放。</Text>
       <Text size={13}>开启边听边存后，在线播放的歌曲会按最高可用音质自动保存，已有音频会跳过。此功能独立于手动下载开关。</Text>

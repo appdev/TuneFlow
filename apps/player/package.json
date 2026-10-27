@@ -1,6 +1,6 @@
 {
   "name": "q-music",
-  "version": "0.4.27",
+  "version": "2.13.9",
   "description": "一个免费的音乐查找助手",
   "main": "./dist/main.js",
   "private": true,
@@ -78,7 +78,8 @@
     "test:qq-sync": "node --test test/qqPlaylistSync.test.cjs",
     "test:browse": "node --test test/browseNavigation.test.cjs",
     "test:navigation": "node --test test/navigationPerformance.test.cjs test/browseNavigation.test.cjs test/downloadVisibility.test.cjs test/virtualListPerformance.test.cjs",
-    "test:web": "node --test test/webRuntime.test.cjs test/webCatalog.test.cjs",
+    "test:web": "node --test test/webRuntime.test.cjs test/webCatalog.test.cjs test/contextMenu.test.cjs test/connectionReadiness.test.cjs",
+    "test:connection": "node --test test/connectionReadiness.test.cjs",
     "test:native-window": "node --test test/nativeWindow.test.cjs",
     "test:local-music": "node --test test/localMusicImport.test.cjs",
     "test:downloads": "node --test test/downloadActions.test.cjs test/downloadRemoval.test.cjs",

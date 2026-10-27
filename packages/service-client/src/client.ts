@@ -34,6 +34,7 @@ export class ServiceError extends Error {
     PLATFORM_LOGIN_REQUIRED: '平台授权已过期，请重新登录。',
     ACCOUNT_LOGIN_EXPIRED: '二维码已过期或已取消，请重新获取。',
     ACCOUNT_LOGIN_UNAVAILABLE: '官方登录暂不可用，请重试或在应用中完成授权。',
+    ACCOUNT_VERIFICATION_REQUIRED: '网易云要求安全验证。请在桌面或 Android 客户端通过官方页面授权完成登录，再共享账号并刷新。',
     ACCOUNT_RATE_LIMIT: '操作过于频繁，请稍后重试。',
   } as Record<string, string>)[code] ?? `请求失败（${code}）`) }
 }

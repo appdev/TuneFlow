@@ -128,11 +128,14 @@ for (const [index, client] of clients.entries()) {
       async tracks() { return [] }
     }
     const session = load(path.join(client.folder, 'session.ts'), {
+      [index ? '../../../../packages/service-client/src/connection' : '../../../../../packages/service-client/src/connection']: load(path.resolve(root, '../../packages/service-client/src/connection.ts')),
+      'react-native': { AppState: { addEventListener() {} } },
       [index ? '../../../../packages/service-client/src/accounts' : '../../../../../packages/service-client/src/accounts']: { probeAccountAccess: async() => ({ state: 'unpaired' }) },
       './client': { ServiceClient: FakeClient },
       './workspace': { ServiceWorkspace: FakeWorkspace, DEFAULT_ENDPOINT: 'http://fixture' },
       '@react-native-async-storage/async-storage': { setItem: async() => {} },
-    }, { localStorage: { getItem: () => null } })
+    }, { localStorage: { getItem: () => 'http://fixture', setItem() {} } })
+    session.serviceStatus.configured = true
     let updates = 0
     const unsubscribe = session.subscribeRecommendations(() => { updates++ })
     await session.checkService(); assert.equal(updates, 1)

@@ -18,8 +18,8 @@ module.exports = {
   },
   output: {
     filename: '[name].js',
-    path: process.env.TUNEFLOW_LEGACY_WEB_OUTPUT || path.join(__dirname, '../../dist/web'),
-    publicPath: process.env.TUNEFLOW_LEGACY_WEB_BASE || '',
+    path: path.join(__dirname, '../../dist/web'),
+    publicPath: '',
   },
   resolve: {
     alias: {

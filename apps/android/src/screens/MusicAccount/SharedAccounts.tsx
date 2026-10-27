@@ -12,6 +12,7 @@ import { playFromPage } from '@/core/player/selection'
 import { ServiceError } from '@/service/client'
 import type { AccountProvider, AccountStatus, AccountPlaylist, AccountLogin } from '../../../../../packages/service-client/src/accounts'
 import PasswordAccess from './PasswordAccess'
+import { pollAccountLogin } from '../../../../../packages/service-client/src/accountLogin'
 
 export default ({ initialProvider = 'tx', onBack, onNative }: { initialProvider?: AccountProvider, onBack: () => void, onNative: (provider: AccountProvider) => void }) => {
   const theme = useTheme(); const inset = useStatusbarHeight()
@@ -49,21 +50,27 @@ export default ({ initialProvider = 'tx', onBack, onNative }: { initialProvider?
   }, [load, onBack, authorized])
   useEffect(() => {
     if (!flow) return
-    const workspace = getWorkspace(); const client = sharedAccounts(workspace.client); let active = true; let timer: ReturnType<typeof setTimeout>
-    const poll = async() => {
-      try {
-        if (!active || workspace !== getWorkspace()) return
-        if (Date.now() >= flow.expiresAt) { setMessage('二维码已过期，请重新获取'); return }
-        const result = await client.poll(flow.id)
-        if (!active) return
-        if (result.status === 'connected') { setFlow(undefined); setMessage('已登录，各端解锁即可使用账号歌单和推荐'); notifyAccountsChanged(); await load(); return }
-        if (result.status === 'expired') { setMessage('二维码已过期，请重新获取'); return }
-        setMessage(result.status === 'scanned' ? '已扫码，请在官方应用确认' : '等待扫码')
-        timer = setTimeout(() => { void poll() }, 2500)
-      } catch (reason) { if (active) setError(reason instanceof Error ? reason.message : '授权失败') }
-    }
-    timer = setTimeout(() => { void poll() }, 2500)
-    return () => { active = false; clearTimeout(timer); void client.cancel(flow.id).catch(() => {}) }
+    const workspace = getWorkspace(); const client = sharedAccounts(workspace.client)
+    const stopPolling = pollAccountLogin({
+      expiresAt: flow.expiresAt,
+      active: () => mounted.current && workspace === getWorkspace(),
+      poll: async() => client.poll(flow.id),
+      status: status => {
+        setError('')
+        if (status === 'connected') {
+          setFlow(undefined); setMessage('已登录，各端解锁即可使用账号歌单和推荐'); notifyAccountsChanged()
+          void load().catch(reason => { if (mounted.current && workspace === getWorkspace()) setError(reason instanceof Error ? reason.message : '账号加载失败') })
+          return
+        }
+        if (status === 'expired') { setMessage('二维码已过期，请重新获取'); return }
+        setMessage(status === 'scanned' ? '已扫码，请在官方应用确认' : '等待扫码')
+      },
+      error: (reason, retrying) => {
+        setError(reason instanceof Error ? reason.message : '授权失败')
+        setMessage(retrying ? '登录状态查询暂时失败，正在自动重试…' : '登录未完成，请重新扫码登录')
+      },
+    })
+    return () => { stopPolling(); void client.cancel(flow.id).catch(() => {}) }
   }, [flow, load])
   const login = () => { void run(async() => { setFlow(undefined); const result = await api().login(provider); if (mounted.current) { setFlow(result); setMessage('请使用官方应用扫码并确认授权') } }) }
   const importSelected = () => {

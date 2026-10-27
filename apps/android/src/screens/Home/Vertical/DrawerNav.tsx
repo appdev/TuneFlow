@@ -14,6 +14,7 @@ import { Q_UI } from '@/theme/ui'
 import Button from '@/components/common/Button'
 
 const Header = () => {
+  const t = useI18n()
   const theme = useTheme()
   const statusBarHeight = useStatusbarHeight()
 
@@ -26,7 +27,7 @@ const Header = () => {
     >
       <View style={styles.header}>
         <Image source={require('../../../resources/images/q-music.png')} style={styles.logo} />
-        <Text style={styles.headerText} size={17} color={theme['q-text-primary']}>TuneFlow</Text>
+        <Text style={styles.headerText} size={17} color={theme['q-text-primary']}>{t('app_name')}</Text>
       </View>
     </View>
   )

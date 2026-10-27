@@ -9,7 +9,7 @@ dd
     span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/appdev/TuneFlow/releases')") GitHub Releases
   .p.small
     | 软件的常见问题可转至：
-    span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/appdev/TuneFlow/blob/main/FAQ.md')") TuneFlow 常见问题
+    span.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/appdev/TuneFlow/blob/main/apps/service/FAQ.md')") 音流常见问题
   .p.small
     strong 本软件没有客服
     | ，但我们整理了一些常见的使用问题。
@@ -32,7 +32,7 @@ dd
     | 你已签署本软件的
     base-btn(min @click="handleShowPact") 许可协议
     | ，协议的在线版本在
-    strong.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/appdev/TuneFlow#%E9%A1%B9%E7%9B%AE%E5%8D%8F%E8%AE%AE')") 这里
+    strong.hover.underline(:aria-label="$t('setting__click_open')" @click="openUrl('https://github.com/appdev/TuneFlow/blob/main/apps/service/README.md#project-agreement')") 在线许可协议
     | 。
   br
 

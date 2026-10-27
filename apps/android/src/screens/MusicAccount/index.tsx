@@ -19,6 +19,7 @@ import DailySettings from '@/screens/Home/Views/Search/BlankView/DailySettings'
 import { getDailyProvider, setDailyProvider, type DailyProvider } from '@/core/musicAccount/daily'
 import { toast } from '@/utils/tools'
 import SharedAccounts from './SharedAccounts'
+import ServiceRequired from '@/service/ServiceRequired'
 import { publishMobileAccount } from '@/service/accounts'
 import { notifyAccountsChanged } from '@/service/session'
 
@@ -26,7 +27,7 @@ const PROVIDERS: MusicAccountProvider[] = ['tx', 'wy', 'kg']
 
 export default (props: { componentId: string, initialProvider?: MusicAccountProvider }) => {
   const [native, setNative] = useState<MusicAccountProvider>()
-  return native ? <NativeMusicAccount {...props} initialProvider={native} onLinked={() => { setNative(undefined); notifyAccountsChanged() }} /> : <SharedAccounts initialProvider={props.initialProvider} onBack={() => { void pop(props.componentId) }} onNative={setNative} />
+  return <ServiceRequired onOpenSettings={() => { void pop(props.componentId) }}>{native ? <NativeMusicAccount {...props} initialProvider={native} onLinked={() => { setNative(undefined); notifyAccountsChanged() }} /> : <SharedAccounts initialProvider={props.initialProvider} onBack={() => { void pop(props.componentId) }} onNative={setNative} />}</ServiceRequired>
 }
 const NativeMusicAccount = ({ componentId, initialProvider = 'tx', onLinked }: { componentId: string, initialProvider?: MusicAccountProvider, onLinked: () => void }) => {
   const theme = useTheme()

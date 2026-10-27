@@ -36,7 +36,7 @@ export default ({ onConnected }: { onConnected: () => void }) => {
   useEffect(() => () => { active.current = false; controller.current?.abort() }, [])
   const receive = async(value: string) => {
     if (receiving.current || !active.current) return
-    if (!value.trim().startsWith('qmusic://account-transfer?')) { setMessage('这不是 TuneFlow 配对码，请扫描电脑「连接手机」里的二维码。'); return }
+    if (!value.trim().startsWith('qmusic://account-transfer?')) { setMessage('这不是音流配对码，请扫描电脑「连接手机」里的二维码。'); return }
     receiving.current = true
     Keyboard.dismiss()
     setBusy(true)
@@ -95,7 +95,7 @@ export default ({ onConnected }: { onConnected: () => void }) => {
         <Text size={18} style={styles.title}>{candidate.name}</Text><Text size={13} color={theme['q-text-secondary']}>{candidate.hint}</Text>
       </View> : <>
         <View style={styles.steps}>
-          {['电脑和手机连接同一 Wi-Fi', '电脑 TuneFlow → QQ 音乐，用微信登录', '在电脑点击「连接手机」，显示配对码'].map((label, index) => <View key={label} style={styles.step}>
+          {['电脑和手机连接同一 Wi-Fi', '电脑音流 → QQ 音乐，用微信登录', '在电脑点击「连接手机」，显示配对码'].map((label, index) => <View key={label} style={styles.step}>
             <View style={[styles.number, { backgroundColor: theme['q-surface-tint'] }]}><Text size={11} color={theme['q-accent-text']}>{index + 1}</Text></View>
             <Text size={13} style={styles.stepText} color={theme['q-text-secondary']}>{label}</Text>
           </View>)}
@@ -109,7 +109,7 @@ export default ({ onConnected }: { onConnected: () => void }) => {
         </Button>
         {pasteVisible && <View style={[styles.pasteCard, { borderColor: theme['q-outline'] }]}>
           <Text size={12} color={theme['q-text-secondary']}>在电脑复制配对码，通过你自己的设备传到手机后粘贴。</Text>
-          <Input value={code} onChangeText={setCode} editable={!disabled} placeholder="粘贴 TuneFlow 配对码" accessibilityLabel="配对码" autoCorrect={false} autoCapitalize="none" maxLength={1024} secureTextEntry containerStyle={{ flexGrow: 0 }} />
+          <Input value={code} onChangeText={setCode} editable={!disabled} placeholder="粘贴音流配对码" accessibilityLabel="配对码" autoCorrect={false} autoCapitalize="none" maxLength={1024} secureTextEntry containerStyle={{ flexGrow: 0 }} />
           <View style={styles.actions}><Button disabled={disabled} style={styles.button} onPress={() => { void paste() }}><Text size={13}>粘贴</Text></Button><Button disabled={disabled || !code.trim()} style={[styles.button, { backgroundColor: theme['q-surface-tint'] }]} onPress={() => { void receive(code) }}><Text size={13} color={theme['q-accent-text']}>连接电脑</Text></Button></View>
         </View>}
       </>}

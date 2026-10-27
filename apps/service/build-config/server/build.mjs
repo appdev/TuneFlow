@@ -6,6 +6,7 @@ const root = process.cwd()
 const serverRoot = path.join(root, 'dist/server')
 await mkdir(serverRoot, { recursive: true })
 await build({ entryPoints: [path.join(root, 'src/server/accounts/recoverAccessCli.ts')], bundle: true, platform: 'node', target: 'node24', format: 'cjs', outfile: path.join(serverRoot, 'recover-account-access.cjs') })
+await build({ entryPoints: [path.join(root, 'src/server/accounts/verifyBrowserCli.ts')], bundle: true, platform: 'node', target: 'node24', format: 'cjs', packages: 'external', outfile: path.join(serverRoot, 'verify-account-browser.cjs') })
 await writeFile(path.join(serverRoot, 'package.json'), `${JSON.stringify({
   private: true,
   dependencies: {
@@ -26,6 +27,7 @@ await writeFile(path.join(serverRoot, 'package.json'), `${JSON.stringify({
     'taglib-wasm': '^2.0.0',
     'qrc-decoder': '1.0.2',
     qrcode: '^1.5.4',
+    'playwright-core': '1.62.1',
     undici: '^7.22.0',
     typebox: '^1.3.12',
   },

@@ -22,8 +22,9 @@ import type { DownloadDto } from './types'
 
 process.env.TUNEFLOW_SERVICE_NODE_MODULES = path.join(process.cwd(), 'dist/server/node_modules')
 
-const bytes = Buffer.from(Array.from({ length: 64 * 1024 }, (_, index) => index % 251))
 const validMp3 = readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3'))
+// Transport/resume fixtures must also pass the production audio validation.
+const bytes = Buffer.concat([validMp3, Buffer.alloc(64 * 1024 - validMp3.length)])
 const roots: string[] = []
 const servers: Array<ReturnType<typeof createHttpServer>> = []
 const apps: Array<ReturnType<typeof Fastify>> = []
@@ -616,7 +617,7 @@ describe('durable download manager', () => {
 
   it('rejects an unparseable candidate before trying the next source', async() => {
     const root = createRoot()
-    const invalid = await startUpstream({ payload: bytes })
+    const invalid = await startUpstream({ payload: Buffer.alloc(64 * 1024, 0xa5) })
     const valid = await startUpstream({ payload: validMp3 })
     const manager = new DownloadManager({
       storageRoot: root,
@@ -637,6 +638,126 @@ describe('durable download manager', () => {
     expect(readFileSync(path.join(root, 'audio', manager.get(job.id)!.fileName))).toEqual(validMp3)
     expect(invalid.requests).toHaveLength(1)
     expect(valid.requests).toHaveLength(1)
+    manager.close()
+  })
+
+  it('tries the next FLAC source when the first returns MP3 content', async() => {
+    const root = createRoot()
+    const wrongFormat = await startUpstream({ payload: validMp3 })
+    const flac = await startUpstream({ payload: minimalFlac() })
+    const metadata = vi.fn(async() => {})
+    const resolve = vi.fn(async() => ({
+      candidates: [
+        { sourceId: 'wrong', url: wrongFormat.url },
+        { sourceId: 'flac', url: flac.url },
+      ],
+    }))
+    const manager = new DownloadManager({
+      storageRoot: root,
+      getSettings: () => ({ 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve,
+      metadata,
+    })
+
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: 'flac' })
+    await manager.waitForIdle()
+
+    expect(manager.get(job.id)).toMatchObject({ status: 'completed', quality: 'flac', extension: 'flac', fileName: 'ABSong.flac' })
+    expect(resolve).toHaveBeenCalledTimes(1)
+    expect(metadata).toHaveBeenCalledTimes(1)
+    expect(wrongFormat.requests).toHaveLength(1)
+    expect(flac.requests).toHaveLength(1)
+    expect(readFileSync(path.join(root, 'audio', 'ABSong.flac'))).toEqual(minimalFlac())
+    manager.close()
+  })
+
+  it.each([
+    { quality: '128k', extension: 'mp3', payload: validMp3 },
+    { quality: 'flac', extension: 'flac', payload: minimalFlac() },
+    { quality: 'ape', extension: 'ape', payload: apeFixture },
+    { quality: 'wav', extension: 'wav', payload: Buffer.from('524946462800000057415645666d7420100000000100010044ac00008858010002001000646174610400000000000000', 'hex') },
+  ] as const)('validates and tags matching $extension content before publication', async({ quality, extension, payload }) => {
+    const root = createRoot()
+    const upstream = await startUpstream({ payload })
+    const track = { ...fixtureTrack, meta: { ...fixtureTrack.meta, _qualitys: { [quality]: {} } } } as TuneFlow.Music.MusicInfoOnline
+    const manager = new DownloadManager({
+      storageRoot: root,
+      getSettings: () => ({ ...metadataSettings(), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async() => ({ url: upstream.url }),
+    })
+
+    const job = await manager.create({ musicInfo: track, quality })
+    await manager.waitForIdle()
+
+    expect(manager.get(job.id)).toMatchObject({ status: 'completed', quality, extension, fileName: `ABSong.${extension}` })
+    expect((await parseFile(path.join(root, 'audio', `ABSong.${extension}`))).common.title).toBe(fixtureTrack.name)
+    manager.close()
+  })
+
+  it.each(['single', 'candidates'])('downgrades and updates the filename after mismatched FLAC content (%s resolver)', async(mode) => {
+    const root = createRoot()
+    const upstream = await startUpstream({ payload: validMp3 })
+    const attempted: TuneFlow.Quality[] = []
+    const manager = new DownloadManager({
+      storageRoot: root,
+      getSettings: () => ({ ...metadataSettings(), 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async(job) => {
+        attempted.push(job.quality)
+        return mode === 'single' ? { url: upstream.url } : { candidates: [{ sourceId: 'source', url: upstream.url }] }
+      },
+    })
+
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: 'flac' })
+    await manager.waitForIdle()
+
+    expect(attempted).toEqual(['flac', '128k'])
+    expect(manager.get(job.id)).toMatchObject({ status: 'completed', quality: '128k', extension: 'mp3', fileName: 'ABSong.mp3' })
+    expect(existsSync(path.join(root, 'audio', 'ABSong.flac'))).toBe(false)
+    expect((await parseFile(path.join(root, 'audio', 'ABSong.mp3'))).common.title).toBe(fixtureTrack.name)
+    manager.close()
+  })
+
+  it('reports a format mismatch without writing metadata or publishing a fake FLAC when no fallback is available', async() => {
+    const root = createRoot()
+    const upstream = await startUpstream({ payload: validMp3 })
+    const metadata = vi.fn(async() => {})
+    const manager = new DownloadManager({
+      storageRoot: root,
+      getSettings: () => ({ 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async() => ({ url: upstream.url }),
+      metadata,
+    })
+
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: 'flac', qualityList: { kw: ['flac'] } as TuneFlow.QualityList })
+    await manager.waitForIdle()
+
+    expect(manager.get(job.id)).toMatchObject({ status: 'error', error: expect.stringContaining('expected flac, received MPEG') })
+    expect(metadata).not.toHaveBeenCalled()
+    expect(readdirSync(path.join(root, 'audio'))).toEqual([])
+    expect(readdirSync(path.join(root, 'tmp'))).toEqual([])
+    manager.close()
+  })
+
+  it('revalidates a complete retained part before retrying a failed FLAC download', async() => {
+    const root = createRoot()
+    const upstream = await startUpstream({ payload: minimalFlac() })
+    const manager = new DownloadManager({
+      storageRoot: root,
+      autoStart: false,
+      getSettings: () => ({ 'download.maxDownloadNum': 1, 'download.fileName': '歌名' } as TuneFlow.AppSetting),
+      resolve: async() => ({ url: upstream.url }),
+      metadata: async() => {},
+    })
+    const job = await manager.create({ musicInfo: fixtureTrack, quality: 'flac' })
+    writeFileSync(path.join(root, 'tmp', `${job.id}.part`), validMp3)
+    manager.__setStateForTest(job.id, 'error', { downloaded: validMp3.length, total: validMp3.length, etag: '"old"' })
+
+    await manager.start(job.id)
+    await manager.waitForIdle()
+
+    expect(manager.get(job.id)).toMatchObject({ status: 'completed', quality: 'flac', extension: 'flac' })
+    expect(upstream.requests).toEqual([{ range: undefined }])
+    expect(readFileSync(path.join(root, 'audio', 'ABSong.flac'))).toEqual(minimalFlac())
     manager.close()
   })
 

@@ -5,6 +5,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const vm = require('node:vm')
 const ts = require('typescript')
+const contextEvent = () => Object.assign(new Event('contextmenu', { cancelable: true }), { pageX: 0, pageY: 0 })
 
 function fixture(createDownloadTasks, list = [{ id: 'online', source: 'tx' }, { id: 'local', source: 'local' }]) {
   const source = require('@vue/compiler-sfc').parse(readSource(path.join(__dirname, '../src/renderer/components/common/DownloadMultipleModal.vue'))).descriptor.script.content
@@ -91,13 +92,13 @@ function menuFixture() {
 test('右键菜单操作当前任务，列表重排后旧菜单不能操作另一首歌', async() => {
   const f = menuFixture()
   try {
-    f.menu.showMenu({ pageX: 0, pageY: 0 }, f.list.value[0])
+    f.menu.showMenu(contextEvent(), f.list.value[0])
     await f.tick()
     assert.equal(f.menu.isShowItemMenu.value, true)
     assert.equal(f.menu.menus.value[0].action, 'select')
     f.menu.menuClick({ action: 'remove' })
     assert.deepEqual(f.calls, ['first'])
-    f.menu.showMenu({ pageX: 0, pageY: 0 }, f.list.value[0])
+    f.menu.showMenu(contextEvent(), f.list.value[0])
     await f.tick()
     f.list.value.reverse()
     assert.equal(f.menu.isShowItemMenu.value, false)
@@ -110,12 +111,12 @@ test('右键菜单操作当前任务，列表重排后旧菜单不能操作另�
 test('下载状态变化或切换分类会取消尚未显示的菜单', async() => {
   const f = menuFixture()
   try {
-    f.menu.showMenu({ pageX: 0, pageY: 0 }, f.list.value[0])
+    f.menu.showMenu(contextEvent(), f.list.value[0])
     f.list.value[0].status = 'completed'
     await f.tick()
     assert.equal(f.menu.isShowItemMenu.value, false)
     f.menu.menuClick({ action: 'remove' })
-    f.menu.showMenu({ pageX: 0, pageY: 0 }, f.list.value[1])
+    f.menu.showMenu(contextEvent(), f.list.value[1])
     f.activeTab.value = 'all'
     await f.tick()
     assert.equal(f.menu.isShowItemMenu.value, false)
@@ -128,7 +129,7 @@ test('下载状态变化或切换分类会取消尚未显示的菜单', async() 
 test('移除全部下载时，同步菜单监听不读取删除中的数组空位', async() => {
   const f = menuFixture()
   try {
-    f.menu.showMenu({ pageX: 0, pageY: 0 }, f.list.value[0])
+    f.menu.showMenu(contextEvent(), f.list.value[0])
     await f.tick()
     assert.doesNotThrow(() => f.list.value.splice(0, f.list.value.length))
     assert.equal(f.menu.isShowItemMenu.value, false)

@@ -5,6 +5,23 @@ import { expect, it } from 'vitest'
 import { AccountVault } from './vault'
 import { PlatformAccounts, type AccountReader } from './service'
 
+it.each(['unavailable', 'expired'] as const)('distinguishes %s verification from successful authorization without saving credentials', async state => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'account-upload-test-'))
+  try {
+    const vault = new AccountVault(root)
+    const profile = { state, displayName: '', avatar: '', accountHint: '', hasSession: true }
+    const reader: Partial<AccountReader> = {
+      getMusicAccountStatus: async() => ({ tx: false, wy: false, kg: false, accounts: { tx: profile, wy: profile, kg: profile } }),
+    }
+    const accounts = new PlatformAccounts(vault, () => {}, () => reader as AccountReader)
+    await expect(accounts.upload('wy', { cookies: { MUSIC_U: 'synthetic' } }, 0, () => {})).rejects.toMatchObject({
+      statusCode: state === 'unavailable' ? 502 : 401,
+      code: state === 'unavailable' ? 'ACCOUNT_PROVIDER_ERROR' : 'PLATFORM_LOGIN_REQUIRED',
+    })
+    expect(vault.account('wy')).toBeUndefined()
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
 it('rejects a mixed status snapshot if another provider changes during a slow read', async() => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'account-snapshot-test-'))
   try {

@@ -1,9 +1,12 @@
 <!doctype html>
 <html class="web disableTransparent" lang="zh-Hans">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>TuneFlow Web</title></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>TuneFlow</title></head>
 <body id="body"><div id="root" style="display:none"></div>
 <script>
-window.setLang = (lang = navigator.language.toLowerCase()) => { document.documentElement.lang = lang === 'zh-cn' ? 'zh-Hans' : lang === 'zh-tw' ? 'zh-Hant' : lang.split('-')[0] }
+window.setLang = (lang = navigator.language.toLowerCase()) => {
+  document.documentElement.lang = lang === 'zh-cn' ? 'zh-Hans' : lang === 'zh-tw' ? 'zh-Hant' : lang.split('-')[0]
+  if (/^(TuneFlow|音流)$/.test(document.title)) document.title = lang.startsWith('zh') ? '音流' : 'TuneFlow'
+}
 window.setLang()
 window.dt = true
 window.shouldUseDarkColors = matchMedia('(prefers-color-scheme: dark)').matches

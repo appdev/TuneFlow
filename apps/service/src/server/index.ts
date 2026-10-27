@@ -38,6 +38,7 @@ const main = async() => {
   }
   process.once('SIGINT', () => { void shutdown() })
   process.once('SIGTERM', () => { void shutdown() })
+  process.once('SIGHUP', () => { void shutdown() })
 }
 
 void main().catch(error => {

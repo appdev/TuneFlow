@@ -90,7 +90,7 @@ const run = async(target) => {
     extraResources: [{ from: path.join(root, 'licenses'), to: 'licenses' }, { from: path.join(root, 'NOTICE'), to: 'NOTICE' }, { from: path.join(root, 'LICENSE'), to: 'LICENSE' }],
     publish: null, artifactName: 'TuneFlow-${version}-${os}-${arch}.${ext}',
     mac: { identity: '-', hardenedRuntime: false, gatekeeperAssess: false, icon: path.join(root, 'resources/icons/icon.icns'), category: 'public.app-category.music', target: ['zip'] },
-    win: { icon: path.join(root, 'resources/icons/icon.ico'), target: ['zip'], signAndEditExecutable: false },
+    win: { icon: path.join(root, 'resources/icons/icon.ico'), target: ['zip'], signAndEditExecutable: true },
     linux: { executableName: 'TuneFlow', icon: path.join(root, 'resources/icons'), category: 'AudioVideo', target: ['tar.gz'], maintainer: 'TuneFlow contributors' },
   }
   const option = platform === 'darwin' ? 'mac' : platform === 'win32' ? 'win' : 'linux'

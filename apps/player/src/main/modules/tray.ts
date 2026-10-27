@@ -54,6 +54,7 @@ const themeList = [
 
 const messages = {
   'en-us': {
+    app_name: 'TuneFlow',
     collect: 'Love',
     uncollect: 'Unlove',
     play: 'Play',
@@ -75,6 +76,7 @@ const messages = {
     music_singer: 'Artist: ',
   },
   'zh-cn': {
+    app_name: '音流',
     collect: '收藏',
     uncollect: '取消收藏',
     play: '播放',
@@ -96,6 +98,7 @@ const messages = {
     music_singer: '艺术家: ',
   },
   'zh-tw': {
+    app_name: '音流',
     collect: '收藏',
     uncollect: '取消收藏',
     play: '播放',
@@ -306,10 +309,10 @@ const setLyric = (lyricLineText?: string) => {
   }
 }
 
-const defaultTip = 'TuneFlow'
 const setTip = () => {
   if (!tray) return
 
+  const defaultTip = i18n.getMessage('app_name')
   let name = global.lx.player_status.name
   let tip: string
   if (name) {

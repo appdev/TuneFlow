@@ -4,7 +4,7 @@
     <ControlBtns v-else-if="appSetting['common.controlBtnPosition'] == 'left'" />
     <div v-else :class="$style.logo">
       <img :class="$style.logoIcon" :src="appIcon" width="36" height="36" alt="" draggable="false">
-      <span :class="$style.logoText">TuneFlow</span>
+      <span :class="$style.logoText">{{ $t('app_name') }}</span>
     </div>
     <NavBar />
   </div>

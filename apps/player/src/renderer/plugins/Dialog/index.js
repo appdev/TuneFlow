@@ -1,5 +1,6 @@
 import Dialog from './Dialog.vue'
 import { createApp } from 'vue'
+import { i18nPlugin } from '@renderer/plugins/i18n'
 
 
 const defaultOptions = {
@@ -22,6 +23,7 @@ export const dialog = function(options) {
       },
     })
 
+    app.use(i18nPlugin)
     let instance = app.mount(document.createElement('div'))
 
     // 属性设置

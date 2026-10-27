@@ -35,8 +35,18 @@ test('both client facades point to the same portable API and business implementa
     assert.doesNotMatch(read('packages/' + dir + '/src/' + name), /from ['"](?:vue|react|react-native|electron|@renderer|@\/)/)
   }
 })
-test('Docker defaults to shared Web and keeps the original volume contract and isolated Service dependencies', () => {
-  assert.match(read('Dockerfile'), /ARG TUNEFLOW_WEB_VARIANT=qmusic/)
+test('Docker ships only shared Vue Web and keeps the original volume contract and isolated Service dependencies', () => {
+  const dockerfile = read('Dockerfile')
+  assert.match(dockerfile, /COPY --from=player-web \/web\/apps\/player\/dist\/web-client \/tmp\/player-web/)
+  assert.match(dockerfile, /cp -a \/tmp\/player-web\/\. dist\/web\//)
+  assert.match(dockerfile, /&& npm run prepare:service/)
+  assert.match(dockerfile, /verify:service-isolated/)
+  assert.doesNotMatch(dockerfile, /TUNEFLOW_WEB_VARIANT|legacy|integrated|V2|npm run build:service/)
+  assert.doesNotMatch(read('.dockerignore'), /!dist|web-integrated/)
+  assert.equal(fs.existsSync(path.join(root, 'compose.integrated.yaml')), false)
+  const scripts = JSON.parse(read('apps/service/package.json')).scripts
+  assert.equal(scripts['build:web:integrated'], undefined)
+  assert.equal(scripts['build:docker:integrated'], undefined)
   for (const source of ['apps/service/**', 'apps/player/**', 'packages/**']) assert.ok(read('.github/workflows/docker-build.yml').includes(source), 'Docker checks must follow every image source')
   assert.match(read('Dockerfile'), /COPY apps\/service\//)
   assert.match(read('compose.yaml'), /tuneflow-config:\/config/)

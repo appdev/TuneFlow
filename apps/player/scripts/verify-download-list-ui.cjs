@@ -60,16 +60,20 @@ const actions = [], errors = [], layouts = []
     const rows = page.locator('#view article')
     const row = id => rows.filter({ has: page.locator('strong').filter({ hasText: new RegExp(`^示例歌曲 ${id}$`) }) })
     await row(1).waitFor()
+    assert.equal(await rows.locator('[role="img"], img').count(), 0, 'Download rows do not display platform icons')
     await page.getByText('共 1500 个任务', { exact: true }).waitFor()
     for (const status of ['下载中', '排队中', '已暂停', '失败', '已完成']) assert.ok((await rows.allTextContents()).join(' ').includes(status))
     assert.equal(await row(1).getByRole('progressbar').getAttribute('aria-valuenow'), '46')
     const measure = async label => {
+      assert.equal(await page.locator('#view').getByText('专辑名', { exact: true }).count(), 0, 'Download list has no album column')
+      assert.ok((await rows.allTextContents()).every(text => !text.includes('专辑')), 'Download rows omit album metadata at every width')
       const value = await rows.evaluateAll(rows => rows.map(row => {
         const rect = row.getBoundingClientRect()
         return { width: rect.width, height: rect.height, overflow: row.scrollWidth > row.clientWidth + 1, outside: [...row.querySelectorAll('button, a')].some(button => { const b = button.getBoundingClientRect(); return b.right > rect.right + 1 || b.left < rect.left - 1 || b.bottom > rect.bottom + 1 }) }
       }))
       assert.ok(value.length > 4 && value.length < 30, 'Virtual list renders only visible rows')
       assert.ok(value.every(row => !row.overflow && !row.outside), JSON.stringify({ label, value }))
+      assert.ok(value.every(row => row.height >= 38 && row.height <= 52), 'Compact rows retain a stable virtual-list height')
       layouts.push({ label, rows: value.length, width: value[0].width, height: value[0].height })
       await page.screenshot({ path: path.join(out, label + '.png') })
     }
@@ -84,7 +88,7 @@ const actions = [], errors = [], layouts = []
       await page.waitForTimeout(150)
       await measure('dark')
     }
-    for (const width of [1114, 800]) {
+    for (const width of [1114, 800, 640]) {
       if (app) await app.evaluate(({ BrowserWindow }, width) => { BrowserWindow.getAllWindows()[0].setSize(width, 850) }, width)
       else await page.setViewportSize({ width, height: 850 })
       await page.waitForTimeout(150); await measure('width-' + width)

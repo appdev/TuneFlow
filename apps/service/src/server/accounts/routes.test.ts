@@ -8,8 +8,11 @@ import { ApiError } from '../errors'
 import { ServiceEvents } from '../routes/events'
 import { AccountVault } from './vault'
 import type { ApiFastifyInstance } from '../api/types'
+import { PlatformAccounts } from './service'
 const qrPoll = vi.hoisted(() => vi.fn())
-vi.mock('./qr', () => ({ createOfficialQr: async() => ({ image: 'data:image/png;base64,synthetic', expiresAt: Date.now() + 120000, poll: qrPoll }) }))
+const qrClose = vi.hoisted(() => vi.fn(async() => {}))
+const qrCreate = vi.hoisted(() => vi.fn())
+vi.mock('./qr', () => ({ createOfficialQr: async() => { qrCreate(); return { image: 'data:image/png;base64,synthetic', expiresAt: Date.now() + 120000, poll: qrPoll, close: qrClose } } }))
 const roots: string[] = []; const apps: Array<ReturnType<typeof Fastify>> = []
 const password = 'synthetic-fixture-password'
 const fixture = async(configured = true) => {
@@ -25,8 +28,57 @@ const fixture = async(configured = true) => {
   const headers = { authorization: `Bearer ${token}` }
   return { app, headers }
 }
-afterEach(async() => { for (const app of apps.splice(0)) await app.close(); for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); qrPoll.mockReset() })
+afterEach(async() => { for (const app of apps.splice(0)) await app.close(); for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); qrPoll.mockReset(); qrClose.mockClear(); qrCreate.mockClear() })
 describe('private account routes', () => {
+  it('finishes disposal before allocating a replacement browser slot', async() => {
+    const { app, headers } = await fixture()
+    await app.inject({ method: 'POST', url: '/api/v1/accounts/wy/login', headers })
+    let finish!: () => void
+    const disposed = new Promise<void>(resolve => { finish = resolve })
+    qrClose.mockImplementationOnce(async() => disposed)
+    const replacement = app.inject({ method: 'POST', url: '/api/v1/accounts/wy/login', headers }).then(response => response)
+    await vi.waitFor(() => { expect(qrClose).toHaveBeenCalledOnce() })
+    expect(qrCreate).toHaveBeenCalledTimes(1)
+    finish()
+    expect((await replacement).statusCode).toBe(200)
+    expect(qrCreate).toHaveBeenCalledTimes(2)
+  })
+  it('releases sessions on replacement, cancellation, expiry and shutdown', async() => {
+    const { app, headers } = await fixture()
+    const create = async() => (await app.inject({ method: 'POST', url: '/api/v1/accounts/wy/login', headers })).json().data.id
+    await create()
+    const second = await create()
+    expect(qrClose).toHaveBeenCalledTimes(1)
+    await app.inject({ method: 'DELETE', url: `/api/v1/accounts/login/${second}`, headers })
+    expect(qrClose).toHaveBeenCalledTimes(2)
+    await create()
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 120001)
+    try { await create(); expect(qrClose).toHaveBeenCalledTimes(3) } finally { clock.mockRestore() }
+    await app.close()
+    expect(qrClose).toHaveBeenCalledTimes(4)
+  })
+  it('retries verification of an authorized QR without redeeming the provider ticket again', async() => {
+    const { app, headers } = await fixture()
+    const credential = { cookies: { MUSIC_U: 'synthetic-music-session' } }
+    qrPoll.mockResolvedValueOnce({ status: 'connected', credential })
+    const upload = vi.spyOn(PlatformAccounts.prototype, 'upload')
+      .mockRejectedValueOnce(new ApiError(502, 'ACCOUNT_PROVIDER_ERROR', 'Temporary verification failure'))
+      .mockResolvedValue({ provider: 'wy', status: 'connected', revision: 1 })
+    const now = Date.now(); const clock = vi.spyOn(Date, 'now').mockReturnValue(now)
+    try {
+      const login = await app.inject({ method: 'POST', url: '/api/v1/accounts/wy/login', headers })
+      const url = `/api/v1/accounts/login/${login.json().data.id}/poll`
+      expect((await app.inject({ method: 'POST', url, headers })).statusCode).toBe(502)
+      clock.mockReturnValue(now + 2500)
+      const result = await app.inject({ method: 'POST', url, headers })
+      expect(result.statusCode).toBe(200)
+      expect(result.json()).toEqual({ data: { status: 'connected' } })
+      expect(qrPoll).toHaveBeenCalledTimes(1)
+      expect(upload).toHaveBeenCalledTimes(2)
+      expect(upload.mock.calls[1][1]).toEqual(credential)
+      expect(result.body).not.toContain('synthetic-music-session')
+    } finally { upload.mockRestore(); clock.mockRestore() }
+  })
   it('supports password access over HTTP and logout without roles or pairing', async() => {
     const { app, headers } = await fixture()
     const demo = { host: '192.168.0.70:3125', origin: 'http://192.168.0.70:3125' }

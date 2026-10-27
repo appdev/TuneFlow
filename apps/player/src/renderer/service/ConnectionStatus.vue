@@ -1,5 +1,5 @@
 <template>
-  <div v-if="!status.connected" :class="$style.status" role="status">
+  <div v-if="status.hasConnected && !status.connected" :class="$style.status" role="status">
     <span>{{ status.busy ? '正在连接…' : status.error || '尚未连接' }}</span>
     <button :disabled="status.busy" @click="checkService(true)">重试</button>
     <router-link v-if="!isServerBoundWeb" to="/setting?name=SettingService">连接设置</router-link>

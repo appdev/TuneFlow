@@ -30,7 +30,17 @@ export const registerAccountRoutes = (app: ApiFastifyInstance, configRoot: strin
   const vault = new AccountVault(configRoot)
   const accounts = new PlatformAccounts(vault, (provider, revision) => { events.publishSnapshot('accounts.changed', { provider, revision }) })
   const authenticate = (request: FastifyRequest) => vault.authorize(/^Bearer ([\w-]+)$/.exec(request.headers.authorization ?? '')?.[1])
-  const attempts = new Map<string, { deviceId: string, provider: MusicAccountProvider, revision: number, flow: QrFlow, cancelled?: boolean, task?: Promise<unknown>, connected?: boolean, lastPoll: number }>()
+  const attempts = new Map<string, { deviceId: string, provider: MusicAccountProvider, revision: number, flow: QrFlow, authorized?: Awaited<ReturnType<QrFlow['poll']>>, cancelled?: boolean, task?: Promise<unknown>, connected?: boolean, lastPoll: number }>()
+  const pending = new Set<Promise<QrFlow>>()
+  const creating = new Map<string, symbol>()
+  const controllers = new Map<symbol, AbortController>()
+  const releases = new Set<Promise<void>>()
+  let closing = false
+  const release = async(flow: QrFlow) => {
+    const task = Promise.resolve().then(async() => flow.close?.()).catch(() => {}).then(() => {})
+    releases.add(task); void task.finally(() => releases.delete(task))
+    return task
+  }
   const limits = new Map<string, { count: number, until: number }>()
   const limit = (key: string, max: number, milliseconds = 60_000) => {
     const now = Date.now()
@@ -39,7 +49,7 @@ export const registerAccountRoutes = (app: ApiFastifyInstance, configRoot: strin
     if (!entry) { if (limits.size >= 1024) throw new ApiError(429, 'ACCOUNT_RATE_LIMIT', 'Retry later'); limits.set(key, entry = { count: 0, until: now + milliseconds }) }
     if (++entry.count > max) throw new ApiError(429, 'ACCOUNT_RATE_LIMIT', 'Retry later')
   }
-  const clean = () => { for (const [id, attempt] of attempts) if (attempt.flow.expiresAt < Date.now() || attempt.cancelled) attempts.delete(id) }
+  const clean = () => { for (const [id, attempt] of attempts) if (attempt.flow.expiresAt < Date.now() || attempt.cancelled) { attempt.cancelled = true; attempts.delete(id); void release(attempt.flow) } }
   const cleanupTimer = setInterval(clean, 30_000); cleanupTimer.unref()
   app.addHook('onRequest', async(request, reply) => {
     // Guard the matched route, including percent-encoded spellings of its URL.
@@ -65,11 +75,18 @@ export const registerAccountRoutes = (app: ApiFastifyInstance, configRoot: strin
   })
   app.put('/api/v1/access/password', { bodyLimit: 2048, schema: { ...schema, body: Type.Object({ password: Type.String({ minLength: 8, maxLength: 128 }), currentPassword: Type.Optional(Type.String({ maxLength: 128 })) }, { additionalProperties: false }) } }, async request => {
     await vault.setPassword(request.body.password, authenticate(request), request.body.currentPassword)
+    for (const controller of controllers.values()) controller.abort()
+    creating.clear()
+    for (const attempt of attempts.values()) attempt.cancelled = true
+    clean()
     events.publishSnapshot('accounts.changed', { revision: vault.revision })
     return { data: { passwordConfigured: true } }
   })
   app.delete('/api/v1/access/session', { schema }, async request => {
     const device = authenticate(request); vault.signOut(device)
+    const generation = creating.get(device.id)
+    if (generation) controllers.get(generation)?.abort()
+    creating.delete(device.id)
     events.publishSnapshot('accounts.changed', { revision: vault.revision })
     for (const attempt of attempts.values()) if (attempt.deviceId === device.id) attempt.cancelled = true
     clean(); return { data: { signedOut: true } }
@@ -109,15 +126,33 @@ export const registerAccountRoutes = (app: ApiFastifyInstance, configRoot: strin
     return { data: { id, count: tracks.list.length } }
   })
   app.get('/api/v1/accounts/:provider/daily', { schema: { ...schema, params: providerSchema } }, async request => { const result = await accounts.daily(request.params.provider, (request.query as { refresh?: string }).refresh === 'true'); authenticate(request); return { data: result } })
-  app.post('/api/v1/accounts/:provider/login', { schema: { ...schema, params: providerSchema } }, async request => {
+  app.post('/api/v1/accounts/:provider/login', { schema: { ...schema, params: providerSchema } }, async(request, reply) => {
     const device = authenticate(request); limit(`login:${device.id}`, 6); clean()
     if (attempts.size >= 64) throw new ApiError(429, 'ACCOUNT_RATE_LIMIT', 'Too many active logins')
     for (const attempt of attempts.values()) if (attempt.deviceId === device.id) attempt.cancelled = true
+    clean()
+    await Promise.all([...releases])
     const provider = request.params.provider; const revision = vault.account(provider)?.revision ?? 0
-    const flow = await createOfficialQr(provider); authenticate(request)
-    const id = randomUUID()
-    attempts.set(id, { deviceId: device.id, provider, revision, flow, lastPoll: 0 })
-    return { data: { id, provider, image: flow.image, expiresAt: flow.expiresAt } }
+    const previous = creating.get(device.id)
+    if (previous) controllers.get(previous)?.abort()
+    const generation = Symbol('login'); creating.set(device.id, generation)
+    const controller = new AbortController(); controllers.set(generation, controller)
+    const disconnected = () => { controller.abort(); if (creating.get(device.id) === generation) creating.delete(device.id) }
+    reply.raw.once('close', disconnected)
+    const creation = createOfficialQr(provider, controller.signal); pending.add(creation)
+    let flow: QrFlow | undefined
+    try {
+      flow = await creation; authenticate(request)
+      if (closing || creating.get(device.id) !== generation || (vault.account(provider)?.revision ?? 0) !== revision) throw new ApiError(409, 'ACCOUNT_LOGIN_EXPIRED', 'Login expired or cancelled')
+      const id = randomUUID()
+      attempts.set(id, { deviceId: device.id, provider, revision, flow, lastPoll: 0 })
+      return { data: { id, provider, image: flow.image, expiresAt: flow.expiresAt } }
+    } catch (error) { if (flow) await release(flow); throw error } finally {
+      reply.raw.removeListener('close', disconnected)
+      pending.delete(creation)
+      controllers.delete(generation)
+      if (creating.get(device.id) === generation) creating.delete(device.id)
+    }
   })
   app.post('/api/v1/accounts/login/:id/poll', { schema: { ...schema, params: Type.Object({ id: Type.String({ maxLength: 64 }) }) } }, async request => {
     const device = authenticate(request); clean(); const attempt = attempts.get(request.params.id)
@@ -128,21 +163,37 @@ export const registerAccountRoutes = (app: ApiFastifyInstance, configRoot: strin
     attempt.lastPoll = Date.now()
     const guard = () => { authenticate(request); if ((attempt.cancelled ?? false) || attempt.flow.expiresAt < Date.now()) throw new ApiError(409, 'ACCOUNT_LOGIN_EXPIRED', 'Login expired or cancelled') }
     attempt.task = (async() => {
-      const result = await attempt.flow.poll(); guard()
+      const result = attempt.authorized ?? await attempt.flow.poll(); guard()
       if (result.status === 'connected') {
         if (!result.credential) throw new ApiError(502, 'ACCOUNT_PROVIDER_ERROR', 'Authorization session missing')
+        // The provider may consume the QR ticket on success. Retry verification
+        // with this attempt's credential rather than redeeming the ticket again.
+        attempt.authorized = result
+        await release(attempt.flow)
         await accounts.upload(attempt.provider, result.credential, attempt.revision, guard)
         attempt.connected = true
+        attempt.authorized = undefined
       }
-      if (result.status === 'expired') attempt.cancelled = true
+      if (result.status === 'expired') { attempt.cancelled = true; await release(attempt.flow) }
       return { status: result.status }
     })()
     try { return { data: await attempt.task } } finally { attempt.task = undefined }
   })
   app.delete('/api/v1/accounts/login/:id', { schema: { ...schema, params: Type.Object({ id: Type.String({ maxLength: 64 }) }) } }, async request => {
     const device = authenticate(request); const attempt = attempts.get(request.params.id)
-    if (attempt?.deviceId === device.id) { attempt.cancelled = true; attempts.delete(request.params.id) }
+    if (attempt?.deviceId === device.id) { attempt.cancelled = true; attempts.delete(request.params.id); await release(attempt.flow) }
     return { data: { cancelled: true } }
   })
-  app.addHook('onClose', async() => { clearInterval(cleanupTimer); for (const attempt of attempts.values()) attempt.cancelled = true; attempts.clear(); limits.clear() })
+  app.addHook('preClose', async() => {
+    closing = true; clearInterval(cleanupTimer); creating.clear()
+    for (const controller of controllers.values()) controller.abort()
+    for (const attempt of attempts.values()) { attempt.cancelled = true; void release(attempt.flow) }
+    attempts.clear(); limits.clear()
+    await Promise.allSettled([...releases])
+  })
+  app.addHook('onClose', async() => {
+    await Promise.allSettled([...pending].map(async creation => release(await creation)))
+    await Promise.allSettled([...releases])
+    controllers.clear()
+  })
 }

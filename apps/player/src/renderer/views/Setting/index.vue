@@ -32,7 +32,9 @@
     <div id="setting-panel" ref="dom_content_ref" class="scroll" :class="$style.setting" role="tabpanel" :aria-labelledby="`${avtiveComponentName}-tab`" tabindex="0">
       <dl>
         <div :key="avtiveComponentName">
-          <component :is="avtiveComponentName" />
+          <ServiceRequired :required="['SettingAccounts', 'SettingSource', 'SettingDownload'].includes(avtiveComponentName)">
+            <component :is="avtiveComponentName" />
+          </ServiceRequired>
         </div>
         <!-- <SettingBasic />
         <SettingPlay />
@@ -60,9 +62,10 @@ import { h } from 'vue'
 import ServerSettings from '@renderer/service/ServerSettings.vue'
 import MusicAccounts from '@renderer/service/MusicAccounts.vue'
 import WebPreferences from '@renderer/service/WebPreferences.vue'
+import ServiceRequired from '@renderer/service/ServiceRequired.vue'
 // import { currentStting } from './setting'
 import { useI18n } from '@renderer/plugins/i18n'
-import { useRoute } from '@common/utils/vueRouter'
+import { useRoute, useRouter } from '@common/utils/vueRouter'
 
 import SettingBasic from './components/SettingBasic.vue'
 import SettingPlay from './components/SettingPlay.vue'
@@ -82,6 +85,7 @@ const webPanel = section => ({ render: () => h(WebPreferences, { section }) })
 export default {
   name: 'Setting',
   components: {
+    ServiceRequired,
     SettingBasic: isWeb ? webPanel('appearance') : SettingBasic,
     SettingPlay: isWeb ? webPanel('playback') : SettingPlay,
     SettingPlayDetail,
@@ -102,6 +106,7 @@ export default {
   setup() {
     const t = useI18n()
     const route = useRoute()
+    const router = useRouter()
 
     const dom_content_ref = ref(null)
 
@@ -168,12 +173,16 @@ export default {
 
     const toggleTab = id => {
       avtiveComponentName.value = id
+      if (route.query.name !== id) void router.replace({ query: { ...route.query, name: id } })
       logRendererState('setting:toggleTab', { id })
       // 分类内容立即显示并回到顶部，不从旧位置平滑滚动。
       void nextTick(() => {
         if (dom_content_ref.value) dom_content_ref.value.scrollTop = 0
       })
     }
+    watch(() => route.query.name, id => {
+      if (tocList.value.some(item => item.id === id)) toggleTab(id)
+    })
 
     const handleTabKey = (event, index) => {
       const last = tocList.value.length - 1

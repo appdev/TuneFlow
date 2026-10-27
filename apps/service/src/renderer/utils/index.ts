@@ -38,7 +38,7 @@ export const dateFormat2 = (time: number): string => {
  */
 let dom_title = typeof document === 'undefined' ? undefined : document.getElementsByTagName('title')[0]
 export const setTitle = (title: string | null) => {
-  title ||= 'TuneFlow · 音流'
+  title ||= window.i18n.t('app_name')
   if (dom_title != null) dom_title.innerText = title
 }
 

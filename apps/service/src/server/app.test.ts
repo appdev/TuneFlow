@@ -43,16 +43,16 @@ describe('TuneFlow service', () => {
     const root = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-private-account-root-')); roots.push(root)
     await expect(createServer({ storageRoot: root, webRoot: root, host: '127.0.0.1', port: 0 })).rejects.toThrow('Account storage must be outside the static Web root')
   })
-  it('serves Flutter at root and preserves the legacy SPA under /V2/', async() => {
+  it('serves the shared Vue SPA and rejects retired Web routes even with stale assets', async() => {
     const { app, webRoot } = await createTestServer()
     mkdirSync(path.join(webRoot, 'V2'))
     writeFileSync(path.join(webRoot, 'V2/index.html'), '<title>Legacy Web</title>')
     writeFileSync(path.join(webRoot, 'V2/renderer.js'), 'window.legacy = true')
     expect((await app.inject('/')).body).toContain('TuneFlow')
-    expect((await app.inject('/V2')).headers.location).toBe('/V2/')
-    expect((await app.inject('/V2/')).body).toContain('Legacy Web')
-    expect((await app.inject('/V2/nested')).body).toContain('Legacy Web')
-    expect((await app.inject('/V2/renderer.js')).body).toBe('window.legacy = true')
+    expect((await app.inject('/settings')).body).toContain('TuneFlow')
+    for (const url of ['/V2', '/V2/', '/V2/nested', '/V2/renderer.js']) {
+      expect((await app.inject(url)).statusCode).toBe(404)
+    }
     expect((await app.inject('/api/v1/missing')).statusCode).toBe(404)
   })
 

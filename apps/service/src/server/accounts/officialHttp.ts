@@ -13,6 +13,7 @@ export const credentialNames = {
   kg: [],
 }
 const validCookieValue = (value: string) => !Array.from(value).some(char => char.charCodeAt(0) <= 32 || char.charCodeAt(0) === 127 || char === ';')
+const neteaseWebUserAgent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36'
 export const sanitizeCredential = (provider: MusicAccountProvider, value: AccountCredential): AccountCredential => {
   const cookies: Record<string, string> = {}
   for (const name of credentialNames[provider]) {
@@ -72,7 +73,7 @@ export class OfficialHttp {
       const authorization = new Headers(init.headers).get('authorization')
       if (authorization?.startsWith('Bearer qmk-')) headers.set('Authorization', authorization)
     }
-    headers.set('User-Agent', 'Mozilla/5.0 TuneFlow/1.0')
+    headers.set('User-Agent', this.provider === 'wy' ? neteaseWebUserAgent : 'Mozilla/5.0 TuneFlow/1.0')
     try {
       const response = await this.transport(target, { ...init, headers, redirect: 'manual', signal: init.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(12000)]) : AbortSignal.timeout(12000) })
       this.capture(response, target)
