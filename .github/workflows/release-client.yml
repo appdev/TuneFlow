@@ -1,4 +1,4 @@
-name: Build and release clients from monorepo
+name: Build clients from monorepo
 
 on:
   pull_request:
@@ -15,10 +15,6 @@ on:
         type: choice
         options: [all, desktop, android]
         default: all
-      publish:
-        description: Publish verified preview packages and update channels in TuneFlow
-        type: boolean
-        default: false
   workflow_call:
     inputs:
       source_ref:
@@ -27,9 +23,6 @@ on:
       component:
         type: string
         default: all
-      publish:
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -52,12 +45,10 @@ jobs:
       - id: metadata
         env:
           COMPONENT: ${{ inputs.component || 'all' }}
-          PUBLISH: ${{ inputs.publish || false }}
         run: |
           node <<'NODE'
           const fs = require('node:fs'), cp = require('node:child_process')
           if (!['all', 'desktop', 'android'].includes(process.env.COMPONENT)) throw Error('Invalid component')
-          if (process.env.PUBLISH === 'true' && process.env.GITHUB_REPOSITORY !== 'appdev/TuneFlow') throw Error('Publish only in TuneFlow')
           const desktop = require('./apps/player/package.json'), android = require('./apps/android/package.json')
           if (process.env.COMPONENT === 'all' && desktop.version !== android.version) throw Error('All-client release requires matching versions')
           const version = process.env.COMPONENT === 'android' ? android.version : desktop.version
@@ -208,30 +199,3 @@ jobs:
             apps/android/android/app/build/outputs/apk/standalone/*-arm64-v8a.apk
             apps/android/android/app/build/outputs/apk/standalone/*-universal.apk
           if-no-files-found: error
-
-  publish:
-    if: always() && inputs.publish && needs.metadata.result == 'success' && needs.verify.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
-    needs: [metadata, verify, desktop, android]
-    runs-on: ubuntu-latest
-    concurrency:
-      group: client-publication-${{ needs.metadata.outputs.version }}
-      cancel-in-progress: false
-    permissions:
-      contents: write
-    env:
-      GH_TOKEN: ${{ github.token }}
-      GH_REPO: appdev/TuneFlow
-      RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
-      RELEASE_SOURCE: ${{ needs.metadata.outputs.source }}
-      RELEASE_COMPONENT: ${{ inputs.component || 'all' }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          repository: appdev/TuneFlow
-          ref: ${{ needs.metadata.outputs.source }}
-      - uses: actions/download-artifact@v7
-        with:
-          pattern: tuneflow-release-*
-          path: release-assets
-          merge-multiple: true
-      - run: node scripts/publish-client.cjs release-assets

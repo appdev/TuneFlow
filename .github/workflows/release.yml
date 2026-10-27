@@ -1,0 +1,114 @@
+name: Release TuneFlow together
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Frozen commit or TuneFlow tag with matching Service and client versions
+        type: string
+        required: true
+      publish:
+        description: Publish Docker Hub image and all client packages after every build succeeds
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tuneflow-unified-release
+  cancel-in-progress: false
+
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      source: ${{ steps.release.outputs.source }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.source_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Test release policy without publishing
+        run: node --test test/unified-release.test.cjs
+      - id: release
+        env:
+          PUBLISH: ${{ inputs.publish }}
+        run: node scripts/release-policy.cjs
+
+  clients:
+    needs: metadata
+    uses: ./.github/workflows/release-client.yml
+    with:
+      source_ref: ${{ needs.metadata.outputs.source }}
+      component: all
+
+  image:
+    needs: metadata
+    uses: ./.github/workflows/docker-build.yml
+    with:
+      source_ref: ${{ needs.metadata.outputs.source }}
+      export_image: true
+
+  publish:
+    if: inputs.publish
+    needs: [metadata, clients, image]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: appdev/TuneFlow
+      RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
+      RELEASE_SOURCE: ${{ needs.metadata.outputs.source }}
+      RELEASE_COMPONENT: all
+      DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.metadata.outputs.source }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Recheck unified version and tag before publication
+        env:
+          PUBLISH: 'true'
+        run: node scripts/release-policy.cjs
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: tuneflow-release-*
+          path: release-assets
+          merge-multiple: true
+      - name: Validate all client packages before publishing anything
+        run: |
+          node -e "require('./scripts/publish-client.cjs').prepareAssets('release-assets', {version: process.env.RELEASE_VERSION, source: process.env.RELEASE_SOURCE, component: 'all'})"
+      - uses: actions/download-artifact@v7
+        with:
+          name: tuneflow-verified-image
+          path: verified-image
+      - name: Load the tested image without rebuilding
+        run: docker load --input verified-image/tuneflow-image.tar.gz
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Publish immutable version and source image tags
+        run: node scripts/publish-image.cjs version
+      - name: Publish all client packages and update channels
+        run: node scripts/publish-client.cjs release-assets
+      - name: Update latest only after clients are published
+        run: node scripts/publish-image.cjs latest
+      - name: Preserve publication evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: tuneflow-publication
+          path: docker-publication.json
+          if-no-files-found: ignore

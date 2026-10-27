@@ -4,7 +4,9 @@
 
 <p align="center">TuneFlow 的服务端与 Web 托管组件</p>
 
-[产品首页](../../README.md) · [桌面/Web 客户端](../player/README.md) · [Android 客户端](../android/README.md) · [服务端发布](https://github.com/appdev/TuneFlow/releases)
+[产品首页](../../README.md) · [桌面/Web 客户端](../player/README.md) · [Android 客户端](../android/README.md) · [服务端镜像](https://hub.docker.com/r/apkdv/tuneflow-server)
+
+后续服务端与桌面、Android 使用同一版本号，由[统一发布工作流](../../.github/workflows/release.yml)从同一冻结提交一起发布。服务镜像发布到 Docker Hub，包含内置 Web；不单独发布 Web 包或服务端 GitHub Release。版本准备与失败恢复见[统一发布说明](../../docs/release-readiness.md#统一版本与发布操作)。
 
 <a id="目录"></a>
 

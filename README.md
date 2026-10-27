@@ -2,7 +2,7 @@
 
 可自行部署的多端音乐应用。一个服务管理音乐库、歌单、收藏、播放历史、音源和下载，桌面、Web 与 Android 提供统一的音乐体验。
 
-[客户端下载安装](https://github.com/appdev/TuneFlow/releases) · [服务端发布](https://github.com/appdev/TuneFlow/releases) · [问题反馈](https://github.com/appdev/TuneFlow/issues) · [单仓库与发布说明](docs/monorepo.md)
+[客户端下载安装](https://github.com/appdev/TuneFlow/releases) · [服务端镜像](https://hub.docker.com/r/apkdv/tuneflow-server) · [问题反馈](https://github.com/appdev/TuneFlow/issues) · [单仓库与发布说明](docs/monorepo.md)
 
 ## 在自己的音乐空间里听歌
 
@@ -115,6 +115,8 @@ Web 固定连接当前页面所在服务，隐藏服务器切换设置；桌面�
 Web 随 Docker 镜像提供，后续不再单独发布 Web 资源包；源码构建与本地开发入口保留。已发布版本的附件保持不变。
 
 应用与安装包统一使用 **TuneFlow** 名称，客户端安装包发布于 **appdev/TuneFlow**，使用 `TuneFlow-v<version>` 标签；Docker 镜像发布到 Docker Hub。Android 只提供 arm64-v8a 和 universal 通用版，其他架构使用通用版。客户端包含预览版本，请阅读发布说明并核对 SHA256。旧版 Android 的下载逻辑使用历史文件名，升级到 0.4.27 请手动下载新版覆盖安装一次；保留原应用 ID、签名和数据目录，无需卸载。
+
+后续版本通过 [统一发布 Actions](.github/workflows/release.yml) 一起发布服务镜像、桌面和 Android：三端使用同一版本号、同一冻结源码，所有构建通过后才发布。Docker 保留内置 Web，不发布独立 Web 包。独立客户端和 Docker 工作流仅用于构建检查；具体版本准备、标签、试构建和失败恢复见[发布流程](docs/release-readiness.md#统一版本与发布操作)。
 
 ## 源码开发
 

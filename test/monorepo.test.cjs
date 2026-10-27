@@ -46,10 +46,10 @@ test('Docker defaults to shared Web and keeps the original volume contract and i
 })
 test('release jobs use one resolved source and retain API/raw/CDN update compatibility without downgrading', () => {
   const workflow = read('.github/workflows/release-client.yml')
-  assert.equal((workflow.match(/ref: \$\{\{ needs.metadata.outputs.source \}\}/g) ?? []).length, 4)
+  assert.equal((workflow.match(/ref: \$\{\{ needs.metadata.outputs.source \}\}/g) ?? []).length, 3)
   assert.match(workflow, /options: \[all, desktop, android\]/)
   assert.doesNotMatch(workflow, /^  web:|tuneflow-release-web|TuneFlow-Web-/m)
-  assert.match(workflow, /needs: \[metadata, verify, desktop, android\]/)
+  assert.doesNotMatch(workflow, /\n  publish:|GH_TOKEN/)
   const { channelMetadata } = require('../scripts/publish-client.cjs')
   const incoming = { version: '0.4.25', desc: 'published preview', history: [] }
   const assets = [{ name: 'Q-music-android-v0.4.25-arm64-v8a.apk' }]

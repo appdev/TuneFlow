@@ -23,7 +23,9 @@
 
 客户端附件、更新、源码与反馈统一在 [TuneFlow Releases](https://github.com/appdev/TuneFlow/releases)，客户端使用 `TuneFlow-v<version>` 标签。原发布仓库已删除，旧版用户需手动下载新版覆盖安装一次，之后使用新更新通道；保留预览版数据目录与应用标识。
 
-现有附件仍使用 `Q-music-Docker-<version>-<platform>-<arch>` 名称。桌面预览身份为 `io.github.qmusic.docker.preview`，profile 为 `q-music-docker-preview`；不要将旧上游 Q-music 安装包与此兼容通道混用。覆盖升级须保留应用身份、数据目录和原签名兼容性。发行包是否签名、公证及系统验证范围，以对应 Release 说明为准。
+桌面附件使用 `TuneFlow-<version>-<platform>-<arch>` 名称。桌面预览身份为 `io.github.qmusic.docker.preview`，profile 为 `q-music-docker-preview`；不要将旧上游安装包与此兼容通道混用。覆盖升级须保留应用身份、数据目录和原签名兼容性。发行包是否签名、公证及系统验证范围，以对应 Release 说明为准。
+
+后续版本与服务端、Android 使用同一版本号，由[统一发布工作流](../../.github/workflows/release.yml)从同一冻结提交一起发布。独立客户端工作流只检查构建；Web 随 Docker 镜像提供，不再单独发包。操作见[统一发布说明](../../docs/release-readiness.md#统一版本与发布操作)。
 
 | 构建目标 | 兼容通道归档 |
 | --- | --- |
