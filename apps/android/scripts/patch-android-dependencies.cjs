@@ -17,6 +17,11 @@ patch('@react-native/gradle-plugin/build.gradle.kts',
   '    allWarningsAsErrors = true',
   '    allWarningsAsErrors = false // Q-music: Gradle 8.11 compatibility')
 
+// 该依赖硬编码四种 ABI；跟随项目配置，避免额外编译 x86 原生库。
+patch('react-native-quick-md5/android/build.gradle',
+  "abiFilters 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'",
+  "abiFilters(*(project.findProperty('reactNativeArchitectures') ?: 'armeabi-v7a,arm64-v8a').toString().split(','))")
+
 // 系统再次 startService 时不能重建 MusicManager，否则旧播放实例与绑定对象脱节。
 patch('react-native-track-player/android/src/main/java/com/guichaguri/trackplayer/service/MusicService.java',
   '        manager = new MusicManager(this);\n        handler = new Handler();',

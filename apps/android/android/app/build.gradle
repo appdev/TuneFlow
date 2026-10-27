@@ -88,7 +88,7 @@ def jscFlavor = 'org.webkit:android-jsc:+'
  */
 def reactNativeArchitectures() {
     def value = project.getProperties().get("reactNativeArchitectures")
-    return value ? value.split(",") : ["armeabi-v7a", "x86", "x86_64", "arm64-v8a"]
+    return value ? value.split(",") : ["armeabi-v7a", "arm64-v8a"]
 }
 
 // Get version number
@@ -150,6 +150,12 @@ android {
             include (*reactNativeArchitectures())
         }
     }
+    packagingOptions {
+        jniLibs {
+            // Universal APKs otherwise retain x86 libraries from dependency AARs.
+            excludes += ["**/x86/**", "**/x86_64/**"]
+        }
+    }
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -201,8 +207,8 @@ android {
         variant.outputs.each { output ->
             // For each separate APK per architecture, set a unique version code as described here:
             // https://developer.android.com/studio/build/configure-apk-splits.html
-            // Example: versionCode 1 will generate 1001 for armeabi-v7a, 1002 for x86, etc.
-            def versionCodes = ["armeabi-v7a": 1, "x86": 2, "arm64-v8a": 3, "x86_64": 4]
+            // Preserve the existing ARM offsets so installed packages can upgrade.
+            def versionCodes = ["armeabi-v7a": 1, "arm64-v8a": 3]
             def abi = output.getFilter(OutputFile.ABI)
             if (abi == null) {  // null for the universal-debug, universal-release variants
                 // Keep universal upgrades higher than every ABI split of the previous version.
@@ -217,6 +223,20 @@ android {
             }
 
         }
+    }
+}
+
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        // React Native's broad pickFirst rules take precedence over excludes.
+        // Keep duplicate-library handling scoped to the selected ARM ABIs.
+        def engineLibraries = hermesEnabled.toBoolean()
+                ? ["libhermes.so", "libhermes_executor.so"] : ["libjsc.so"]
+        def duplicateLibraries = ["libfbjni.so", "libc++_shared.so"] + engineLibraries
+        def pickFirsts = reactNativeArchitectures().collectMany { abi ->
+            duplicateLibraries.collect { library -> "**/${abi}/${library}" }
+        }
+        variant.packaging.jniLibs.pickFirsts.set(pickFirsts)
     }
 }
 

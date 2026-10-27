@@ -10,13 +10,11 @@ import commonActions from '@/store/common/action'
 import settingState from '@/store/setting/state'
 import { checkUpdate } from '@/core/version'
 import { bootLog } from '@/utils/bootLog'
-import { cheatTip } from '@/utils/tools'
 import { loadServiceProfile } from '@/service/session'
 import { initServiceLists } from '@/service/listStore'
 
 let isFirstPush = true
 const handlePushedHomeScreen = async() => {
-  await cheatTip()
   if (settingState.setting['common.isAgreePact']) {
     if (isFirstPush) {
       isFirstPush = false
