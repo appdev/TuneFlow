@@ -111,7 +111,8 @@ Web 固定连接当前页面所在服务，隐藏服务器切换设置；桌面�
 | Windows | `TuneFlow-<version>-win-x64.zip` / `win-arm64.zip` |
 | Linux | `TuneFlow-<version>-linux-x64.tar.gz` / `linux-arm64.tar.gz` |
 | Android | `TuneFlow-Android-<version>-arm64-v8a.apk` / `universal.apk`；不确定架构时选择 universal 通用版 |
-| 独立 Web 资源 | `TuneFlow-Web-<version>.tar.gz`；由兼容的 Server 托管 |
+
+Web 随 Docker 镜像提供，后续不再单独发布 Web 资源包；源码构建与本地开发入口保留。已发布版本的附件保持不变。
 
 应用与安装包统一使用 **TuneFlow** 名称，客户端安装包发布于 **appdev/TuneFlow**，使用 `TuneFlow-v<version>` 标签；Docker 镜像发布到 Docker Hub。Android 只提供 arm64-v8a 和 universal 通用版，其他架构使用通用版。客户端包含预览版本，请阅读发布说明并核对 SHA256。旧版 Android 的下载逻辑使用历史文件名，升级到 0.4.27 请手动下载新版覆盖安装一次；保留原应用 ID、签名和数据目录，无需卸载。
 

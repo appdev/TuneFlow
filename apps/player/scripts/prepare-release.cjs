@@ -4,7 +4,6 @@ const crypto = require('node:crypto')
 
 const expectedAssets = version => [
   ...['mac', 'win', 'linux'].flatMap(os => ['arm64', 'x64'].map(arch => `TuneFlow-${version}-${os}-${arch}.${os === 'linux' ? 'tar.gz' : 'zip'}`)),
-  `TuneFlow-Web-${version}.tar.gz`,
   ...['arm64-v8a', 'universal'].map(abi => `TuneFlow-Android-${version}-${abi}.apk`),
 ]
 

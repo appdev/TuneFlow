@@ -4,14 +4,14 @@ const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
 const { expectedAssets, prepareRelease } = require('../scripts/prepare-release.cjs')
-test('release requires all desktop, Web and Android packages before producing verified checksums', t => {
+test('release requires desktop and Android packages before producing verified checksums', t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qmusic-release-'))
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   const metadata = { version: '0.4.24', commit: 'a'.repeat(40), android: { commit: 'b'.repeat(40) }, service: { commit: 'c'.repeat(40) } }
   assert.throws(() => prepareRelease(root, metadata), /Incomplete/)
   for (const name of expectedAssets(metadata.version)) fs.writeFileSync(path.join(root, name), Buffer.from(name.endsWith('.tar.gz') ? '1f8b0000' : '504b0304', 'hex'))
   const assets = prepareRelease(root, metadata)
-  assert.equal(assets.length, 9)
+  assert.equal(assets.length, 8)
   assert.equal(fs.readFileSync(path.join(root, 'SHA256SUMS-android.txt'), 'utf8').trim().split('\n').length, 2)
   assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'release-manifest.json'))).commit, metadata.commit)
   assert.deepEqual(prepareRelease(root, metadata), assets)

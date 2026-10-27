@@ -46,7 +46,10 @@ test('Docker defaults to shared Web and keeps the original volume contract and i
 })
 test('release jobs use one resolved source and retain API/raw/CDN update compatibility without downgrading', () => {
   const workflow = read('.github/workflows/release-client.yml')
-  assert.equal((workflow.match(/ref: \$\{\{ needs.metadata.outputs.source \}\}/g) ?? []).length, 5)
+  assert.equal((workflow.match(/ref: \$\{\{ needs.metadata.outputs.source \}\}/g) ?? []).length, 4)
+  assert.match(workflow, /options: \[all, desktop, android\]/)
+  assert.doesNotMatch(workflow, /^  web:|tuneflow-release-web|TuneFlow-Web-/m)
+  assert.match(workflow, /needs: \[metadata, verify, desktop, android\]/)
   const { channelMetadata } = require('../scripts/publish-client.cjs')
   const incoming = { version: '0.4.25', desc: 'published preview', history: [] }
   const assets = [{ name: 'Q-music-android-v0.4.25-arm64-v8a.apk' }]
@@ -59,7 +62,7 @@ test('release jobs use one resolved source and retain API/raw/CDN update compati
 test('component bundles validate independently while preserving APK checksum filenames', t => {
   const { expectedAssets } = require('../apps/player/scripts/prepare-release.cjs')
   const { prepareAssets, assetComponent } = require('../scripts/publish-client.cjs')
-  for (const component of ['all', 'desktop', 'web', 'android']) {
+  for (const component of ['all', 'desktop', 'android']) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tuneflow-release-component-'))
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
     const metadata = { version: '0.4.24', source: 'a'.repeat(40), component }

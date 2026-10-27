@@ -1,6 +1,6 @@
 # 多平台构建与发布检查
 
-检查日期：2026-10-26。服务端源码版本 `2.13.8`；桌面、Web、Android 源码版本 `0.4.27`。版本提交、构建成功和公开发布是不同状态。
+检查日期：2026-10-27。服务端源码版本 `2.13.8`；桌面、Web、Android 源码版本 `0.4.27`。版本提交、构建成功和公开发布是不同状态。
 
 ## 能力与边界
 
@@ -9,7 +9,7 @@
 | macOS | x64、arm64 ZIP | 预览通道，临时签名、未公证，不是正式签名安装器 |
 | Windows | x64、arm64 ZIP | 未签名便携版，无应用内自动安装更新 |
 | Linux 桌面 | x64、arm64 tar.gz | 便携包，不包含该流程未配置的 deb、rpm 等安装包 |
-| Web | 主界面与 `/V2/` 的 tar.gz | 独立下载包，也随服务镜像提供；构建不等于部署 |
+| Web | 随 Docker 镜像提供主界面与 `/V2/` | 后续客户端 Actions 不再打包或发布独立 Web 附件；保留源码构建入口 |
 | Android | arm64-v8a、universal 通用 APK | 通用版保留其他架构的原生库；沿用 `.preview` 应用 ID 与原预览签名，覆盖升级；不属于应用商店正式签名包 |
 | 服务端 Docker | `linux/amd64` | 健康、配置／音乐存储检查后推送 Docker Hub；当前不发布服务端 GitHub Release，尚无 arm64 镜像构建验证 |
 
@@ -29,7 +29,8 @@
 
 ## 触发方式
 
-- [客户端 Action](../.github/workflows/release-client.yml)：PR 检查，或手动指定不可变 `source_ref`，按 `all`、`desktop`、`web`、`android` 构建。默认只上传构建附件；选择 `publish=true` 后直接在 TuneFlow 发布预览版。
+- 2026-10-27 调整后续发布流程：客户端只发布六个桌面包和两个 Android APK，以及对应两组清单／校验文件（共 12 个附件）。当前 `0.4.27` Release、标签、附件及更新通道保持不变，本次不重新发布。
+- [客户端 Action](../.github/workflows/release-client.yml)：PR 检查，或手动指定不可变 `source_ref`，按 `all`、`desktop`、`android` 构建。默认只上传构建附件；选择 `publish=true` 后直接在 TuneFlow 发布预览版。`all` 仅含桌面和 Android。
 - 所有选中构建与验证成功后，发布脚本核对附件完整性、计算 SHA-256、拒绝覆盖不同内容的已有附件，再核对已公开附件的摘要和大小，最后创建或更新 `main` 分支的 `channels/desktop.json`、`channels/android.json`。这些文件只在发布成功后写入，客户端不读取源码中待发布的版本文件。服务端 `v<version>` 和独立 Web 附件不会被误识别为客户端更新。
 - [Docker Action](../.github/workflows/docker-build.yml)：PR 仅构建检查；手动 `push_image=true`、`publish_release=false` 推送 Docker Hub。本项目当前不使用其可选的服务端 GitHub Release 功能。
 - [共享检查](../.github/workflows/monorepo-checks.yml) 和 [服务检查](../.github/workflows/build-test.yml) 当前仅由 PR 或手动触发。

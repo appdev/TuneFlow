@@ -13,7 +13,7 @@ on:
       component:
         description: Client component
         type: choice
-        options: [all, desktop, web, android]
+        options: [all, desktop, android]
         default: all
       publish:
         description: Publish verified preview packages and update channels in TuneFlow
@@ -56,7 +56,7 @@ jobs:
         run: |
           node <<'NODE'
           const fs = require('node:fs'), cp = require('node:child_process')
-          if (!['all', 'desktop', 'web', 'android'].includes(process.env.COMPONENT)) throw Error('Invalid component')
+          if (!['all', 'desktop', 'android'].includes(process.env.COMPONENT)) throw Error('Invalid component')
           if (process.env.PUBLISH === 'true' && process.env.GITHUB_REPOSITORY !== 'appdev/TuneFlow') throw Error('Publish only in TuneFlow')
           const desktop = require('./apps/player/package.json'), android = require('./apps/android/package.json')
           if (process.env.COMPONENT === 'all' && desktop.version !== android.version) throw Error('All-client release requires matching versions')
@@ -127,38 +127,6 @@ jobs:
           path: |
             apps/player/artifacts/release/${{ matrix.target }}/*.zip
             apps/player/artifacts/release/${{ matrix.target }}/*.tar.gz
-          if-no-files-found: error
-
-  web:
-    needs: metadata
-    if: inputs.component == '' || inputs.component == 'all' || inputs.component == 'web'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          repository: appdev/TuneFlow
-          ref: ${{ needs.metadata.outputs.source }}
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: |
-            apps/player/package-lock.json
-            apps/service/package-lock.json
-      - run: npm ci
-        working-directory: apps/player
-      - run: npm ci --ignore-scripts
-        working-directory: apps/service
-      - run: npm run build:web:qmusic
-      - name: Archive Web
-        env:
-          VERSION: ${{ needs.metadata.outputs.version }}
-        run: tar -czf "TuneFlow-Web-$VERSION.tar.gz" -C apps/service/dist/web-qmusic .
-      - uses: actions/upload-artifact@v6
-        with:
-          name: tuneflow-release-web
-          path: TuneFlow-Web-*.tar.gz
           if-no-files-found: error
 
   android:
@@ -243,7 +211,7 @@ jobs:
 
   publish:
     if: always() && inputs.publish && needs.metadata.result == 'success' && needs.verify.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
-    needs: [metadata, verify, desktop, web, android]
+    needs: [metadata, verify, desktop, android]
     runs-on: ubuntu-latest
     concurrency:
       group: client-publication-${{ needs.metadata.outputs.version }}

@@ -6,14 +6,15 @@ const os = require('node:os')
 const crypto = require('node:crypto')
 const vm = require('node:vm')
 const ts = require('../apps/player/node_modules/typescript')
-const { publish, releaseTag, channelPath } = require('../scripts/publish-client.cjs')
+const { publish, prepareAssets, releaseTag, channelPath } = require('../scripts/publish-client.cjs')
 const { expectedAssets } = require('../apps/player/scripts/prepare-release.cjs')
 const source = 'a'.repeat(40)
 const version = require('../apps/player/package.json').version
 
 test('release contains TuneFlow packages and exactly arm64 plus universal Android', () => {
   const names = expectedAssets(version)
-  assert.equal(names.length, 9)
+  assert.equal(names.length, 8)
+  assert.ok(names.every(name => !name.startsWith('TuneFlow-Web-')))
   assert.ok(names.every(name => name.startsWith('TuneFlow-') && !/Q.?music/i.test(name)))
   assert.deepEqual(names.filter(name => name.endsWith('.apk')), [
     `TuneFlow-Android-${version}-arm64-v8a.apk`,
@@ -50,7 +51,7 @@ function fixture(t, options = {}) {
       if (args[0] === 'release') return { status: 1, stderr: '404 not found' }
       if (args.includes('PUT')) {
         assert.equal(state.draft, false)
-        assert.equal(state.assets.length, 15)
+        assert.equal(state.assets.length, 12)
         const body = JSON.parse(opts.input)
         assert.equal(body.branch, 'main')
         writes.push({ api: args[3], body, metadata: JSON.parse(Buffer.from(body.content, 'base64')) })
@@ -73,7 +74,7 @@ test('TuneFlow publishes a frozen client tag and creates channels only after ver
   for (const w of f.writes) {
     assert.equal(w.metadata.version, version)
     assert.equal(w.metadata.commit, source)
-    assert.equal(w.metadata.assets.length, 15)
+    assert.equal(w.metadata.assets.length, 12)
     assert.equal(w.body.sha, undefined)
   }
   assert.equal(releaseTag(version), 'TuneFlow-v' + version)
@@ -88,6 +89,15 @@ test('drafts, incomplete public assets and permission errors cannot advertise an
     assert.throws(() => publish(f.dir, f.env, f.runner), message)
     assert.equal(f.writes.length, 0)
   }
+})
+
+test('standalone Web cannot be selected or included in future client publication', t => {
+  const f = fixture(t)
+  assert.throws(() => prepareAssets(f.dir, { version, source, component: 'web' }), /Invalid frozen release inputs/)
+  fs.writeFileSync(path.join(f.dir, `TuneFlow-Web-${version}.tar.gz`), Buffer.from('1f8b0000', 'hex'))
+  assert.throws(() => publish(f.dir, f.env, f.runner), /Incomplete component assets/)
+  assert.equal(f.events.length, 0)
+  assert.equal(f.writes.length, 0)
 })
 
 test('incomplete builds, another repository and newer channels are protected', t => {

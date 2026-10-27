@@ -4,7 +4,7 @@ const crypto = require('node:crypto')
 const cp = require('node:child_process')
 const { expectedAssets } = require('../apps/player/scripts/prepare-release.cjs')
 
-const components = ['desktop', 'web', 'android']
+const components = ['desktop', 'android']
 const releaseTag = version => {
   if (!/^\d+\.\d+\.\d+$/.test(version)) throw Error('Invalid client release version')
   return 'TuneFlow-v' + version
@@ -93,7 +93,6 @@ function publish(directory, env = process.env, runner = cp) {
   }
   const channels = env.RELEASE_COMPONENT === 'all' ? ['desktop', 'android'] : [env.RELEASE_COMPONENT]
   for (const channel of channels) {
-    if (channel === 'web') continue
     const apiPath = 'repos/appdev/TuneFlow/contents/' + channelPath(channel)
     const incoming = require(channel === 'android' ? '../apps/android/publish/mobile-version.json' : '../apps/player/publish/version.json')
     let updated = false
