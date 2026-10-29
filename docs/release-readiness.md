@@ -65,3 +65,9 @@ Docker Hub 和 GitHub 不支持跨平台原子事务。流程先上传版本和�
 `Release TuneFlow together` 增加显式的 `docker_only` 布尔输入，默认 `false`，保留完整发布行为。需要仅发布服务与内置 Web 时，使用相同的版本／标签／冻结 SHA 校验，设置 `docker_only=true` 和 `publish=true`。客户端构建、附件发布、Release 和更新通道步骤均跳过；只有镜像构建、健康、存储及密码初始化／重启测试通过后才推送版本镜像和 `latest`。
 
 源码仍按现有策略统一版本，但这不表示桌面或 Android 安装包已发布。Docker-only 版本不创建客户端 Release，也不修改已公开的客户端通道。发布后核对版本、源码与 `latest` 的镜像摘要，并在部署目标验证实际运行的镜像及持久挂载。
+
+## 恢复已验收的 Docker 发布
+
+若 Docker-only 构建及运行测试已通过、发布任务失败，可通过 `Recover tested Docker publication` 复用原运行的 `tuneflow-verified-image`，不重新构建或移动标签。输入原运行 ID、完整源码 SHA 和版本；恢复工具会核对原仓库、标签指向、运行源码、当前版本，以及 metadata／image 成功、clients 跳过、publish 失败，才允许使用仓库已有的 Docker Hub 凭据完成推送。
+
+镜像身份校验同时支持旧 Docker 的配置摘要 ID 和 containerd 存储的清单摘要 ID；两种情况都必须与已验收镜像精确对应，已有不同内容的版本镜像仍拒绝覆盖。恢复保留原镜像源码标签，并单独记录发布工具提交与原构建运行 ID；只更新 Docker 版本／源码标签和验证后的 `latest`，不发布客户端或修改更新通道。

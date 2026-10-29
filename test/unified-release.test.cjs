@@ -44,13 +44,13 @@ function dockerFixture(options = {}) {
   let pushed = false
   return { calls, runner: { execFileSync(command, args) {
     assert.equal(command, 'docker'); calls.push(args)
-    if (args[0] === 'image') return JSON.stringify({ Id: id, Config: { Labels: { 'org.opencontainers.image.revision': options.wrongSource ? 'd'.repeat(40) : source, 'org.opencontainers.image.version': version } } })
+    if (args[0] === 'image') return JSON.stringify({ Id: options.containerd ? hash : id, Config: { Labels: { 'org.opencontainers.image.revision': options.wrongSource ? 'd'.repeat(40) : source, 'org.opencontainers.image.version': version } } })
     if (args.includes('--raw')) {
       if (!pushed && options.offline) throw Object.assign(Error('registry error'), { stderr: 'TLS timeout' })
       if (!pushed && !options.existing) throw Object.assign(Error('absent'), { stderr: 'manifest unknown' })
-      return JSON.stringify({ config: { digest: options.existing === 'different' ? hash : id } })
+      return JSON.stringify({ config: { digest: options.existing === 'different' ? 'sha256:' + 'e'.repeat(64) : id } })
     }
-    if (args[0] === 'buildx') return JSON.stringify(hash)
+    if (args[0] === 'buildx') return JSON.stringify(options.existing === 'different' && !pushed ? 'sha256:' + 'd'.repeat(64) : hash)
     if (args[0] === 'push') pushed = true
     return ''
   } } }
@@ -63,12 +63,12 @@ test('only tested frozen images are published; registry errors and differing exi
     assert.throws(() => publishImage({ ...identity, username }, f.runner))
     assert.equal(f.calls.length, 0)
   }
-  for (const options of [{ wrongSource: true }, { offline: true }, { existing: 'different' }]) {
+  for (const options of [{ wrongSource: true }, { offline: true }, { existing: 'different' }, { containerd: true, existing: 'different' }]) {
     const f = dockerFixture(options)
     assert.throws(() => publishImage(identity, f.runner))
     assert.ok(!f.calls.some(args => args[0] === 'push'))
   }
-  for (const options of [{}, { existing: 'same' }]) {
+  for (const options of [{}, { existing: 'same' }, { containerd: true }, { containerd: true, existing: 'same' }]) {
     const f = dockerFixture(options)
     const result = publishImage(identity, f.runner)
     assert.equal(result.digest, hash)
@@ -80,7 +80,7 @@ test('only tested frozen images are published; registry errors and differing exi
   }
 })
 
-test('only the unified workflow can publish; all builds precede publishing and latest follows clients', () => {
+test('the unified workflow builds before publication and latest follows the selected client publication', () => {
   const read = name => fs.readFileSync(path.join(__dirname, '../.github/workflows', name), 'utf8')
   const clients = read('release-client.yml'), image = read('docker-build.yml'), release = read('release.yml')
   for (const build of [clients, image]) assert.doesNotMatch(build, /GH_TOKEN|docker\/login-action|name: Push Docker image|publish_release|\n  publish:/)

@@ -15,6 +15,9 @@ const digest = (runner, name) => {
   if (!validDigest(value)) throw Error('Invalid published image digest')
   return value
 }
+// The classic store reports the config digest as Id; containerd reports the
+// manifest/index digest. Both must identify the exact tested image.
+const matchesImage = (runner, name, value, id) => value.config?.digest === id || digest(runner, name) === id
 
 function publishImage(identity, runner = cp) {
   const image = imageIdentity(identity)
@@ -27,12 +30,12 @@ function publishImage(identity, runner = cp) {
     // An unavailable registry or denied access must never be treated as an absent version.
     if (!/manifest unknown|no such manifest|not found/i.test(String(error.stderr ?? ''))) throw Error('Unable to establish existing image version')
   }
-  if (existing && existing.config?.digest !== local.Id) throw Error('Refusing to replace a different version image')
+  if (existing && !matchesImage(runner, `${image}:${version}`, existing, local.Id)) throw Error('Refusing to replace a different version image')
   for (const tag of [version, 'sha-' + source.slice(0, 12)]) {
     docker(runner, ['tag', localImage, `${image}:${tag}`])
     docker(runner, ['push', `${image}:${tag}`])
   }
-  if (manifest(runner, `${image}:${version}`).config?.digest !== local.Id) throw Error('Published image verification failed')
+  if (!matchesImage(runner, `${image}:${version}`, manifest(runner, `${image}:${version}`), local.Id)) throw Error('Published image verification failed')
   return { version, source, image, digest: digest(runner, `${image}:${version}`), platform: 'linux/amd64' }
 }
 
