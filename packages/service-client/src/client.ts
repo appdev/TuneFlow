@@ -26,7 +26,7 @@ export class ServiceError extends Error {
     DOWNLOAD_TASK_ACTIVE: '这首歌曲已有未完成的下载，请先完成或移除旧任务，再选择新的音质。',
     DEVICE_AUTH_REQUIRED: '请输入访问密码，解锁共享账号。',
     INVALID_ACCESS_PASSWORD: '访问密码不正确，请重试。',
-    ACCESS_PASSWORD_NOT_CONFIGURED: '请先在已登录的应用中设置访问密码；全新安装可在服务端初始化。',
+    ACCESS_PASSWORD_NOT_CONFIGURED: '尚未设置访问密码。请由服务管理员配置 TUNEFLOW_ACCESS_PASSWORD 环境变量并启动服务，或在已登录的应用中设置。',
     ACCESS_PASSWORD_CHANGED: '访问密码已更新，请重新输入。',
     ACCESS_PASSWORD_LENGTH: '访问密码需为 8 至 128 个字符。',
     DEVICE_LIMIT: '记住的访问会话过多，请修改访问密码后重试。',

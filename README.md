@@ -149,6 +149,8 @@ TUNEFLOW_WEB_ROOT="$PWD/apps/service/dist/web-qmusic" npm run start:server
 
 也可在根目录运行 `docker compose up -d --build`，使用仓库的 [Dockerfile](Dockerfile) 与 [compose.yaml](compose.yaml) 构建部署。默认构建共享 Web；兼容旧 Web 的构建参数为 `TUNEFLOW_WEB_VARIANT=legacy`。
 
+首次设置共享账号访问密码：在容器管理面板的环境变量中添加 `TUNEFLOW_ACCESS_PASSWORD`，填入 8～128 个字符的密码，应用配置并保留原 `/config` 挂载，服务启动时会自动初始化。已有密码时忽略该变量，重启不会覆盖在应用中修改的密码。`docker run` 和 Compose 配置示例见[首次访问密码](apps/service/docs/server-web.md#first-access-password-docker-run-or-a-management-panel)。
+
 ## 验证与贡献
 
 ```sh

@@ -11,6 +11,10 @@ on:
         description: Publish Docker Hub image and all client packages after every build succeeds
         type: boolean
         default: false
+      docker_only:
+        description: Build and publish only Docker; leave client releases and update channels unchanged
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -41,6 +45,7 @@ jobs:
         run: node scripts/release-policy.cjs
 
   clients:
+    if: ${{ !inputs.docker_only }}
     needs: metadata
     uses: ./.github/workflows/release-client.yml
     secrets:
@@ -60,7 +65,7 @@ jobs:
       export_image: true
 
   publish:
-    if: inputs.publish
+    if: ${{ always() && inputs.publish && needs.metadata.result == 'success' && needs.image.result == 'success' && (needs.clients.result == 'success' || (inputs.docker_only && needs.clients.result == 'skipped')) }}
     needs: [metadata, clients, image]
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -86,11 +91,13 @@ jobs:
           PUBLISH: 'true'
         run: node scripts/release-policy.cjs
       - uses: actions/download-artifact@v7
+        if: ${{ !inputs.docker_only }}
         with:
           pattern: tuneflow-release-*
           path: release-assets
           merge-multiple: true
       - name: Validate all client packages before publishing anything
+        if: ${{ !inputs.docker_only }}
         run: |
           node -e "require('./scripts/publish-client.cjs').prepareAssets('release-assets', {version: process.env.RELEASE_VERSION, source: process.env.RELEASE_SOURCE, component: 'all'})"
       - uses: actions/download-artifact@v7
@@ -107,8 +114,9 @@ jobs:
       - name: Publish immutable version and source image tags
         run: node scripts/publish-image.cjs version
       - name: Publish all client packages and update channels
+        if: ${{ !inputs.docker_only }}
         run: node scripts/publish-client.cjs release-assets
-      - name: Update latest only after clients are published
+      - name: Update latest after selected release artifacts are published
         run: node scripts/publish-image.cjs latest
       - name: Preserve publication evidence
         if: always()

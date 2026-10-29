@@ -28,6 +28,19 @@ export const requireAccountOrigin = (request: FastifyRequest) => {
 
 export const registerAccountRoutes = (app: ApiFastifyInstance, configRoot: string, events: ServiceEvents): void => {
   const vault = new AccountVault(configRoot)
+  let initialPassword = process.env.TUNEFLOW_ACCESS_PASSWORD
+  if (!vault.passwordConfigured && initialPassword !== undefined) {
+    // Finish local setup before accepting requests. Existing passwords always win.
+    app.addHook('onReady', async() => {
+      const password = initialPassword; initialPassword = undefined
+      if (password === undefined) return
+      try {
+        await vault.setPassword(password)
+      } catch {
+        throw new Error('Unable to initialize TUNEFLOW_ACCESS_PASSWORD. Use 8–128 characters without control characters and ensure account storage is writable.')
+      }
+    })
+  } else { initialPassword = undefined }
   const accounts = new PlatformAccounts(vault, (provider, revision) => { events.publishSnapshot('accounts.changed', { provider, revision }) })
   const authenticate = (request: FastifyRequest) => vault.authorize(/^Bearer ([\w-]+)$/.exec(request.headers.authorization ?? '')?.[1])
   const attempts = new Map<string, { deviceId: string, provider: MusicAccountProvider, revision: number, flow: QrFlow, authorized?: Awaited<ReturnType<QrFlow['poll']>>, cancelled?: boolean, task?: Promise<unknown>, connected?: boolean, lastPoll: number }>()

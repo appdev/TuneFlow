@@ -9,7 +9,7 @@
       <label>访问密码<input v-model="password" type="password" autocomplete="current-password" maxlength="128" :disabled="busy" required></label>
       <button :class="$style.primary" :disabled="busy || !password">{{ busy ? '正在解锁…' : '解锁并记住' }}</button>
     </form>
-    <p v-else-if="!authorized">尚未设置访问密码，请先在已登录的应用中设置。全新安装可在服务端初始化密码。</p>
+    <p v-else-if="!authorized">尚未设置访问密码。首次使用请由服务管理员设置 TUNEFLOW_ACCESS_PASSWORD 环境变量并启动服务（8～128 个字符），或在已登录的应用中设置。</p>
     <form v-if="authorized && (!passwordConfigured || editing)" :class="$style.passwordForm" @submit.prevent="savePassword">
       <p>{{ passwordConfigured ? '修改后，其他应用需要输入新密码；当前访问和平台登录会保留。' : '设置一个各端共用的访问密码，现有登录和音乐数据会保留。' }}</p>
       <div :class="$style.form">

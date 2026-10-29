@@ -27,9 +27,26 @@ control does not make those older APIs suitable for public Internet exposure.
    Password verification uses a random salt and scrypt; only its hash is stored
    inside the encrypted vault. Login attempts and concurrent hashing are bounded.
 
-For a new install with no existing session, initialize the password locally with
-the stopped-service command below. An unauthenticated visitor can never choose
-the first password. Do not post passwords, credentials, tokens or vaults in logs.
+For a new install with no existing session, set `TUNEFLOW_ACCESS_PASSWORD` in the
+service environment before starting it. In a Docker/NAS management panel, add an
+environment variable with that name and your chosen password (8–128 characters,
+not only whitespace, no control characters), then apply the container settings
+while retaining the existing `/config` mount. No initialization command is needed.
+
+The service initializes the encrypted password vault before accepting requests.
+As with offline initialization, this retains platform accounts and music but
+revokes any legacy app sessions; unlock each app with the new password.
+If a password already exists, the environment variable is ignored, including after
+you change the password in an app. Changing this variable does not reset a forgotten
+password. An explicitly empty or invalid value prevents first-time startup and
+produces an error without printing the value; omit the variable to keep the existing
+manual setup behavior. After successful initialization you may remove the variable
+from the container configuration; the password persists in `/config`.
+
+Docker environment values are visible to container administrators. Do not post
+passwords, credentials, tokens or vaults in logs. An unauthenticated visitor can
+never choose the first password. The stopped-service command below remains
+available for manual initialization and forgotten-password recovery.
 
 Behind a TLS reverse proxy set both of the following explicitly:
 

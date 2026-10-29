@@ -70,6 +70,43 @@ split-root variable.
 
 ## Docker
 
+### First access password (Docker run or a management panel)
+
+Add `TUNEFLOW_ACCESS_PASSWORD` to the container environment and set its value to
+your chosen password (8–128 characters, not only whitespace, no control
+characters). In NAS/Docker management panels, use **Environment variables**, then
+apply the settings while retaining the original `/config` mount. The service
+initializes the password automatically on startup. Enter it in Web, desktop or
+Android and choose **Unlock and remember**.
+
+For `docker run`, add `--env TUNEFLOW_ACCESS_PASSWORD` to your existing container
+creation command after setting that variable in your terminal. For example, in
+Bash, read it without echoing it or placing it in shell history:
+
+```bash
+read -r -s -p 'Access password: ' TUNEFLOW_ACCESS_PASSWORD
+export TUNEFLOW_ACCESS_PASSWORD
+# Add --env TUNEFLOW_ACCESS_PASSWORD to your existing docker run command.
+# Keep the same image, ports and persistent mounts.
+unset TUNEFLOW_ACCESS_PASSWORD
+```
+
+For Compose, add this to the service and set the variable before creating it:
+
+```yaml
+environment:
+  TUNEFLOW_ACCESS_PASSWORD: ${TUNEFLOW_ACCESS_PASSWORD:?Set the initial access password}
+```
+
+This only initializes an unset password. Restarting or editing the variable never
+overwrites an existing password or signs out existing sessions. Empty/invalid
+values prevent first-time startup. You can remove the variable after setup; retain
+`/config`. Use the app to change the password, or the offline recovery command
+for a forgotten password. See [account access and recovery](platform-accounts.md).
+Container administrators can inspect environment values; do not share their output.
+
+### Image and storage
+
 The image uses Node 24 slim, compiles the Linux `better-sqlite3` binding in the
 builder, copies the prepared production artifact, and runs as the image's
 non-root UID/GID 1000 `node` user. It does not install FFmpeg.

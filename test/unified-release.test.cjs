@@ -92,3 +92,15 @@ test('only the unified workflow can publish; all builds precede publishing and l
   assert.doesNotMatch(release, /push:\s*\n|tuneflow-release-web|component: web/)
   assert.match(image, /org.opencontainers.image.revision=\$\{\{ steps.source.outputs.source \}\}/)
 })
+
+test('Docker-only publication requires a successful image and explicitly skipped clients', () => {
+  const release = fs.readFileSync(path.join(__dirname, '../.github/workflows/release.yml'), 'utf8')
+  assert.match(release, /docker_only:\n\s+description:[^\n]+\n\s+type: boolean\n\s+default: false/)
+  assert.match(release, /clients:\n\s+if: \$\{\{ !inputs.docker_only \}\}/)
+  assert.match(release, /needs.metadata.result == 'success' && needs.image.result == 'success'/)
+  assert.match(release, /needs.clients.result == 'success' \|\| \(inputs.docker_only && needs.clients.result == 'skipped'\)/)
+  for (const step of ['Validate all client packages before publishing anything', 'Publish all client packages and update channels']) {
+    assert.ok(release.includes(`name: ${step}\n        if: \${{ !inputs.docker_only }}`))
+  }
+  assert.match(release, /uses: actions\/download-artifact@v7\n\s+if: \$\{\{ !inputs.docker_only \}\}\n\s+with:\n\s+pattern: tuneflow-release-/)
+})

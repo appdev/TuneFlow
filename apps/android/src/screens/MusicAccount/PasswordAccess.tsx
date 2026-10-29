@@ -43,7 +43,7 @@ export default ({ onChange }: { onChange: (authorized: boolean) => void }) => {
   return <View style={[styles.card, { backgroundColor: theme['q-surface-tint'], borderColor: theme['q-outline'] }]}>
     <Text size={16}>{authorized ? '共享账号已解锁' : '解锁共享账号'}</Text>
     <Text size={12} color={theme['q-text-secondary']}>{authorized ? '此应用会记住访问授权，平台账号在各端共享。' : '输入访问密码即可使用已有的平台账号，无需重复扫码。'}</Text>
-    {loading ? <Text size={12}>正在检查访问状态…</Text> : !authorized ? configured ? <>{field('访问密码', password, setPassword)}{action(busy ? '正在解锁…' : '解锁并记住', signIn, !password)}</> : <Text size={12}>尚未设置访问密码，请先在已登录的应用中设置。全新安装可在服务端初始化密码。</Text> : <>
+    {loading ? <Text size={12}>正在检查访问状态…</Text> : !authorized ? configured ? <>{field('访问密码', password, setPassword)}{action(busy ? '正在解锁…' : '解锁并记住', signIn, !password)}</> : <Text size={12}>尚未设置访问密码。首次使用请由服务管理员设置 TUNEFLOW_ACCESS_PASSWORD 环境变量并启动服务（8～128 个字符），或在已登录的应用中设置。</Text> : <>
       {configured ? <View style={styles.row}>{action(editing ? '取消修改' : '修改访问密码', () => { clear(); setEditing(!editing) })}{action('退出当前访问', signOut)}</View> : null}
       {!configured || editing ? <>
         <Text size={12}>{configured ? '修改后，其他应用需要输入新密码；当前访问和平台登录会保留。' : '设置一个各端共用的访问密码，现有登录和音乐数据会保留。'}</Text>

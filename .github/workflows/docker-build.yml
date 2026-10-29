@@ -66,8 +66,12 @@ jobs:
         run: |
           docker volume create "$CI_CONFIG_VOLUME"
           docker volume create "$CI_MUSIC_VOLUME"
+          password="$(openssl rand -hex 24)"
+          echo "::add-mask::$password"
+          export TUNEFLOW_ACCESS_PASSWORD="$password"
           docker run --detach \
             --name "$CI_CONTAINER" \
+            --env TUNEFLOW_ACCESS_PASSWORD \
             --volume "$CI_CONFIG_VOLUME:/config" \
             --volume "$CI_MUSIC_VOLUME:/music" \
             "$CI_IMAGE"
@@ -95,6 +99,14 @@ jobs:
           docker exec "$CI_CONTAINER" test -f /config/storage-layout.json
           docker exec "$CI_CONTAINER" test ! -e /music/tuneflow.data.db
           docker exec "$CI_CONTAINER" test ! -e /music/sources
+
+      - name: Verify first password setup and change
+        run: docker exec --interactive "$CI_CONTAINER" node - before < scripts/verify-docker-access.cjs
+
+      - name: Verify changed password survives restart
+        run: |
+          docker restart "$CI_CONTAINER"
+          docker exec --interactive "$CI_CONTAINER" node - after < scripts/verify-docker-access.cjs
 
       - name: Export verified image for unified publication
         if: inputs.export_image

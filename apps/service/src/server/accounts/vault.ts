@@ -111,7 +111,7 @@ export class AccountVault {
     return { token, serverId: this.serverId, device: publicDevice(device) }
   }
 
-  // Routes always supply an authenticated actor. Only the offline recovery CLI omits it.
+  // Password routes always supply an authenticated actor. Startup setup and offline recovery omit it.
   async setPassword(password: string, actor?: Device, currentPassword?: string) {
     if (password.length < 8 || password.length > 128 || !password.trim() || Array.from(password).some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) throw new ApiError(400, 'ACCESS_PASSWORD_LENGTH', 'Use 8 to 128 characters')
     const saved = this.state.password
