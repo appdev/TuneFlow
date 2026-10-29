@@ -128,6 +128,8 @@ defineExpose({ hideMenu: handleMenuClick })
 }
 .notice { padding: 20px 12px; display: flex; flex-direction: column; gap: 12px; font-size: 12px; }
 .listsItem {
+  color: var(--q-list-text);
+  font-weight: 400;
   position: relative;
   margin-bottom: 3px;
   border-radius: 12px;
@@ -139,7 +141,8 @@ defineExpose({ hideMenu: handleMenuClick })
     cursor: pointer;
   }
   &.active {
-    color: var(--color-primary-dark-300);
+    color: var(--q-list-accent);
+    font-weight: 600;
     background-color: rgb(from var(--color-main-background) r g b / .76);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .78), 0 8px 20px rgba(72, 91, 112, .08);
   }
@@ -173,11 +176,11 @@ defineExpose({ hideMenu: handleMenuClick })
   gap: 10px;
   height: 100%;
   padding: 0 12px;
-  font-size: 13px;
+  font-size: var(--q-list-title-size);
   line-height: 40px;
   .mixin-ellipsis-1();
 }
-.number { flex: none; width: 20px; font-size: 10px; opacity: .5; font-variant-numeric: tabular-nums; }
+.number { flex: none; width: 24px; font-size: var(--q-list-detail-size); color: var(--q-list-muted); font-weight: 400; font-variant-numeric: tabular-nums; }
 .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 

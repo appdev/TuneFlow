@@ -27,7 +27,6 @@
                   <h3 :class="$style.text">{{ item.name }} - {{ item.singer }}</h3>
                   <h3 v-if="item.meta.albumName" :class="[$style.text, $style.albumName]">{{ item.meta.albumName }}</h3>
                 </div>
-                <source-icon :class="$style.source" :source="item.source" :size="16" />
               </li>
             </ul>
           </div>
@@ -41,10 +40,8 @@
 import { debounce } from '@common/utils'
 import { clipboardReadText } from '@common/utils/electron'
 import { toRaw } from '@common/utils/vueTools'
-import SourceIcon from '@renderer/components/common/SourceIcon.vue'
 
 export default {
-  components: { SourceIcon },
   props: {
     placeholder: {
       type: String,

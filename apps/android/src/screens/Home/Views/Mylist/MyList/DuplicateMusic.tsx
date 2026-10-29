@@ -14,7 +14,6 @@ import { handleRemove } from '../MusicList/listAction'
 import Button from '@/components/common/Button'
 import IconButton from '@/components/common/IconButton'
 import { Q_UI } from '@/theme/ui'
-import SourceLogo from '@/components/SourceLogo'
 
 type FlatListProps = _FlatListProps<DuplicateMusicItem>
 const ITEM_HEIGHT = Math.max(scaleSizeH(56), Q_UI.touchSize)
@@ -75,7 +74,6 @@ const ListItem = memo(({ info, index, onRemove, onPlay, selectedList, onPress }:
         </View>
       </Button>
       <View style={styles.listItemLabel}>
-        {info.musicInfo.source != 'local' ? <SourceLogo source={info.musicInfo.source} size={18} style={styles.sourceLogo} /> : null}
         <Text style={styles.listItemLabelText} size={13} color={theme['c-300']}>{info.musicInfo.interval}</Text>
       </View>
       <View style={styles.listItemBtns}>

@@ -55,6 +55,7 @@ const displayInfo = computed(() => {
 @import '@renderer/assets/styles/layout.less';
 
 .row {
+  color: var(--q-list-text);
   position: relative;
   height: 56px;
   display: flex;
@@ -72,7 +73,7 @@ const displayInfo = computed(() => {
   }
 
   &.active {
-    color: var(--color-primary);
+    color: var(--q-list-accent);
     background-color: var(--color-primary-background-hover);
 
     &:before {
@@ -109,8 +110,8 @@ const displayInfo = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-font-label);
-  font-size: 12px;
+  color: var(--q-list-muted);
+  font-size: var(--q-list-detail-size);
   font-variant-numeric: tabular-nums;
 
   svg {
@@ -138,20 +139,21 @@ const displayInfo = computed(() => {
 
 .name {
   color: inherit;
-  font-size: 13px;
+  font-size: var(--q-list-title-size);
   line-height: 18px;
-  font-weight: 600;
+  font-weight: 400;
 }
+.active .name { font-weight: 600; }
 
 .singer {
-  color: var(--color-font-label);
-  font-size: 11px;
+  color: var(--q-list-muted);
+  font-size: var(--q-list-detail-size);
   line-height: 16px;
 }
 
 .duration {
-  color: var(--color-font-label);
-  font-size: 11px;
+  color: var(--q-list-muted);
+  font-size: var(--q-list-detail-size);
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
@@ -168,7 +170,7 @@ const displayInfo = computed(() => {
   justify-content: center;
   border: none;
   border-radius: 50%;
-  color: var(--color-font-label);
+  color: var(--q-list-muted);
   background: transparent;
   cursor: pointer;
   opacity: .28;

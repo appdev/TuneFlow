@@ -33,7 +33,7 @@ TuneFlow（音流）的 Server 为桌面、Web 与 Android 提供统一的数据
 - Node.js 24+
 - Vue 3
 
-本目录 `apps/service` 负责服务与兼容旧 Web；桌面和共享 Web 源码位于同仓库的 `apps/player`，Android 位于 `apps/android`。Docker 默认托管共享 Vue Web，兼容旧 Web 保留在 `/V2/`。完整结构见[单仓库说明](../../docs/monorepo.md)。
+本目录 `apps/service` 负责服务，保留旧 Web 源码供开发调试；桌面和共享 Web 源码位于同仓库的 `apps/player`，Android 位于 `apps/android`。Docker 仅托管共享 Vue Web。完整结构见[单仓库说明](../../docs/monorepo.md)。
 
 <a id="feature-boundaries"></a>
 
@@ -45,7 +45,7 @@ TuneFlow（音流）的 Server 为桌面、Web 与 Android 提供统一的数据
 
 ## 用户界面
 
-默认界面复用 [桌面/Web 客户端](../player/README.md)；`/V2/` 保留原服务端 Web 作为兼容入口。
+默认界面复用 [桌面/Web 客户端](../player/README.md)；旧 Web 和 Flutter integrated 构建选项已移除，原 `/V2` 路径返回 404。
 
 <a id="usage"></a>
 

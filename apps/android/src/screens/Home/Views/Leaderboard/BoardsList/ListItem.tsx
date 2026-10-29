@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react'
-import Text from '@/components/common/Text'
+import ListText from '@/components/common/ListText'
 import { useTheme } from '@/store/theme/hook'
 import Button, { type BtnType } from '@/components/common/Button'
 import { createStyle } from '@/utils/tools'
@@ -42,8 +42,8 @@ export default ({ item, activeId, index, longPressIndex, onBoundChange, onShowMe
       key={item.id} onLongPress={setPosition}
       onPress={() => { onBoundChange(item) }}
     >
-      <Text style={styles.number} size={11} color={active ? theme['q-accent-text'] : theme['q-text-secondary']}>{String(index + 1).padStart(2, '0')}</Text>
-      <Text style={styles.listName} size={14} textBreakStrategy="simple" color={active ? theme['c-primary-font-active'] : theme['c-font']} numberOfLines={1}>{item.name}</Text>
+      <ListText style={styles.number} secondary>{String(index + 1).padStart(2, '0')}</ListText>
+      <ListText style={styles.listName} active={active} textBreakStrategy="simple" numberOfLines={1}>{item.name}</ListText>
     </Button>
   )
 }

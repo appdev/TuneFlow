@@ -47,7 +47,7 @@
         @scroll="saveListPosition" @contextmenu.capture="handleListRightClick"
       >
         <div
-          class="list-item" :class="[{ [$style.active]: playerInfo.isPlayList && playerInfo.playIndex === index }, { selected: selectedIndex == index || rightClickSelectedIndex == index }, { active: selectedList.includes(item) }, { disabled: !assertApiSupport(item.source) }]"
+          class="list-item" :class="[{ playing: isCurrentMusic(item) }, { selected: selectedIndex == index || rightClickSelectedIndex == index }, { active: selectedList.includes(item) }, { disabled: !assertApiSupport(item.source) }]"
           @click="handleListItemClick($event, index)" @contextmenu="handleListItemRightClick($event, index)"
         >
           <div class="list-item-cell no-select" :class="[$style.num, $style.numberColumn, $style.selectColumn]">
@@ -63,7 +63,6 @@
           </div>
           <div class="list-item-cell auto name" :aria-label="item.name">
             <span class="select name">{{ item.name }}</span>
-            <source-icon v-if="!isServerLibraryTrack(item) && (isShowSource || item.source != 'local')" class="no-select label-source" :source="item.source" :size="14" />
           </div>
           <div class="list-item-cell" :class="$style.singerColumn"><span class="select" :aria-label="item.singer">{{ item.singer }}</span></div>
           <div class="list-item-cell" :class="$style.albumColumn"><span class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span></div>
@@ -80,7 +79,7 @@
       >
         <div
           class="list-item"
-          :class="[{ [$style.active]: playerInfo.isPlayList && playerInfo.playIndex === index }, { selected: selectedIndex == index || rightClickSelectedIndex == index }, { active: selectedList.includes(item) }, { disabled: !assertApiSupport(item.source) }]"
+          :class="[{ playing: isCurrentMusic(item) }, { selected: selectedIndex == index || rightClickSelectedIndex == index }, { active: selectedList.includes(item) }, { disabled: !assertApiSupport(item.source) }]"
           @click="handleListItemClick($event, index)" @contextmenu="handleListItemRightClick($event, index)"
         >
           <div class="list-item-cell no-select" :class="[$style.num, $style.numberColumn, $style.selectColumn]">
@@ -96,7 +95,6 @@
           </div>
           <div class="list-item-cell auto name">
             <span class="select name" :aria-label="item.name">{{ item.name }}</span>
-            <source-icon v-if="!isServerLibraryTrack(item) && (isShowSource || item.source != 'local')" class="no-select label-source" :source="item.source" :size="14" />
           </div>
           <div class="list-item-cell" :class="$style.singerColumn"><span class="select" :aria-label="item.singer">{{ item.singer }}</span></div>
           <div class="list-item-cell" :class="$style.albumColumn"><span class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span></div>
@@ -130,7 +128,6 @@ import { isServerLibraryTrack } from '@renderer/service/tracks'
 import { clipboardWriteText } from '@common/utils/electron'
 import { assertApiSupport } from '@renderer/store/utils'
 import SearchList from './components/SearchList.vue'
-import SourceIcon from '@renderer/components/common/SourceIcon.vue'
 import MusicSortModal from './components/MusicSortModal.vue'
 import MusicToggleModal from './components/MusicToggleModal.vue'
 import useListInfo from './useListInfo'
@@ -155,7 +152,6 @@ export default {
   name: 'MusicList',
   components: {
     PlaylistIdentity,
-    SourceIcon,
     SearchList,
     MusicSortModal,
     MusicToggleModal,
@@ -460,17 +456,6 @@ export default {
 
     &:hover:not(.active) {
       background-color: rgb(from var(--color-main-background) r g b / .46);
-    }
-    &.active {
-      color: var(--color-button-font);
-      background-color: var(--color-primary-alpha-900);
-      box-shadow: inset 0 0 0 1px var(--color-primary-alpha-800);
-    }
-  }
-  :global {
-    .label-source {
-      margin-left: 6px;
-      opacity: .9;
     }
   }
 }

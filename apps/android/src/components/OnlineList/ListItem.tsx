@@ -1,14 +1,13 @@
 import { memo, useRef } from 'react'
 import { StyleSheet, View } from 'react-native'
 import Button, { type BtnType } from '@/components/common/Button'
-import Text from '@/components/common/Text'
+import ListText from '@/components/common/ListText'
 import Badge, { type BadgeType } from '@/components/common/Badge'
 import { Icon } from '@/components/common/Icon'
 import { useI18n } from '@/lang'
 import { useTheme } from '@/store/theme/hook'
 import { usePlayMusicInfo } from '@/store/player/hook'
 import { createStyle, type RowInfo } from '@/utils/tools'
-import SourceLogo from '@/components/SourceLogo'
 import SongDownloadButton from '@/components/SongDownloadButton'
 
 import useAdaptiveLayout from '@/utils/hooks/useAdaptiveLayout'
@@ -30,7 +29,7 @@ const useQualityTag = (musicInfo: LX.Music.MusicInfoOnline) => {
   return info
 }
 
-export default memo(({ item, index, showSource, onPress, onLongPress, onShowMenu, selectedList, rowInfo, isShowAlbumName, isShowInterval }: {
+export default memo(({ item, index, onPress, onLongPress, onShowMenu, selectedList, rowInfo, isShowAlbumName, isShowInterval }: {
   item: LX.Music.MusicInfoOnline
   index: number
   showSource?: boolean
@@ -94,19 +93,18 @@ export default memo(({ item, index, showSource, onPress, onLongPress, onShowMenu
           {
             isPlaying
               ? <Icon accessible={false} style={styles.sn} name="play-outline" size={13} color={theme['q-accent-text']} />
-              : <Text style={styles.sn} size={13} color={theme['q-text-secondary']}>{index + 1}</Text>
+              : <ListText style={styles.sn} secondary>{index + 1}</ListText>
           }
           <View style={styles.itemInfo}>
-            <Text size={isCar ? 18 : 14} style={isPlaying ? styles.playingTitle : undefined} color={isPlaying ? theme['q-accent-text'] : theme['c-font']} numberOfLines={1}>{item.name}</Text>
+            <ListText car={isCar} active={isPlaying} numberOfLines={1}>{item.name}</ListText>
             <View style={styles.listItemSingle}>
               { tagInfo.type ? <Badge type={tagInfo.type}>{tagInfo.text}</Badge> : null }
-              { showSource ? <SourceLogo source={item.source} size={18} style={styles.sourceLogo} /> : null }
-              <Text style={styles.listItemSingleText} size={isCar ? 13 : 11} color={theme['q-text-secondary']} numberOfLines={1}>{singer}</Text>
+              <ListText style={styles.listItemSingleText} secondary car={isCar} numberOfLines={1}>{singer}</ListText>
             </View>
           </View>
           {
             isShowInterval ? (
-              <Text size={12} color={theme['q-text-secondary']} numberOfLines={1}>{item.interval}</Text>
+              <ListText secondary numberOfLines={1}>{item.interval}</ListText>
             ) : null
           }
         </Button>
@@ -182,10 +180,7 @@ const styles = createStyle({
     // paddingTop: 2,
     flexGrow: 0,
     flexShrink: 1,
-    fontWeight: '300',
-  },
-  sourceLogo: {
-    marginRight: 6,
+    fontWeight: '400',
   },
   listItemBadge: {
     // fontSize: 10,
@@ -204,9 +199,6 @@ const styles = createStyle({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  playingTitle: {
-    fontWeight: '700',
   },
 })
 

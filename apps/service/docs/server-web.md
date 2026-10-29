@@ -7,7 +7,8 @@ It is a shared-instance service, not a public multi-tenant service.
 This directory is the Server component of the [TuneFlow monorepo](../../../README.md).
 Desktop and shared Vue Web live in [apps/player](../../player/README.md), and
 Android lives in [apps/android](../../android/README.md). Docker defaults to the
-shared Web; the legacy Web remains available at `/V2/`.
+shared Vue Web only. Legacy and Flutter integrated image variants have been
+removed; retired `/V2` routes return 404.
 
 ## Local build and start
 
@@ -22,8 +23,8 @@ TUNEFLOW_WEB_ROOT=./dist/web-qmusic npm run start:server
 ```
 
 Open <http://127.0.0.1:3124>. Stop the foreground Service with `Ctrl+C`.
-`build:web:qmusic` prepares `dist/web-qmusic` with the shared Web at `/` and
-legacy Web at `/V2/`. `prepare:service` prepares the self-contained `dist/server`
+`build:web:qmusic` prepares `dist/web-qmusic` with the shared Vue Web at `/`.
+`prepare:service` prepares the self-contained `dist/server`
 runtime, including the Node ABI build of `better-sqlite3`. `build:service`
 remains a legacy-Web-plus-Service build; it does not build the shared Vue Web.
 

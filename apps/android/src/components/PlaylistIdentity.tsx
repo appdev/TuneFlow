@@ -1,7 +1,7 @@
 import { View } from 'react-native'
-import SourceLogo, { SOURCE_LOGOS } from './SourceLogo'
+import { SOURCE_LOGOS } from './SourceLogo'
 import { Icon } from './common/Icon'
-import Text from './common/Text'
+import ListText from './common/ListText'
 import { useTheme } from '@/store/theme/hook'
 
 export const getPlaylistSource = (list: LX.List.MyListInfo) => 'source' in list ? list.source : undefined
@@ -20,10 +20,10 @@ export default ({ list, name, subtitle = false, active = false }: {
   const source = getPlaylistSource(list)
   const label = list.id === 'service_library' ? '服务器音乐库' : list.id === 'service_history' ? '服务器播放记录' : source ? `${SOURCE_LOGOS[source]?.label ?? source} · 服务器` : '服务器歌单'
   return <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-    {source ? <SourceLogo source={source} size={24} /> : <View style={{ width: 24, alignItems: 'center' }}><Icon name={list.id == 'love' ? 'love' : 'album'} size={20} color={theme['q-text-secondary']} /></View>}
+    <View style={{ width: 24, alignItems: 'center' }}><Icon name={list.id == 'love' ? 'love' : 'album'} size={20} color={theme['q-text-secondary']} /></View>
     <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-      <Text numberOfLines={1} size={14} color={theme[active ? 'q-accent-text' : 'q-text-primary']} style={{ fontWeight: active ? '600' : '400' }}>{name ?? list.name}</Text>
-      {subtitle ? <Text numberOfLines={1} size={11} color={theme['q-text-secondary']}>{label}</Text> : null}
+      <ListText numberOfLines={1} active={active}>{name ?? list.name}</ListText>
+      {subtitle ? <ListText secondary numberOfLines={1}>{label}</ListText> : null}
     </View>
   </View>
 }

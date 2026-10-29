@@ -64,7 +64,9 @@ TuneFlow 把音乐整理和日常收听放在一起：在家中的电脑、NAS �
 | Android | React Native 客户端，连接同一 Server | [apps/android](apps/android/README.md) |
 | 共享业务 | API、数据契约与安全地址规则；下载、推荐、歌单等跨端业务 | [service-client](packages/service-client)、[music-core](packages/music-core) |
 
-所有客户端源码均在 **appdev/TuneFlow** 维护，各端保留独立依赖、构建和发布流程。Flutter 为外部独立项目，不属于本仓库的构建范围。
+当前仅维护桌面、Web 和 Android 客户端，以及它们共用的服务端与共享业务包。客户端源码统一在 **appdev/TuneFlow** 维护，各端保留独立依赖、构建和发布流程。
+
+**Flutter 客户端已弃用，不再维护。** 后续功能、文案、链接修复、验证、构建和发布均不再覆盖 Flutter。
 
 ## 主要功能
 
@@ -97,7 +99,7 @@ docker run -d \
 
 在部署主机打开 <http://127.0.0.1:3124>，其他设备使用 `http://服务器IP:3124`。源码中的默认 Web 已切换为共享 Vue 页面；公开镜像是否包含某项新改动，以对应 [Release 说明](https://github.com/appdev/TuneFlow/releases) 为准。
 
-Web 固定连接当前页面所在服务，隐藏服务器切换设置；桌面和 Android 可在连接设置中选择服务地址。旧 Web 保留在 `/V2/`。
+Web 固定连接当前页面所在服务，隐藏服务器切换设置；桌面和 Android 可在连接设置中选择服务地址。Docker 仅提供共享 Vue Web。
 
 `/config` 保存内部持久状态，`/music` 保存音乐文件。已有部署升级时复用原挂载和数据，不另建空卷，也不要执行 `docker compose down -v`。服务用于单实例共享场景，音乐库等接口不提供多租户隔离；请在可信网络中使用。详见 [部署、存储与备份](apps/service/docs/server-web.md)。
 
@@ -132,7 +134,7 @@ npm ci --prefix apps/android
 
 | 根目录命令 | 产物或用途 |
 | --- | --- |
-| `npm run build:web:qmusic` | 共享 Vue Web 与 `/V2/`，输出 `apps/service/dist/web-qmusic`；需 Service、Player 依赖 |
+| `npm run build:web:qmusic` | 共享 Vue Web，输出 `apps/service/dist/web-qmusic`；需 Player 依赖 |
 | `npm run prepare:service` | 独立服务运行时，输出 `apps/service/dist/server` |
 | `npm run build:service` | 兼容旧 Web 与服务运行时，**不构建共享 Vue Web** |
 | `npm run build:player` | Electron 生产代码，输出 `apps/player/dist` |
@@ -147,7 +149,7 @@ npm run prepare:service
 TUNEFLOW_WEB_ROOT="$PWD/apps/service/dist/web-qmusic" npm run start:server
 ```
 
-也可在根目录运行 `docker compose up -d --build`，使用仓库的 [Dockerfile](Dockerfile) 与 [compose.yaml](compose.yaml) 构建部署。默认构建共享 Web；兼容旧 Web 的构建参数为 `TUNEFLOW_WEB_VARIANT=legacy`。
+也可在根目录运行 `docker compose up -d --build`，使用仓库的 [Dockerfile](Dockerfile) 与 [compose.yaml](compose.yaml) 构建部署。镜像仅构建共享 Vue Web，不再提供旧 Web 或 Flutter integrated 构建选项。
 
 首次设置共享账号访问密码：在容器管理面板的环境变量中添加 `TUNEFLOW_ACCESS_PASSWORD`，填入 8～128 个字符的密码，应用配置并保留原 `/config` 挂载，服务启动时会自动初始化。已有密码时忽略该变量，重启不会覆盖在应用中修改的密码。`docker run` 和 Compose 配置示例见[首次访问密码](apps/service/docs/server-web.md#first-access-password-docker-run-or-a-management-panel)。
 

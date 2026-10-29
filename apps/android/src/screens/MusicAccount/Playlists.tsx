@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native'
 import Button from '@/components/common/Button'
 import Text from '@/components/common/Text'
+import ListText from '@/components/common/ListText'
 import Image from '@/components/common/Image'
 import { Icon } from '@/components/common/Icon'
 import { useTheme } from '@/store/theme/hook'
@@ -140,8 +141,8 @@ export default ({ provider, onLogin, onOpenLibrary, onBusyChange }: {
         return <Button disabled={busy} ripple={null} accessibilityRole="checkbox" accessibilityState={{ checked }} accessibilityLabel={`${item.name}，${item.count}`} onPress={() => { setSelected(current => { const next = new Set(current); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next }) }} style={[styles.row, { backgroundColor: checked ? theme['q-surface-tint'] : theme['q-surface-raised'], borderColor: checked ? theme['q-accent'] : theme['q-outline'] }]}>
           <Image url={item.cover} style={styles.cover} />
           <View style={styles.copy}>
-            <Text size={14} numberOfLines={2} style={styles.rowTitle}>{item.name}</Text>
-            <Text size={11} color={theme['q-text-secondary']} style={styles.subtitle}>{t(`account_lists_${item.kind}`)} · {t('account_lists_count', { count: item.count })}{imported ? ` · ${t('account_lists_imported')}` : ''}</Text>
+            <ListText numberOfLines={2}>{item.name}</ListText>
+            <ListText secondary style={styles.subtitle}>{t(`account_lists_${item.kind}`)} · {t('account_lists_count', { count: item.count })}{imported ? ` · ${t('account_lists_imported')}` : ''}</ListText>
           </View>
           <View style={[styles.checkbox, { backgroundColor: checked ? theme['q-accent'] : 'transparent', borderColor: checked ? theme['q-accent'] : theme['q-outline'] }]}>{checked ? <Icon name="check" size={14} color={theme['q-on-accent']} /> : null}</View>
         </Button>

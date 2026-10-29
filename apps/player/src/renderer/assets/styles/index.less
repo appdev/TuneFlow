@@ -281,6 +281,12 @@
 
   --color-font: var(--color-850);
   --color-font-label: var(--color-450);
+  // Shared desktop/Web list hierarchy; match Android common/ListText.
+  --q-list-title-size: .875rem;
+  --q-list-detail-size: .75rem;
+  --q-list-text: var(--color-font);
+  --q-list-muted: var(--color-font-label);
+  --q-list-accent: var(--color-primary-dark-200);
   --color-primary-font: var(--color-primary);
   --color-primary-font-hover: var(--color-primary-alpha-300);
   --color-primary-font-active: var(--color-primary-dark-100-alpha-200);
@@ -527,7 +533,9 @@ table {
     transition: 0.2s ease;
     transition-property: background-color, color, transform, box-shadow;
     box-sizing: border-box;
-    font-size: 12px;
+    font-size: var(--q-list-detail-size);
+    font-weight: 400;
+    color: var(--q-list-text);
     border-radius: 10px;
     // 极淡分隔线，给密集列表一点可扫读的结构
     box-shadow: inset 0 -1px 0 rgb(from var(--color-font) r g b / .05);
@@ -549,8 +557,8 @@ table {
       box-shadow: inset 0 0 0 1px var(--color-primary-alpha-700);
 
       .name {
-        color: var(--color-primary-dark-200);
-        font-weight: 700;
+        color: var(--q-list-accent);
+        font-weight: 600;
       }
       &:hover {
         background-color: var(--color-primary-alpha-700);
@@ -564,7 +572,7 @@ table {
       padding: 0 6px;
       position: relative;
       // transition:  0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      line-height: 16px;
+      line-height: 20px;
       vertical-align: middle;
       box-sizing: border-box;
       // 主题感知文字微衬底：浅色主题白晕/深色主题暗晕，背景图上也清晰
@@ -580,11 +588,12 @@ table {
         .center();
         padding-left: 3px;
         padding-right: 3px;
-        font-size: 11px;
-        color: var(--color-font-label);
+        font-size: var(--q-list-detail-size);
+        color: var(--q-list-muted);
       }
 
       &.name {
+        font-size: var(--q-list-title-size);
         display: flex;
         flex-flow: row nowrap;
         overflow: hidden;

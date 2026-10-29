@@ -3,6 +3,9 @@
   "private": true,
   "description": "TuneFlow applications with isolated dependencies and shared music business rules",
   "scripts": {
+    "cli": "node apps/cli/bin/tuneflow.mjs",
+    "build:cli": "npm --prefix apps/cli run build",
+    "test:cli": "npm --prefix apps/cli test",
     "build:service": "npm --prefix apps/service run build:service",
     "build:server": "npm --prefix apps/service run build:server",
     "prepare:service": "npm --prefix apps/service run prepare:service",

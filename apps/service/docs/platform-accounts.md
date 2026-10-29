@@ -90,6 +90,31 @@ disable password access, revocation, account revision checks or encrypted storag
 
 ## Storage, recovery and rollback
 
+NetEase QR authorization uses an isolated Chromium process and ephemeral browser
+context per attempt. The official page initializes the session; the Service sends
+its encrypted WEAPI requests within that context. At most two browser attempts
+run concurrently. Cancellation, replacement, expiry and shutdown close their
+resources; successful authorization closes the browser immediately and retains
+only the existing credential allowlist in the encrypted vault. Subsequent account
+reads use the ordinary HTTP adapter.
+
+The Docker runtime includes Chromium and Xvfb. On Linux without `DISPLAY`, each
+attempt starts its own virtual display with TCP listening disabled. Chromium
+sandboxing stays enabled. Native Service installations need a compatible local
+Chromium and, on Linux without a display, Xvfb; set
+`TUNEFLOW_CHROMIUM_EXECUTABLE` to a system Chromium executable when needed.
+Browser initialization failures return `ACCOUNT_LOGIN_UNAVAILABLE` with phase
+`wy-browser`, without browser logs, URLs, cookies or profile data.
+
+If Docker's seccomp filter blocks Chromium's sandbox namespaces, the reviewed
+`docker/chromium-seccomp.json` profile is based on the Moby v26.1.5 default
+(`https://github.com/moby/moby/blob/v26.1.5/profiles/seccomp/default.json`,
+Apache-2.0). Following Playwright's Docker guidance, its only added rule allows
+`clone`, `setns` and `unshare`. Applying that profile changes the container's
+security policy and requires explicit operator approval. The application never
+disables Chromium sandboxing, uses privileged mode or changes host sysctls to
+work around initialization failure.
+
 `account-security/` is private (0700); its key and encrypted vault
 are 0600. AES-256-GCM authenticates the encrypted vault. The application-owned
 `vault.key` uses no OS Keychain. Protect backups of the key separately: encryption

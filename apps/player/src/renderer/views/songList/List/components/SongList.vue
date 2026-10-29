@@ -128,7 +128,7 @@ defineExpose({
   height: 100%;
   display: flex;
   flex-flow: column nowrap;
-  font-size: 14px;
+  font-size: var(--q-list-title-size);
   box-sizing: border-box;
   padding: 12px 12px 0;
 }
@@ -222,8 +222,8 @@ defineExpose({
   padding: 2px 6px 2px 12px;
   overflow: hidden;
   h4 {
-    font-size: 14px;
-    font-weight: 620;
+    font-size: var(--q-list-title-size);
+    font-weight: 400;
     line-height: 1.35;
     color: var(--color-font);
     transition: color @transition-fast;
@@ -235,10 +235,10 @@ defineExpose({
   flex-flow: row nowrap;
   gap: 12px;
   margin-top: 8px;
-  font-size: 12px;
+  font-size: var(--q-list-detail-size);
   .mixin-ellipsis-1();
   line-height: 1.2;
-  color: var(--color-font-label);
+  color: var(--q-list-muted);
   font-variant-numeric: tabular-nums;
   svg {
     margin-right: 3px;
@@ -247,17 +247,17 @@ defineExpose({
 }
 .author {
   margin-top: 6px;
-  font-size: 12px;
+  font-size: var(--q-list-detail-size);
   .mixin-ellipsis-1();
   line-height: 1.3;
-  color: var(--color-font-label);
+  color: var(--q-list-muted);
 }
 .time {
   margin-top: 3px;
-  font-size: 12px;
+  font-size: var(--q-list-detail-size);
   .mixin-ellipsis-1();
   line-height: 1.3;
-  color: var(--color-font-label);
+  color: var(--q-list-muted);
 }
 .pagination {
   text-align: center;
@@ -313,7 +313,7 @@ defineExpose({
 
   p {
     font-size: 16px;
-    color: var(--color-font-label);
+    color: var(--q-list-muted);
   }
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Alert, FlatList, StyleSheet, View } from 'react-native'
 import Text from '@/components/common/Text'
+import ListText from '@/components/common/ListText'
 import Button from '@/components/common/Button'
 import { useTheme } from '@/store/theme/hook'
 import { useDockInset } from '@/components/common/DockInset'
@@ -60,15 +61,15 @@ export default () => {
           return <View style={[styles.row, styles.task, { borderColor: item.status === 'running' ? theme['q-outline'] : 'transparent', borderBottomColor: theme['q-outline'], backgroundColor: item.status === 'running' ? theme['q-surface-tint'] : 'transparent' }]}>
             {showArtist ? <Text size={12} color={theme['q-text-secondary']} style={styles.index}>{index + 1}</Text> : null}
             <View style={styles.song}>
-              <View style={styles.title}><Text numberOfLines={1} style={styles.songName}>{item.musicInfo.name ?? '未知歌曲'}</Text></View>
-              {!showArtist ? <Text size={12} numberOfLines={1} color={theme['q-text-secondary']} style={styles.subtitle}>{item.musicInfo.singer ?? '未知艺术家'}</Text> : null}
+              <View style={styles.title}><ListText numberOfLines={1} style={styles.songName}>{item.musicInfo.name ?? '未知歌曲'}</ListText></View>
+              {!showArtist ? <ListText secondary numberOfLines={1} style={styles.subtitle}>{item.musicInfo.singer ?? '未知艺术家'}</ListText> : null}
             </View>
-            {showArtist ? <Text size={13} numberOfLines={1} style={styles.artist}>{item.musicInfo.singer ?? '—'}</Text> : null}
+            {showArtist ? <ListText secondary numberOfLines={1} style={styles.artist}>{item.musicInfo.singer ?? '—'}</ListText> : null}
             <View style={styles.status}>
-              <View style={styles.statusLabel}><Text size={12} color={item.status === 'completed' ? theme['q-accent-text'] : theme['q-text-primary']}>{labels[item.status]}</Text><Text size={10} color={theme['q-text-secondary']}>{item.quality?.toUpperCase()}</Text></View>
-              {item.status === 'error' && item.error ? <Text accessibilityLabel={item.error} size={11} numberOfLines={2} color={theme['q-text-secondary']}>{item.error}</Text> : item.status !== 'completed' ? <View style={styles.progressLine}>
+              <View style={styles.statusLabel}><Text size={12} color={item.status === 'completed' ? theme['q-accent-text'] : theme['q-text-primary']}>{labels[item.status]}</Text><Text size={12} color={theme['q-text-secondary']}>{item.quality?.toUpperCase()}</Text></View>
+              {item.status === 'error' && item.error ? <Text accessibilityLabel={item.error} size={12} numberOfLines={2} color={theme['q-text-secondary']}>{item.error}</Text> : item.status !== 'completed' ? <View style={styles.progressLine}>
                 <View accessibilityRole="progressbar" accessibilityLabel={`下载进度：${item.musicInfo.name}`} accessibilityValue={{ min: 0, max: 100, now: progress }} style={[styles.progress, { backgroundColor: theme['q-outline'] }]}><View style={{ height: '100%', width: `${progress}%`, backgroundColor: theme['q-accent-text'] }} /></View>
-                <Text size={10} color={theme['q-text-secondary']} style={styles.percentage}>{progress}%</Text>
+                <Text size={12} color={theme['q-text-secondary']} style={styles.percentage}>{progress}%</Text>
               </View> : null}
             </View>
             <View style={[styles.actions, showArtist && styles.wideActions]}>

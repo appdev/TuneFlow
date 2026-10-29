@@ -31,7 +31,7 @@
     </section>
     <p v-if="message" role="status">{{ message }}</p><p v-if="error" role="alert">{{ error }}</p>
     <div :class="$style.listHeading"><h3>账号歌单</h3><span>{{ playlists.length }} 个歌单</span><span v-if="busy" role="status">正在加载…</span></div><p v-if="!playlists.length && !busy" :class="$style.subtitle">{{ status?.[provider] ? '暂无歌单，或平台暂不可用，请尝试刷新。' : '登录后，创建和收藏的歌单会显示在这里。' }}</p>
-    <ul :class="$style.playlists"><li v-for="playlist in playlists" :key="playlist.id"><span>{{ playlist.name }} · {{ playlist.trackCount }} 首</span><button :disabled="busy" @click="preview(playlist)">查看歌曲</button><button :disabled="busy" @click="importList(playlist)">导入歌单</button></li></ul>
+    <ul :class="$style.playlists"><li v-for="playlist in playlists" :key="playlist.id"><span :class="$style.playlistCopy"><span :class="$style.playlistName">{{ playlist.name }}</span><span :class="$style.playlistCount">{{ playlist.trackCount }} 首</span></span><button :disabled="busy" @click="preview(playlist)">查看歌曲</button><button :disabled="busy" @click="importList(playlist)">导入歌单</button></li></ul>
     <router-link v-if="importedId" :to="`/list?id=${encodeURIComponent(importedId)}`">查看歌单 ›</router-link>
     <h3 v-if="previewTitle">{{ previewTitle }}</h3>
     <div v-if="tracks.length" :class="$style.tracks"><material-online-list :list="tracks" :page="1" :limit="tracks.length" :total="tracks.length" source-tag search-results play-in-context @play-list="play" /></div>
@@ -109,6 +109,9 @@ onBeforeUnmount(() => { active = false; dailyKey.value = ''; window.removeEventL
 .more { border-top: 1px solid var(--q-outline); margin-top: 20px; padding-top: 14px; summary { cursor: pointer; font-size: 13px; color: var(--color-font-label); } h3 { margin-top: 18px; } }
 .logout { border-top: 1px solid var(--q-outline); margin-top: 18px; padding-top: 4px; }
 .listHeading { margin: 26px 0 12px; }
-.playlists { list-style: none; padding: 0; margin: 0; li { border-bottom: 1px solid var(--q-outline); padding: 14px 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; } span { flex: 1; min-width: 160px; font-size: 14px; } }
+.playlists { list-style: none; padding: 0; margin: 0; li { border-bottom: 1px solid var(--q-outline); padding: 14px 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; } }
+.playlistCopy { display: flex; flex: 1; min-width: 160px; flex-direction: column; gap: 3px; }
+.playlistName { color: var(--q-list-text); font-size: var(--q-list-title-size); font-weight: 400; overflow-wrap: anywhere; }
+.playlistCount { color: var(--q-list-muted); font-size: var(--q-list-detail-size); }
 .tracks { height: 440px; margin-top: 12px; }
 </style>

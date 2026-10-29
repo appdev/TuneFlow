@@ -32,7 +32,7 @@
         >
           <div
             class="list-item"
-            :class="[{[$style.active]: playTaskId == item.id }, { selected: rightClickSelectedIndex == index }, { active: selectedList.includes(item) }]"
+            :class="[{playing: playTaskId == item.id }, { selected: rightClickSelectedIndex == index }, { active: selectedList.includes(item) }]"
             @click="handleListItemClick($event, index)" @contextmenu="handleListItemRightClick($event, index)"
           >
             <div class="list-item-cell no-select" :class="[$style.num, $style.numberColumn, $style.selectColumn]">

@@ -436,6 +436,8 @@ export default {
 @keyframes q-list-lift { from { scale: .985; rotate: 0deg; } to { scale: 1.035; rotate: -.6deg; } }
 @media (prefers-reduced-motion: reduce) { .listsItem.dragFloating[data-drag-motion='true'] { animation: none; scale: 1; rotate: 0deg; } }
 .listsItem {
+  color: var(--q-list-text);
+  font-weight: 400;
   position: relative;
   margin-bottom: 4px;
   border-radius: 12px;
@@ -456,7 +458,8 @@ export default {
     }
   }
   &.active {
-    color: var(--color-primary-dark-300);
+    color: var(--q-list-accent);
+    font-weight: 600;
     background-color: rgb(from var(--color-main-background) r g b / .76);
     box-shadow: inset 0 0 0 1px var(--color-primary-alpha-700);
     &:before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 3px; background: var(--color-primary); }

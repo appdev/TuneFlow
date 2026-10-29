@@ -1,4 +1,4 @@
-Q-music 免安装版 / Portable edition
+音流免安装版 / TuneFlow Portable edition
 
 解压整个压缩包后运行 Q-music.exe，无需安装。
 保留此 portable 文件夹，程序会把设置和歌单保存在 portable/userData。

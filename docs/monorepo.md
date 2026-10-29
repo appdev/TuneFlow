@@ -14,7 +14,7 @@ TuneFlow 是主源码仓库。服务、桌面/Web 与 Android 在同一个 Git �
 | `packages/service-client` | API、DTO、超时、地址与资源安全规则 |
 | `packages/music-core` | 跨端下载、推荐、歌单等可移植业务规则 |
 
-共享业务不应依赖 Vue、React、Electron 或服务端数据库；界面、平台会话、系统权限和存储适配留在对应应用。Flutter 是独立项目，不由本仓库安装或构建。
+共享业务不应依赖 Vue、React、Electron 或服务端数据库；界面、平台会话、系统权限和存储适配留在对应应用。当前仅维护桌面、Web 和 Android 客户端，以及它们共用的服务端与共享业务包。Flutter 客户端已弃用，不再维护，不纳入功能对齐、修复、验证、安装、构建或发布范围。
 
 历史导入基线为 Service `9f4dcdbd`、桌面/Web `50de9ca4`、Android `8f85b4c4`。subtree 导入未 squash，可通过 Git 历史追溯来源；旧分仓目录不再是开发入口。
 
@@ -22,7 +22,7 @@ TuneFlow 是主源码仓库。服务、桌面/Web 与 Android 在同一个 Git �
 
 Server 管理歌单、收藏、历史、音源、下载与音乐文件；客户端连接同一服务即可使用这些共享数据。界面按业务组织，不把服务和客户端呈现为两个产品。
 
-Docker 默认托管 `apps/player` 的共享 Vue Web。Web 固定连接页面 origin，隐藏服务器切换设置；旧地址不能覆盖该绑定。桌面与 Android 保留连接选择。旧 Web 在 `/V2/`，构建参数 `TUNEFLOW_WEB_VARIANT=legacy` 可选择兼容旧前端。
+Docker 仅托管 `apps/player` 的共享 Vue Web。Web 固定连接页面 origin，隐藏服务器切换设置；旧地址不能覆盖该绑定。桌面与 Android 保留连接选择。旧 Web 与 Flutter integrated 构建选项已移除，原 `/V2` 路径返回 404。
 
 配置卷与音乐目录保持原挂载；源码目录调整不会迁移或清空用户数据。外观、输出、临时队列等设备偏好保持各自存储。账号官方授权与会话按对应版本的平台适配器处理，不把歌单同步当作另一设备已完成授权。
 
@@ -61,4 +61,4 @@ Docker 默认托管 `apps/player` 的共享 Vue Web。Web 固定连接页面 ori
 
 根命令见 [README](../README.md#验证与贡献)。共享行为变更应覆盖各端实际适配器与 Service 契约；桌面/Web 和 Android 各自构建，原生绑定匹配对应运行时。真实账号登录由本人完成，自动化使用隔离合成数据。
 
-源码可以切回历史提交；镜像升级保留旧镜像、原 Compose 与持久挂载。前端的 `/V2/` 是兼容入口，不等于完整部署备份。回退不应删除配置卷、音乐目录或客户端数据。
+源码可以切回历史提交；镜像升级保留旧镜像、原 Compose 与持久挂载。回退不应删除配置卷、音乐目录或客户端数据。

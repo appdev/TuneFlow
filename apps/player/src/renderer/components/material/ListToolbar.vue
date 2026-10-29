@@ -53,7 +53,7 @@ defineEmits(['play', 'add', 'download', 'clear', 'select', 'select-all', 'invert
 .count {
   flex: none;
   color: var(--color-font-label);
-  font-size: 11px;
+  font-size: var(--q-list-detail-size);
   font-variant-numeric: tabular-nums;
   &.selected { color: var(--color-primary); font-weight: 600; }
 }
@@ -74,7 +74,7 @@ defineEmits(['play', 'add', 'download', 'clear', 'select', 'select-all', 'invert
     color: var(--color-font);
     background: transparent;
     font: inherit;
-    font-size: 11px;
+    font-size: var(--q-list-detail-size);
     cursor: pointer;
     transition: background-color @transition-fast, color @transition-fast;
     &:hover:not(:disabled) { color: var(--color-primary); background: var(--color-primary-background-hover); }

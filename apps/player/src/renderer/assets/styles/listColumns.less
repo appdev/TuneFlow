@@ -4,6 +4,19 @@
   :global(.thead) { padding-left: 7px; padding-right: 7px; }
   :global(table) { table-layout: fixed; }
   :global(th) { box-sizing: border-box; }
+  :global(th) {
+    font-size: var(--q-list-detail-size);
+    font-weight: 400;
+    color: var(--q-list-muted);
+  }
+  :global(.list-item-cell).singerColumn,
+  :global(.list-item-cell).albumColumn,
+  :global(.list-item-cell).durationColumn,
+  :global(.list-item-cell).qualityColumn {
+    font-size: var(--q-list-detail-size);
+    color: var(--q-list-muted);
+  }
+  .numberColumn, .durationColumn { font-variant-numeric: tabular-nums; }
   :global(.list-item-cell.auto) { min-width: 0; }
   :global(.list-item) { height: calc(100% - 4px); }
   .numberColumn { width: 34px !important; flex: 0 0 34px !important; }

@@ -9,11 +9,11 @@
 | macOS | x64、arm64 ZIP | 预览通道，临时签名、未公证，不是正式签名安装器 |
 | Windows | x64、arm64 ZIP | 未签名便携版，无应用内自动安装更新 |
 | Linux 桌面 | x64、arm64 tar.gz | 便携包，不包含该流程未配置的 deb、rpm 等安装包 |
-| Web | 随 Docker 镜像提供主界面与 `/V2/` | 后续客户端 Actions 不再打包或发布独立 Web 附件；保留源码构建入口 |
+| Web | 随 Docker 镜像仅提供共享 Vue Web | 后续客户端 Actions 不再打包或发布独立 Web 附件；保留源码构建入口 |
 | Android | arm64-v8a、universal 通用 APK | 通用版保留其他架构的原生库；沿用 `.preview` 应用 ID 与原预览签名，覆盖升级；不属于应用商店正式签名包 |
 | 服务端 Docker | `linux/amd64` | 健康、配置／音乐存储检查后推送 Docker Hub；当前不发布服务端 GitHub Release，尚无 arm64 镜像构建验证 |
 
-此仓库没有 iOS 发布流程。独立 Flutter 项目不属于本次发布矩阵。
+此仓库没有 iOS 发布流程。Flutter 客户端已弃用，不再维护；后续客户端验证与发布仅覆盖桌面、Web 和 Android。
 
 ## 实际检查结果
 
@@ -23,7 +23,7 @@
 - 应用户要求，在新版公开验证后删除 `TuneFlow-v0.4.26` Release 及其附件；已确认旧 Release 查询返回 404，源码标签保留以便追溯。已安装 0.4.26 的 Android 使用旧下载文件名，需要手动下载新版覆盖安装一次，无需卸载。新版更新下载已使用 TuneFlow 文件名和两种 APK 选择。
 - [Docker run 40337092339](https://github.com/appdev/TuneFlow/actions/runs/40337092339)：构建、健康、存储检查和镜像推送成功，服务端 GitHub Release 步骤跳过。Docker Hub `apkdv/tuneflow-server:2.13.8` 与 `latest` 摘要一致：`sha256:332f4c8e6666f0b524dc4540b27fb8ee2f3b6db073116094cae354c52430c0a0`，平台 `linux/amd64`。
 - [共享契约 run 40335883068](https://github.com/appdev/TuneFlow/actions/runs/40335883068) 与 [服务端完整检查 run 40335875429](https://github.com/appdev/TuneFlow/actions/runs/40335875429) 均通过。
-- 用户确认原 Q-music 发布仓库已删除。当前源码将客户端发布、下载及 API／raw／CDN 更新线路统一迁移到 TuneFlow，使用 `TuneFlow-v<version>` 标签；不再需要旧仓库调用器。`appdev/TuneFlow-Client` 是独立 Flutter 仓库，不参与发布。
+- 用户确认原 Q-music 发布仓库已删除。当前源码将客户端发布、下载及 API／raw／CDN 更新线路统一迁移到 TuneFlow，使用 `TuneFlow-v<version>` 标签；不再需要旧仓库调用器。原独立 Flutter 客户端（`appdev/TuneFlow-Client`）已弃用，不再维护或发布。
 
 结论：本次跨平台预览包、公开更新通道及 Docker Hub 发布已验证。发布不等于部署，本次未更新测试服务器的现有容器。服务镜像缺少 arm64，正式签名与公证也未覆盖。
 

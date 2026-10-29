@@ -34,7 +34,7 @@
             <div :class="$style.cover">
               <img v-if="item.pic" :src="item.pic" alt="" loading="lazy" @error="$event.target.style.visibility = 'hidden'">
               <span v-else aria-hidden="true">♪</span>
-              <span :class="$style.source"><source-icon :source="item.source" :size="17" /><span>{{ $t(`source_${item.source}`) }}</span></span>
+              <span :class="$style.source"><span>{{ $t(`source_${item.source}`) }}</span></span>
             </div>
             <strong :title="item.name">{{ item.name }}</strong>
             <span :class="$style.singer" :title="item.singer">{{ item.singer || '—' }}</span>
@@ -113,7 +113,7 @@ const load = async() => {
       album.value = {
         name: list[0]?.meta.albumName ?? metadata.name,
         singer: metadata.singer ?? list[0]?.singer,
-        pic: list[0]?.meta.picUrl || metadata.pic,
+        pic: list[0]?.meta.picUrl ? list[0].meta.picUrl : metadata.pic,
       }
     } else {
       void addHistoryWord(props.text)
@@ -170,8 +170,8 @@ onBeforeUnmount(() => { revision++ })
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); align-content: start; gap: 24px 20px; padding: 18px 24px; min-height: 0; flex: 1; overflow-y: auto; }
 .card { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 0; border: 0; text-align: left; background: transparent; color: var(--color-900); cursor: pointer;
   strong, .singer, small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; line-height: 1.5; }
-  strong { font-size: 1.05em; margin-top: 3px; }
-  small, .singer { color: var(--color-600); }
+  strong { font-size: var(--q-list-title-size); font-weight: 400; color: var(--q-list-text); margin-top: 3px; }
+  small, .singer { font-size: var(--q-list-detail-size); color: var(--q-list-muted); }
   &:hover .cover { transform: translateY(-3px); box-shadow: 0 8px 20px var(--color-primary-alpha-300); }
   &:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 5px; border-radius: 12px; }
 }

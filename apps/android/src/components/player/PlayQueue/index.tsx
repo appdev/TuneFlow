@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, TouchableOpacity, View } from 'react-nativ
 
 import Popup, { type PopupType } from '@/components/common/Popup'
 import Text from '@/components/common/Text'
+import ListText from '@/components/common/ListText'
 import { useI18n } from '@/lang'
 import { useTheme } from '@/store/theme/hook'
 import { useIsPlay, usePlayInfo, usePlayMusicInfo } from '@/store/player/hook'
@@ -43,11 +44,11 @@ const QueueItem = ({ index, name, singer, isActive, isPlaying, busy, onPress }: 
       <View style={styles.index}>
         {busy ? <ActivityIndicator size="small" color={theme['q-accent-text']} /> : isActive
           ? <Icon accessible={false} name={isPlaying ? 'pause' : 'play'} size={16} color={theme['q-accent-text']} />
-          : <Text size={13} color={theme['q-text-secondary']}>{index + 1}</Text>}
+          : <ListText secondary>{index + 1}</ListText>}
       </View>
       <View style={styles.info}>
-        <Text numberOfLines={1} size={14} color={isActive ? theme['q-accent-text'] : theme['c-font']}>{name}</Text>
-        <Text numberOfLines={1} size={11} color={theme['q-text-secondary']}>{singer}</Text>
+        <ListText numberOfLines={1} active={isActive}>{name}</ListText>
+        <ListText secondary numberOfLines={1}>{singer}</ListText>
       </View>
     </TouchableOpacity>
   )

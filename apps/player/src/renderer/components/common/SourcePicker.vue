@@ -13,12 +13,9 @@
       @click.stop="toggle"
       @keydown.esc.stop.prevent="close"
     >
-      <source-icon :source="currentSource" :size="18" :label="currentSourceName" />
+      <span>{{ currentSourceName }}</span>
       <i v-if="hasAlternatives" :class="$style.chevron" aria-hidden="true" />
     </button>
-    <span v-else :class="$style.staticIcon" :title="currentSourceName">
-      <source-icon :source="currentSource" :size="18" :label="currentSourceName" />
-    </span>
 
     <teleport to="#root">
       <div
@@ -188,13 +185,16 @@ onBeforeUnmount(unbindFloatingListeners)
 }
 
 .trigger {
-  width: 30px;
+  width: auto;
+  min-width: 30px;
   height: 25px;
   padding: 0 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 3px;
+  font-size: var(--q-list-detail-size);
+  white-space: nowrap;
   color: var(--color-font-label);
   border: 1px solid transparent;
   border-radius: 8px;

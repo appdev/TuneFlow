@@ -1,7 +1,6 @@
 <template>
   <span :class="$style.identity">
-    <SourceIcon v-if="source" :source="source" :size="22" />
-    <span v-else :class="$style.local" aria-hidden="true"><svg-icon :name="list.id == 'love' ? 'love' : 'music'" /></span>
+    <span :class="$style.local" aria-hidden="true"><svg-icon :name="list.id == 'love' ? 'love' : 'music'" /></span>
     <span :class="$style.copy">
       <span :class="$style.name">{{ name || list.name }}</span>
       <span v-if="subtitle" :class="$style.source">{{ sourceName }}</span>
@@ -11,10 +10,8 @@
 
 <script>
 import { computed } from '@common/utils/vueTools'
-import SourceIcon from './SourceIcon.vue'
 
 export default {
-  components: { SourceIcon },
   props: {
     list: { type: Object, required: true },
     name: { type: String, default: '' },
@@ -33,6 +30,6 @@ export default {
 .local { width: 22px; height: 22px; flex: none; display: grid; place-items: center; color: var(--color-font-label); }
 .local svg { width: 18px; height: 18px; }
 .copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; line-height: 1.25; }
-.name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.source { font-size: 10px; font-weight: 400; color: var(--color-font-label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.name { font-size: var(--q-list-title-size); font-weight: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source { font-size: var(--q-list-detail-size); font-weight: 400; color: var(--q-list-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

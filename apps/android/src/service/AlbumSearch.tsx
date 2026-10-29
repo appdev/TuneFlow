@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { FlatList, View } from 'react-native'
 import Text from '@/components/common/Text'
+import ListText from '@/components/common/ListText'
 import Button from '@/components/common/Button'
 import OnlineList, { type OnlineListType } from '@/components/OnlineList'
 import { useTheme } from '@/store/theme/hook'
@@ -68,7 +69,7 @@ export default forwardRef<MusicListType>((props, ref) => {
   return <FlatList data={albums} keyExtractor={item => `${item.source}:${item.id}`} contentContainerStyle={{ padding: 16, paddingBottom: 24 + dockInset }}
     ListHeaderComponent={error ? <Text accessibilityRole="alert">{error}</Text> : null}
     ListEmptyComponent={<Text>{busy ? '正在搜索专辑…' : '暂无专辑结果'}</Text>}
-    renderItem={({ item }) => <Button accessibilityLabel={`打开专辑 ${item.name}`} disabled={busy} onPress={() => { void open(item) }} style={{ paddingVertical: 18, gap: 6, borderBottomWidth: 1, borderColor: theme['q-outline'] }}><Text size={16}>{item.name}</Text><Text size={12}>{item.author} · {item.source.toUpperCase()}</Text></Button>}
+    renderItem={({ item }) => <Button accessibilityLabel={`打开专辑 ${item.name}`} disabled={busy} onPress={() => { void open(item) }} style={{ paddingVertical: 18, gap: 6, borderBottomWidth: 1, borderColor: theme['q-outline'] }}><ListText numberOfLines={2}>{item.name}</ListText><ListText secondary numberOfLines={1}>{item.author} · {item.source.toUpperCase()}</ListText></Button>}
     ListFooterComponent={hasMore ? button('加载更多专辑', () => { void load(request.current.page + 1) }) : null}
   />
 })

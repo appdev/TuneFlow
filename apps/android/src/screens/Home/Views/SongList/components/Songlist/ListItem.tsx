@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { type ListInfoItem } from '@/store/songlist/state'
-import Text from '@/components/common/Text'
+import ListText from '@/components/common/ListText'
 import { NAV_SHEAR_NATIVE_IDS } from '@/config/constant'
 import { useTheme } from '@/store/theme/hook'
 import Image from '@/components/common/Image'
@@ -42,19 +42,19 @@ export default memo(({ item, index, showSource, onPress }: {
         />
       </View>
       <View style={styles.content}>
-        <Text style={styles.title} size={14} color={theme['q-text-primary']} numberOfLines={2}>
+        <ListText style={styles.title} numberOfLines={2}>
           {item.name}
-        </Text>
+        </ListText>
         {
           item.author
-            ? <Text style={styles.author} size={12} color={theme['q-text-secondary']} numberOfLines={1}>{item.author}</Text>
+            ? <ListText style={styles.author} secondary numberOfLines={1}>{item.author}</ListText>
             : null
         }
         <View style={styles.meta}>
           {showSource ? <Badge type="tertiary">{item.source.toUpperCase()}</Badge> : null}
           {
             detail
-              ? <Text style={styles.detail} size={11} color={theme['q-text-secondary']} numberOfLines={1}>{detail}</Text>
+              ? <ListText style={styles.detail} secondary numberOfLines={1}>{detail}</ListText>
               : null
           }
         </View>
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   },
   title: {
     lineHeight: 18,
-    fontWeight: '500',
+    fontWeight: '400',
   },
   author: {
     marginTop: 4,

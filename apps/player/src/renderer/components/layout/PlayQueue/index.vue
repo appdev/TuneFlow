@@ -505,7 +505,7 @@ onBeforeUnmount(() => {
     margin: 4px 0 0;
     overflow: hidden;
     color: var(--color-font-label);
-    font-size: 11px;
+    font-size: var(--q-list-detail-size);
     line-height: 16px;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -602,7 +602,7 @@ onBeforeUnmount(() => {
 
     span {
       margin-left: 5px;
-      font-size: 11px;
+      font-size: var(--q-list-detail-size);
       font-variant-numeric: tabular-nums;
     }
   }
@@ -634,13 +634,13 @@ onBeforeUnmount(() => {
   gap: 10px;
   border-bottom: 1px solid var(--q-outline);
   color: var(--color-font-label);
-  font-size: 11px;
+  font-size: var(--q-list-detail-size);
 
   strong {
     min-width: 0;
     overflow: hidden;
     color: var(--color-font-label);
-    font-size: 11px;
+    font-size: var(--q-list-detail-size);
     font-weight: 600;
     white-space: nowrap;
     text-overflow: ellipsis;

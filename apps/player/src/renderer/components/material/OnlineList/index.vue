@@ -52,7 +52,6 @@
                       v-if="showSourceSelector" :value="item.source" :options="getSourceOptions(item)" :source-name="getSourceName"
                       @change="handleSourceChange($event, index)"
                     />
-                    <source-icon v-else-if="showSourceTag" class="no-select" :source="item.source" :size="15" />
                   </span>
                 </div>
                 <div class="list-item-cell" :class="$style.singerColumn"><span class="select" :title="item.singer" :aria-label="item.singer">{{ item.singer }}</span></div>
@@ -90,7 +89,6 @@
                       v-if="showSourceSelector" :value="item.source" :options="getSourceOptions(item)" :source-name="getSourceName"
                       @change="handleSourceChange($event, index)"
                     />
-                    <source-icon v-else-if="showSourceTag" class="no-select" :source="item.source" :size="15" />
                   </span>
                 </div>
                 <div class="list-item-cell" :class="$style.singerColumn"><span class="select" :title="item.singer" :aria-label="item.singer">{{ item.singer }}</span></div>
@@ -155,11 +153,10 @@ import useMusicDownload from './useMusicDownload'
 import useMusicAdd from './useMusicAdd'
 import useMusicActions from './useMusicActions'
 import { appSetting } from '@renderer/store/setting'
-import SourceIcon from '@renderer/components/common/SourceIcon.vue'
 import SourcePicker from '@renderer/components/common/SourcePicker.vue'
 export default {
   name: 'MaterialOnlineList',
-  components: { SourceIcon, SourcePicker },
+  components: { SourcePicker },
   props: {
     playInContext: {
       type: Boolean,
@@ -213,7 +210,6 @@ export default {
   setup(props, { emit }) {
     const actionButtonsVisible = computed(() => appSetting['list.actionButtonsVisible'])
     const showSourceSelector = computed(() => props.sourceSelector)
-    const showSourceTag = computed(() => props.sourceTag)
     const getSourceOptions = item => props.sourceOptions(item)
     const getSourceName = source => props.sourceName(source)
     const rightClickSelectedIndex = ref(-1)
@@ -379,7 +375,6 @@ export default {
       scrollToTop,
       actionButtonsVisible,
       showSourceSelector,
-      showSourceTag,
       getSourceOptions,
       getSourceName,
     }

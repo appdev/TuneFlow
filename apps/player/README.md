@@ -53,7 +53,7 @@ Q_PREVIEW_OUTPUT_ROOT=artifacts/release npm run pack:player -- darwin-arm64
 npm --prefix apps/player run build:web
 ```
 
-独立静态产物为 `apps/player/dist/web-client`。若需要与 Server 和旧 `/V2/` 页面配套使用，运行根命令 `npm run build:web:qmusic`；需同时安装 Service 依赖。
+独立静态产物为 `apps/player/dist/web-client`。运行根命令 `npm run build:web:qmusic` 可将共享 Vue Web 输出到 `apps/service/dist/web-qmusic`，供 Server 托管；启动 Server 前需安装 Service 依赖并运行 `npm run prepare:service`。
 
 Web 的同源约束、平台能力与隔离测试见 [Web 说明](../service/docs/qmusic-web.md)。生成静态产物不会自动部署或发布。
 

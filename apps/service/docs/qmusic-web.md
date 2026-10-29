@@ -2,7 +2,7 @@
 
 [产品首页](../../../README.md) · [桌面/Web 源码](../../player/README.md) · [Server 部署与存储](server-web.md)
 
-Docker 默认 Web 使用 `apps/player` 的 Vue 页面，与桌面复用界面和业务适配器。Server 同时提供静态资源与 `/api/v1/`；不需要额外启动 Electron 或前端开发服务器。旧 Web 保留在 `/V2/`。
+Docker 仅提供 `apps/player` 的 Vue 页面，与桌面复用界面和业务适配器。Server 同时提供静态资源与 `/api/v1/`；不需要额外启动 Electron 或前端开发服务器。原 `/V2` 路径返回 404。
 
 ## 同源与能力边界
 
@@ -36,19 +36,19 @@ npm run prepare:service
 TUNEFLOW_WEB_ROOT="$PWD/apps/service/dist/web-qmusic" npm run start:server
 ```
 
-组合产物为 `apps/service/dist/web-qmusic`：共享 Web 在 `/`，兼容旧 Web 在 `/V2/`。构建使用 staging，已有同名产物保留为时间戳备份；不会启动或替换容器。
+产物为 `apps/service/dist/web-qmusic`，仅包含位于 `/` 的共享 Vue Web。构建使用 staging，已有同名产物保留为时间戳备份；不会启动或替换容器。
 
-只构建共享页面可运行 `npm --prefix apps/player run build:web`，输出 `apps/player/dist/web-client`；该独立产物不包含旧 `/V2/`。根命令 `npm run build:service` 构建的是旧 Web 与服务，不能替代共享页面组合构建。
+也可运行 `npm --prefix apps/player run build:web`，输出 `apps/player/dist/web-client`。根命令 `npm run build:service` 保留旧 Web 与服务的开发构建，不能替代共享 Vue Web 构建；Docker 不使用该入口。
 
 ## Docker 默认构建与可选覆盖
 
-根目录 [Dockerfile](../../../Dockerfile) 默认构建共享 Web 与 `/V2/`：
+根目录 [Dockerfile](../../../Dockerfile) 仅构建共享 Vue Web：
 
 ```sh
 docker compose up -d --build
 ```
 
-新默认界面不再需要额外前端覆盖文件。旧版兼容镜像可通过 `docker build --build-arg TUNEFLOW_WEB_VARIANT=legacy -t tuneflow:legacy .` 构建；切换实例前保留旧镜像、配置与挂载。
+默认界面不需要额外前端覆盖文件。旧 Web 和 Flutter integrated 的镜像构建选项已移除；切换实例前保留旧镜像、配置与挂载。
 
 [compose.qmusic-web.yaml](../../../compose.qmusic-web.yaml) 仍可用于测试独立静态产物：只读挂载 `Q_MUSIC_WEB_ROOT` 到现有容器并覆盖静态根目录。它是可选调试入口，不是新默认界面的安装前提。
 
@@ -57,7 +57,7 @@ Q_MUSIC_WEB_ROOT=/absolute/server/path/web-qmusic \
 docker compose -f compose.yaml -f compose.qmusic-web.yaml up -d
 ```
 
-移除覆盖时恢复原 Compose 并保留配置卷与音乐目录，不执行 `down -v`。`/V2/` 不包含部署镜像、数据或可能使用过的外部 Flutter 前端备份。旧 Server 也应与 Web 使用兼容版本，单独换静态资源不能补上后端接口修复。
+移除覆盖时恢复原 Compose 并保留配置卷与音乐目录，不执行 `down -v`。Server 应与 Web 使用兼容版本，单独换静态资源不能补上后端接口修复。
 
 ## 隔离测试
 
