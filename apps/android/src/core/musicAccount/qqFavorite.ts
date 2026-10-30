@@ -79,7 +79,7 @@ const performShared = async(input: QQFavoriteRequest): Promise<QQFavoriteResult>
     if (!status.tx) return { status: 'login_required' }
     return await api.favorite(input.songMid, input.action ?? 'add', status.revisions.tx)
   } catch (error) {
-    if (error instanceof ServiceError && ['DEVICE_AUTH_REQUIRED', 'PLATFORM_LOGIN_REQUIRED'].includes(error.code)) return { status: 'login_required' }
+    if (error instanceof ServiceError && error.code === 'PLATFORM_LOGIN_REQUIRED') return { status: 'login_required' }
     throw error
   }
 }

@@ -89,7 +89,7 @@ export class PlatformAccounts {
     return { serverId: this.vault.serverId, revision: this.vault.revision, tx: accounts.tx.state === 'connected', wy: accounts.wy.state === 'connected', kg: accounts.kg.state === 'connected', accounts }
   }
 
-  async upload(provider: MusicAccountProvider, value: AccountCredential, expectedRevision: number, guard: () => void) {
+  async upload(provider: MusicAccountProvider, value: AccountCredential, expectedRevision: number, guard: () => void = () => {}) {
     if ((this.vault.account(provider)?.revision ?? 0) !== expectedRevision) throw new ApiError(409, 'ACCOUNT_CHANGED', 'Refresh the account before authorizing')
     const credential = sanitizeCredential(provider, value)
     if (provider === 'kg') {
@@ -110,7 +110,7 @@ export class PlatformAccounts {
     return { provider, status: 'connected' as const, revision }
   }
 
-  async dailyKey(value: string, revision: number, guard: () => void) {
+  async dailyKey(value: string, revision: number, guard: () => void = () => {}) {
     if (!/^qmk-[\w-]{12,1024}$/.test(value)) throw new ApiError(400, 'INVALID_DAILY_AUTHORIZATION', 'Invalid official recommendation authorization')
     const snapshot = this.snapshot('tx'); snapshot.assert()
     if (snapshot.revision !== revision) throw new ApiError(409, 'ACCOUNT_CHANGED', 'Refresh the account first')
@@ -135,7 +135,7 @@ export class PlatformAccounts {
     return { ...result, revision: snapshot.revision }
   }
 
-  async favorite(input: QQFavoriteRequest, revision: number, guard: () => void) {
+  async favorite(input: QQFavoriteRequest, revision: number, guard: () => void = () => {}) {
     const snapshot = this.snapshot('tx', guard)
     if (snapshot.revision !== revision) throw new ApiError(409, 'ACCOUNT_CHANGED', 'Account changed before favorite')
     guard(); const result = await snapshot.reader.addQQFavoriteSong(input); snapshot.assert(); guard()

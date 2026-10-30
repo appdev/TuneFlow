@@ -2,12 +2,10 @@
   <section :class="$style.accounts">
     <h2>音乐平台账号</h2>
     <p :class="$style.subtitle">登录音乐平台，随时使用你的歌单与个人推荐。各端共享，导入保留已有内容。</p>
-    <DeviceAccess @change="onAccess" />
-    <template v-if="authorized">
     <nav :class="$style.providers" aria-label="音乐平台"><button v-for="(name, id) in accountNames" :key="id" :aria-pressed="provider === id" :disabled="busy" @click="select(id)"><strong>{{ name }}</strong><span>{{ status?.[id] ? '已登录' : '未登录' }}</span></button></nav>
     <section :class="$style.platform">
     <div :class="$style.platformHeading"><h3>{{ accountNames[provider] }}</h3><span :class="{ [$style.connected]: status?.[provider] }">{{ status?.[provider] ? '已登录 · 各端共享' : '尚未登录' }}</span></div>
-    <p :class="$style.subtitle">{{ status?.[provider] ? '账号歌单和个人推荐已就绪，可在其他已解锁的应用中继续使用。' : '使用官方应用扫码登录，已有歌单和音乐不会受到影响。' }}</p>
+    <p :class="$style.subtitle">{{ status?.[provider] ? '账号歌单和个人推荐已就绪，可在其他应用中继续使用。' : '使用官方应用扫码登录，已有歌单和音乐不会受到影响。' }}</p>
     <div :class="$style.actions">
       <button :class="{ [$style.primary]: !status?.[provider] }" :disabled="busy" @click="login">{{ status?.[provider] ? '重新登录' : '扫码登录' }}</button>
       <button :disabled="busy" @click="refresh">刷新账号与歌单</button>
@@ -35,14 +33,12 @@
     <router-link v-if="importedId" :to="`/list?id=${encodeURIComponent(importedId)}`">查看歌单 ›</router-link>
     <h3 v-if="previewTitle">{{ previewTitle }}</h3>
     <div v-if="tracks.length" :class="$style.tracks"><material-online-list :list="tracks" :page="1" :limit="tracks.length" :total="tracks.length" source-tag search-results play-in-context @play-list="play" /></div>
-    </template>
   </section>
 </template>
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from '@common/utils/vueRouter'
 import { getMusicAccountStatus, getMusicAccountPlaylists, loginMusicAccount, publishMusicAccount, openQQDailyKeyPage, type MusicAccountProvider, type MusicAccountStatus, type MusicAccountPlaylist } from '@renderer/utils/ipc'
-import DeviceAccess from './DeviceAccess.vue'
 import AccountLogin from './AccountLogin.vue'
 import { getWorkspace, isServerBoundWeb } from './session'
 import { dialog } from '@renderer/plugins/Dialog'
@@ -55,7 +51,6 @@ const status = ref<MusicAccountStatus>()
 const playlists = ref<MusicAccountPlaylist[]>([])
 const tracks = ref<LX.Music.MusicInfoOnline[]>([])
 const busy = ref(false)
-const authorized = ref(false)
 const qrLogin = ref(false)
 const dailyKey = ref('')
 const error = ref('')
@@ -71,11 +66,11 @@ const run = async(action: () => Promise<unknown>) => {
 const load = async() => {
   const workspace = getWorkspace(); const selected = provider.value
   const next = await getMusicAccountStatus()
-  if (!active || workspace !== getWorkspace() || provider.value !== selected || !authorized.value) return
+  if (!active || workspace !== getWorkspace() || provider.value !== selected) return
   status.value = next; playlists.value = []; tracks.value = []; previewTitle.value = ''
   if (next[provider.value]) {
     const result = await getMusicAccountPlaylists(provider.value)
-    if (!active || workspace !== getWorkspace() || provider.value !== selected || !authorized.value) return
+    if (!active || workspace !== getWorkspace() || provider.value !== selected) return
     if (result.status !== 'available') { error.value = `账号歌单暂不可用（${result.status}），请刷新或重新授权`; return }
     playlists.value = result.playlists
   }
@@ -83,19 +78,18 @@ const load = async() => {
 const refresh = () => { void run(load) }
 const select = (id: MusicAccountProvider) => { qrLogin.value = false; provider.value = id; importedId.value = ''; refresh() }
 const login = () => { qrLogin.value = false; void Promise.resolve().then(() => { qrLogin.value = true }) }
-const onAccess = (value: boolean) => { const changed = authorized.value !== value; authorized.value = value; if (value && changed) refresh(); else if (!value) { qrLogin.value = false; status.value = undefined; playlists.value = []; tracks.value = []; importedId.value = ''; previewTitle.value = ''; message.value = ''; error.value = '' } }
 const onConnected = () => { notifyAccountsChanged(); refresh() }
-const publishLocal = () => { void run(async() => { await publishMusicAccount(provider.value); await load(); notifyAccountsChanged(); message.value = '账号已共享，其他已授权设备可以使用' }) }
+const publishLocal = () => { void run(async() => { await publishMusicAccount(provider.value); await load(); notifyAccountsChanged(); message.value = '账号已共享，其他客户端可以使用' }) }
 const nativeLogin = () => { void run(async() => { const result = await loginMusicAccount(provider.value); if (result.status === 'connected') { await publishMusicAccount(provider.value); await load(); notifyAccountsChanged(); message.value = '已完成官方授权并共享账号' } else message.value = '已取消登录，现有数据保留' }) }
-const logout = () => { void run(async() => { if (!await dialog.confirm({ message: '退出共享平台账号？所有已授权设备都将停止使用此授权，已导入的歌单与音乐文件会保留。' })) return; const api = sharedAccounts(getWorkspace().client); const current = await api.status(); await api.logout(provider.value, current.revisions[provider.value]); await load(); notifyAccountsChanged() }) }
+const logout = () => { void run(async() => { if (!await dialog.confirm({ message: '退出共享平台账号？所有客户端都将停止使用此授权，已导入的歌单与音乐文件会保留。' })) return; const api = sharedAccounts(getWorkspace().client); const current = await api.status(); await api.logout(provider.value, current.revisions[provider.value]); await load(); notifyAccountsChanged() }) }
 const useDaily = () => { localStorage.setItem('qmusic.dailyRecommend.provider', provider.value); localStorage.setItem('qmusic.service.daily.mode.v1', 'account'); notifyAccountsChanged(); message.value = '首页已使用此账号的个人推荐' }
 const authorizeDaily = () => { void run(async() => { const result = await openQQDailyKeyPage(); if (result.status === 'saved') await publishMusicAccount('tx'); await load(); message.value = result.status === 'saved' ? 'QQ 官方日推已授权并共享' : '日推专项授权未完成；已登录账号仍可使用雷达推荐'; notifyAccountsChanged() }) }
 const saveDailyKey = () => { void run(async() => { const api = sharedAccounts(getWorkspace().client); const current = await api.status(); await api.authorizeDaily(dailyKey.value.trim(), current.revisions.tx); dailyKey.value = ''; await load(); notifyAccountsChanged(); message.value = 'QQ 官方日推授权已共享' }) }
 const preview = (playlist: MusicAccountPlaylist) => { void run(async() => { tracks.value = []; previewTitle.value = playlist.name; tracks.value = await loadDesktopAccountPlaylist(provider.value, playlist, () => !active) }) }
 const importList = (playlist: MusicAccountPlaylist) => { void run(async() => { const result = await importDesktopAccountPlaylist(provider.value, playlist, () => !active); importedId.value = result.id; message.value = `已导入 ${result.count} 首歌曲，可在我的列表中查看` }) }
 const play = (index: number) => { void playFromPage('account_preview', tracks.value, index).catch(() => { error.value = '播放失败，请检查音源设置' }) }
-onMounted(() => { window.addEventListener('qmusic-accounts-changed', accountChanged) })
-const accountChanged = () => { if (authorized.value && !busy.value) refresh() }
+onMounted(() => { window.addEventListener('qmusic-accounts-changed', accountChanged); refresh() })
+const accountChanged = () => { if (!busy.value) refresh() }
 onBeforeUnmount(() => { active = false; dailyKey.value = ''; window.removeEventListener('qmusic-accounts-changed', accountChanged) })
 </script>
 <style module lang="less">

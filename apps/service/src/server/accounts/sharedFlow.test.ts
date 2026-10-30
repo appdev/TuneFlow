@@ -6,7 +6,6 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { registerAccountRoutes } from './routes'
 import { ServiceEvents } from '../routes/events'
 import { ApiError } from '../errors'
-import { AccountVault } from './vault'
 import type { ApiFastifyInstance } from '../api/types'
 import { init, close } from '../db/core/db'
 import { getAllUserList, getListMusics, musicsAdd } from '../db/lists'
@@ -22,9 +21,8 @@ process.env.TUNEFLOW_SERVICE_NODE_MODULES = path.join(process.cwd(), 'dist/serve
 let root: string | undefined; let app: ReturnType<typeof Fastify> | undefined
 afterEach(async() => { const closing = app; app = undefined; if (closing) await closing.close(); close(); vi.unstubAllGlobals(); if (root) rmSync(root, { recursive: true, force: true }); root = undefined })
 
-it('shares QQ authorization, complete imports and tolerant recommendations across password sessions; logout preserves data', async() => {
+it('shares QQ authorization, complete imports and tolerant recommendations without access passwords; logout preserves data', async() => {
   root = mkdtempSync(path.join(os.tmpdir(), 'shared-account-flow-')); init(root)
-  await new AccountVault(root).setPassword('synthetic-fixture-password')
   const calls: Array<{ host: string, cookie: boolean }> = []
   const rawSong = { mid: 'fixtureMid', id: 1, title: 'Fixture song', singer: [{ name: 'Fixture artist' }], album: { mid: 'fixtureAlbum', name: 'Fixture album' }, interval: 180, file: { media_mid: 'fixtureMid', size_128mp3: 1, size_320mp3: 0, size_flac: 0, size_hires: 0 } }
   vi.stubGlobal('fetch', async(input: string | URL, options: RequestInit) => {
@@ -47,8 +45,7 @@ it('shares QQ authorization, complete imports and tolerant recommendations acros
   app.setErrorHandler((error, _request, reply) => { if (error instanceof ApiError) void reply.code(error.statusCode).send(error.toBody()); else void reply.code(500).send({ error: { code: 'INTERNAL_ERROR' } }) })
   const events = new ServiceEvents(); registerAccountRoutes(app as ApiFastifyInstance, root, events); await app.ready()
   const request = async(url: string, token?: string, payload?: unknown, method = payload == null ? 'GET' : 'POST') => app!.inject({ url, method: method as any, headers: token ? { authorization: `Bearer ${token}` } : {}, ...(payload == null ? {} : { payload }) })
-  const owner = (await request('/api/v1/access/login', undefined, { password: 'synthetic-fixture-password', name: 'desktop fixture' })).json().data
-  const second = (await request('/api/v1/access/login', undefined, { password: 'synthetic-fixture-password', name: 'Web fixture' })).json().data
+  const owner = { token: undefined }; const second = { token: undefined }
   const uploaded = await request('/api/v1/accounts/tx/session', owner.token, { revision: 0, credential: { cookies: { qqmusic_key: 'synthetic-music-session', qqmusic_uin: '123456', login_type: '1', p_skey: 'must-not-persist' } } })
   expect(uploaded.statusCode).toBe(200)
   const status = (await request('/api/v1/accounts/status', second.token)).json().data

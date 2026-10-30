@@ -9,17 +9,15 @@ import commonState from '@/store/common/state'
 import { pushMusicAccountScreen } from '@/navigation/navigation'
 import { getSharedAccountStatus } from '@/service/accounts'
 import { subscribeAccounts } from '@/service/session'
-import { ServiceError } from '@/service/client'
 
 const MusicAccountEntry = memo(() => {
   const theme = useTheme()
   const t = useI18n()
   const [connected, setConnected] = useState<boolean | null>(null)
-  const [locked, setLocked] = useState(false)
 
   useEffect(() => {
     let active = true
-    const refresh = () => { void getSharedAccountStatus().then(status => { if (active) { setConnected(status.tx || status.wy || status.kg); setLocked(false) } }).catch(reason => { if (active) { setConnected(false); setLocked(reason instanceof ServiceError && reason.code === 'DEVICE_AUTH_REQUIRED') } }) }
+    const refresh = () => { void getSharedAccountStatus().then(status => { if (active) { setConnected(status.tx || status.wy || status.kg) } }).catch(() => { if (active) setConnected(false) }) }
     refresh()
     const unsubscribe = subscribeAccounts(refresh)
     return () => { active = false; unsubscribe() }
@@ -27,7 +25,7 @@ const MusicAccountEntry = memo(() => {
 
   return (
     <View style={styles.content}>
-      <Text size={13}>各端输入访问密码后，即可共享平台账号、歌单与个人推荐。导入保留已有内容。</Text>
+      <Text size={13}>各端连接同一服务，即可共享平台账号、歌单与个人推荐。导入保留已有内容。</Text>
       <TouchableOpacity
         style={styles.row}
         activeOpacity={0.6}
@@ -38,7 +36,7 @@ const MusicAccountEntry = memo(() => {
         <View style={styles.labelWrap}>
           <Text style={styles.label}>{t('setting_music_account_title')}</Text>
           <Text size={11} color={theme['q-text-secondary']}>
-            {locked ? '输入访问密码以查看' : connected == null ? '' : connected ? t('setting_music_account_connected') : t('setting_music_account_disconnected')}
+            {connected == null ? '' : connected ? t('setting_music_account_connected') : t('setting_music_account_disconnected')}
           </Text>
         </View>
         <Text size={14} color={theme['q-text-secondary']}>{'›'}</Text>

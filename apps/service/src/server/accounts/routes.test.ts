@@ -1,8 +1,8 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import Fastify from 'fastify'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { registerAccountRoutes } from './routes'
 import { ApiError } from '../errors'
 import { ServiceEvents } from '../routes/events'
@@ -14,68 +14,39 @@ const qrClose = vi.hoisted(() => vi.fn(async() => {}))
 const qrCreate = vi.hoisted(() => vi.fn())
 vi.mock('./qr', () => ({ createOfficialQr: async() => { qrCreate(); return { image: 'data:image/png;base64,synthetic', expiresAt: Date.now() + 120000, poll: qrPoll, close: qrClose } } }))
 const roots: string[] = []; const apps: Array<ReturnType<typeof Fastify>> = []
-const password = 'synthetic-fixture-password'
-const fixture = async(configured = true, existingRoot?: string) => {
+
+const fixture = async(existingRoot?: string) => {
   const root = existingRoot ?? mkdtempSync(path.join(os.tmpdir(), 'account-routes-test-')); if (!existingRoot) roots.push(root)
-  if (configured && !existingRoot) await new AccountVault(root).setPassword(password)
   const app = Fastify({ ajv: { customOptions: { removeAdditional: false } } }); apps.push(app)
   app.setErrorHandler((error, _request, reply) => { if (error instanceof ApiError) void reply.code(error.statusCode).send(error.toBody()); else void reply.code(400).send({ error: { code: 'VALIDATION_ERROR' } }) })
   registerAccountRoutes(app as ApiFastifyInstance, root, new ServiceEvents()); await app.ready()
-  if (!configured) return { app, headers: {}, root }
-  const login = await app.inject({ method: 'POST', url: '/api/v1/access/login', payload: { password, name: 'fixture' } })
-  expect(login.statusCode).toBe(200)
-  const token = login.json().data.token
-  const headers = { authorization: `Bearer ${token}` }
-  return { app, headers, root }
+  return { app, headers: { 'x-tuneflow-client-id': 'fixture-client-one' }, root }
 }
-beforeEach(() => { vi.stubEnv('TUNEFLOW_ACCESS_PASSWORD', undefined) })
 afterEach(async() => { for (const app of apps.splice(0)) await app.close(); for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); qrPoll.mockReset(); qrClose.mockClear(); qrCreate.mockClear(); vi.unstubAllEnvs() })
-describe('private account routes', () => {
-  it.each([8, 128])('accepts a %i-character startup password and retains existing platform accounts', async length => {
-    const initialPassword = 'x'.repeat(length)
-    vi.stubEnv('TUNEFLOW_ACCESS_PASSWORD', initialPassword)
-    const root = mkdtempSync(path.join(os.tmpdir(), 'account-routes-test-')); roots.push(root)
-    new AccountVault(root).put('tx', { cookies: { qqmusic_key: 'synthetic-fixture-credential' } }, 0)
-    const { app } = await fixture(false, root)
-    expect((await app.inject({ method: 'POST', url: '/api/v1/access/login', payload: { password: initialPassword, name: 'desktop' } })).statusCode).toBe(200)
-    expect(new AccountVault(root).account('tx')?.credential.cookies.qqmusic_key).toBe('synthetic-fixture-credential')
-  })
-  it('initializes from the environment before serving and keeps a changed password and session across restart', async() => {
-    vi.stubEnv('TUNEFLOW_ACCESS_PASSWORD', password)
-    const { app, root } = await fixture(false)
-    const status = await app.inject('/api/v1/access/status')
-    expect(status.json().data).toEqual({ passwordConfigured: true })
-    expect(status.body).not.toContain(password)
-    expect(readFileSync(path.join(root, 'account-security/vault.enc')).includes(Buffer.from(password))).toBe(false)
-    const login = await app.inject({ method: 'POST', url: '/api/v1/access/login', payload: { password, name: 'Web' } })
-    expect(login.statusCode).toBe(200)
-    const headers = { authorization: `Bearer ${login.json().data.token}` }
-    const changedPassword = 'synthetic-changed-password'
-    expect((await app.inject({ method: 'PUT', url: '/api/v1/access/password', headers, payload: { password: changedPassword, currentPassword: password } })).statusCode).toBe(200)
+describe('shared account routes without access passwords', () => {
+  it('serves a fresh instance and relay origins without a password, token or forwarded headers', async() => {
+    vi.stubEnv('TUNEFLOW_ACCESS_PASSWORD', 'obsolete-invalid-value')
+    const { app, root } = await fixture()
+    for (const headers of [{}, { host: 'service:3124', origin: 'https://relay.example.com' }, { authorization: 'Bearer obsolete-token' }]) {
+      const response = await app.inject({ url: '/api/v1/accounts/status', headers })
+      expect(response.statusCode).toBe(200)
+      expect(response.json().data.tx).toBe(false)
+      expect(response.body).not.toMatch(/cookies|token|vault|digest|password/i)
+    }
+    const before = (await app.inject('/api/v1/accounts/status')).json().data.serverId
     await app.close()
-    const restarted = (await fixture(false, root)).app
-    expect((await restarted.inject({ url: '/api/v1/accounts/status', headers })).statusCode).toBe(200)
-    expect((await restarted.inject({ method: 'POST', url: '/api/v1/access/login', payload: { password, name: 'Android' } })).statusCode).toBe(401)
-    expect((await restarted.inject({ method: 'POST', url: '/api/v1/access/login', payload: { password: changedPassword, name: 'Android' } })).statusCode).toBe(200)
+    const restarted = (await fixture(root)).app
+    expect((await restarted.inject('/api/v1/accounts/status')).json().data.serverId).toBe(before)
   })
-  it('ignores the environment when a password exists and preserves accounts and sessions', async() => {
-    vi.stubEnv('TUNEFLOW_ACCESS_PASSWORD', 'invalid')
-    const { app, root, headers } = await fixture()
-    expect((await app.inject({ url: '/api/v1/accounts/status', headers })).statusCode).toBe(200)
+  it('retains saved platform credentials across restart without login', async() => {
+    const { app, root } = await fixture()
     await app.close()
-    const vault = new AccountVault(root)
-    vault.put('tx', { cookies: { qqmusic_key: 'synthetic-fixture-credential' } }, 0)
-    const restarted = (await fixture(false, root)).app
-    expect((await restarted.inject({ url: '/api/v1/accounts/status', headers })).statusCode).toBe(200)
-    expect(new AccountVault(root).account('tx')?.credential.cookies.qqmusic_key).toBe('synthetic-fixture-credential')
-  })
-  it.each(['', 'short', ' '.repeat(8), 'x'.repeat(129), 'synthetic\npassword'])('rejects invalid startup password case %# without exposing it', async value => {
-    vi.stubEnv('TUNEFLOW_ACCESS_PASSWORD', value)
-    const error = await fixture(false).then(() => undefined, error => error as Error)
-    expect(error).toBeInstanceOf(Error)
-    expect(error?.message).toContain('Unable to initialize TUNEFLOW_ACCESS_PASSWORD')
-    if (value) expect(error?.message).not.toContain(value)
-    expect(new AccountVault(roots[0]).passwordConfigured).toBe(false)
+    new AccountVault(root).put('tx', { cookies: { qqmusic_key: 'synthetic-preserved' } }, 0)
+    const restarted = (await fixture(root)).app
+    const response = await restarted.inject({ method: 'POST', url: '/api/v1/accounts/tx/logout', payload: { revision: 1 } })
+    expect(response.statusCode).toBe(200)
+    expect(new AccountVault(root).account('tx')?.credential.cookies).toEqual({})
+    expect(new AccountVault(root).revision).toBe(2)
   })
   it('finishes disposal before allocating a replacement browser slot', async() => {
     const { app, headers } = await fixture()
@@ -126,66 +97,35 @@ describe('private account routes', () => {
       expect(result.body).not.toContain('synthetic-music-session')
     } finally { upload.mockRestore(); clock.mockRestore() }
   })
-  it('supports password access over HTTP and logout without roles or pairing', async() => {
+
+  it('keeps simultaneous QR attempts separate by client without authorizing devices', async() => {
     const { app, headers } = await fixture()
-    const demo = { host: '192.168.0.70:3125', origin: 'http://192.168.0.70:3125' }
-    const paired = await app.inject({ method: 'POST', url: '/api/v1/access/login', remoteAddress: '192.168.0.20', headers: demo, payload: { password, name: 'HTTP app' } })
-    expect(paired.statusCode).toBe(200)
-    const member = paired.json().data
-    const authenticated = { ...demo, authorization: `Bearer ${member.token}` }
-    expect((await app.inject({ url: '/api/v1/accounts/status', remoteAddress: '192.168.0.20', headers: authenticated })).statusCode).toBe(200)
-    expect(member.device).not.toHaveProperty('role')
-    await app.inject({ method: 'DELETE', url: '/api/v1/access/session', headers: authenticated })
-    expect((await app.inject({ url: '/api/v1/accounts/status', remoteAddress: '192.168.0.20', headers: authenticated })).statusCode).toBe(401)
-    expect((await app.inject({ url: '/api/v1/accounts/status', headers })).statusCode).toBe(200)
-  })
-  it('requires a device token and validates browser origin on HTTP', async() => {
-    const { app, headers } = await fixture()
-    expect((await app.inject('/api/v1/accounts/status')).statusCode).toBe(401)
-    const encodedLogout = await app.inject({ method: 'POST', url: '/api/v1/%61ccounts/tx/logout', payload: { revision: 0 } })
-    expect([401, 404]).toContain(encodedLogout.statusCode)
-    expect((await app.inject({ url: '/api/v1/accounts/status', headers: { ...headers, origin: 'https://attacker.invalid' } })).statusCode).toBe(403)
-    const http = await app.inject({ url: '/api/v1/accounts/status', remoteAddress: '192.168.1.3', headers: { ...headers, host: '192.168.1.2:3125', origin: 'http://192.168.1.2:3125' } })
-    expect(http.statusCode).toBe(200)
-    const forgedProxy = await app.inject({ url: '/api/v1/accounts/status', remoteAddress: '192.168.1.3', headers: { ...headers, host: '192.168.1.2:3125', 'x-forwarded-proto': 'https', origin: 'https://192.168.1.2:3125' } })
-    expect(forgedProxy.json().error.code).toBe('ACCOUNT_ORIGIN_REJECTED')
-    const status = await app.inject({ url: '/api/v1/accounts/status', headers })
-    expect(status.json().data.tx).toBe(false)
-    expect(status.body).not.toMatch(/cookies|token|vault|digest/i)
-  })
-  it('makes QR attempts device-scoped, cancellable and revocable', async() => {
-    const { app, headers } = await fixture()
-    const second = (await app.inject({ method: 'POST', url: '/api/v1/access/login', payload: { password, name: 'second' } })).json().data
-    const memberHeaders = { authorization: `Bearer ${second.token}` }
-    const flow = (await app.inject({ method: 'POST', url: '/api/v1/accounts/tx/login', headers: memberHeaders })).json().data
+    const second = { 'x-tuneflow-client-id': 'fixture-client-two' }
+    const flow = (await app.inject({ method: 'POST', url: '/api/v1/accounts/tx/login', headers })).json().data
+    expect((await app.inject({ method: 'POST', url: '/api/v1/accounts/wy/login', headers: second })).statusCode).toBe(200)
+    expect(qrClose).not.toHaveBeenCalled()
+    expect((await app.inject({ method: 'POST', url: `/api/v1/accounts/login/${flow.id}/poll`, headers: second })).statusCode).toBe(404)
+    await app.inject({ method: 'DELETE', url: `/api/v1/accounts/login/${flow.id}`, headers: second })
+    qrPoll.mockResolvedValueOnce({ status: 'waiting' })
+    expect((await app.inject({ method: 'POST', url: `/api/v1/accounts/login/${flow.id}/poll`, headers })).statusCode).toBe(200)
+    await app.inject({ method: 'DELETE', url: `/api/v1/accounts/login/${flow.id}`, headers })
     expect((await app.inject({ method: 'POST', url: `/api/v1/accounts/login/${flow.id}/poll`, headers })).statusCode).toBe(404)
-    await app.inject({ method: 'DELETE', url: `/api/v1/accounts/login/${flow.id}`, headers: memberHeaders })
-    expect((await app.inject({ method: 'POST', url: `/api/v1/accounts/login/${flow.id}/poll`, headers: memberHeaders })).statusCode).toBe(404)
-    await app.inject({ method: 'PUT', url: '/api/v1/access/password', headers, payload: { password: 'changed-password', currentPassword: password } })
-    expect((await app.inject({ url: '/api/v1/accounts/status', headers: memberHeaders })).statusCode).toBe(401)
-    expect(qrPoll).not.toHaveBeenCalled()
   })
   it('never echoes submitted credentials in validation failures', async() => {
-    const { app, headers } = await fixture()
-    const result = await app.inject({ method: 'POST', url: '/api/v1/accounts/tx/session', headers, payload: { revision: 0, credential: { cookies: { qqmusic_key: 'synthetic-private-fixture' }, unexpected: true } } })
+    const { app } = await fixture()
+    const result = await app.inject({ method: 'POST', url: '/api/v1/accounts/tx/session', payload: { revision: 0, credential: { cookies: { qqmusic_key: 'synthetic-private-fixture' }, unexpected: true } } })
     expect(result.statusCode).toBe(400)
     expect(result.body).not.toContain('synthetic-private-fixture')
   })
-  it('does not let a new visitor set the first password or use the old pairing endpoints', async() => {
-    const { app } = await fixture(false)
-    const status = await app.inject('/api/v1/access/status')
-    expect(status.json().data).toEqual({ passwordConfigured: false })
-    expect((await app.inject({ method: 'PUT', url: '/api/v1/access/password', payload: { password } })).statusCode).toBe(401)
-    expect((await app.inject({ method: 'POST', url: '/api/v1/access/login', payload: { password, name: 'fixture' } })).json().error.code).toBe('ACCESS_PASSWORD_NOT_CONFIGURED')
-    for (const url of ['/api/v1/access/pair', '/api/v1/access/invitations']) expect((await app.inject({ method: 'POST', url, payload: {} })).statusCode).not.toBe(200)
-  })
-  it('limits incorrect passwords, rejects cross-origin login and never echoes a password', async() => {
+  it('removes password, session and pairing endpoints', async() => {
     const { app } = await fixture()
-    expect((await app.inject({ method: 'POST', url: '/api/v1/access/login', headers: { origin: 'https://attacker.invalid' }, payload: { password, name: 'fixture' } })).statusCode).toBe(403)
-    for (let index = 0; index < 4; index++) {
-      const result = await app.inject({ method: 'POST', url: '/api/v1/access/login', payload: { password: 'synthetic-wrong-password', name: 'fixture' } })
-      expect(result.statusCode).toBe(401); expect(result.body).not.toContain('synthetic-wrong-password')
+    for (const [method, url] of [['GET', '/api/v1/access/status'], ['GET', '/api/v1/access/device'], ['POST', '/api/v1/access/login'], ['PUT', '/api/v1/access/password'], ['DELETE', '/api/v1/access/session'], ['POST', '/api/v1/access/pair']] as const) {
+      expect((await app.inject({ method, url })).statusCode).toBe(404)
     }
-    expect((await app.inject({ method: 'POST', url: '/api/v1/access/login', payload: { password, name: 'fixture' } })).statusCode).toBe(429)
+  })
+  it('still bounds QR creation attempts', async() => {
+    const { app, headers } = await fixture()
+    for (let index = 0; index < 6; index++) expect((await app.inject({ method: 'POST', url: '/api/v1/accounts/tx/login', headers })).statusCode).toBe(200)
+    expect((await app.inject({ method: 'POST', url: '/api/v1/accounts/tx/login', headers })).statusCode).toBe(429)
   })
 })

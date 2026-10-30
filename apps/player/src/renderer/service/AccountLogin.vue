@@ -1,7 +1,7 @@
 <template>
   <section v-if="flow" :class="$style.login" aria-label="官方扫码登录">
     <img :src="flow.image" alt="官方登录二维码"><p role="status">{{ message }}</p>
-    <p>请使用 {{ provider === 'tx' ? 'QQ' : provider === 'wy' ? '网易云音乐' : '酷狗音乐' }} 扫码并在官方应用确认。登录后，各端解锁即可使用账号歌单和推荐。</p>
+    <p>请使用 {{ provider === 'tx' ? 'QQ' : provider === 'wy' ? '网易云音乐' : '酷狗音乐' }} 扫码并在官方应用确认。登录后，各端即可使用账号歌单和推荐。</p>
     <button v-if="expired || error" @click="retry++">刷新二维码</button><button @click="close">取消登录</button>
   </section>
   <p v-if="error" role="alert">{{ error }}</p>

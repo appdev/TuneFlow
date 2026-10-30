@@ -132,6 +132,7 @@ test('maintained CI runs the Web and Service test suite', () => {
 test('GitHub Actions use Node 24 runtime generations', () => {
   const buildWorkflow = readFileSync(join(root, '../../.github/workflows/build-test.yml'), 'utf8')
   const dockerWorkflow = readFileSync(join(root, '../../.github/workflows/docker-build.yml'), 'utf8')
+  const releaseWorkflow = readFileSync(join(root, '../../.github/workflows/release.yml'), 'utf8')
   const setupAction = readFileSync(join(root, '../../.github/actions/setup/action.yml'), 'utf8')
 
   assert.match(buildWorkflow, /uses:\s+actions\/checkout@v7/)
@@ -139,7 +140,7 @@ test('GitHub Actions use Node 24 runtime generations', () => {
   assert.match(dockerWorkflow, /uses:\s+actions\/checkout@v7/)
   assert.match(dockerWorkflow, /uses:\s+docker\/setup-buildx-action@v4/)
   assert.match(dockerWorkflow, /uses:\s+docker\/build-push-action@v7/)
-  assert.match(dockerWorkflow, /uses:\s+docker\/login-action@v4/)
+  assert.match(releaseWorkflow, /uses:\s+docker\/login-action@v4/)
   assert.match(setupAction, /uses:\s+actions\/setup-node@v7/)
   assert.match(setupAction, /node-version:\s*['"]?24['"]?/)
   assert.match(setupAction, /uses:\s+actions\/cache@v6/)
@@ -154,7 +155,7 @@ test('Service build and runtime target Node 24 with TagLib-Wasm packaged', () =>
   assert.equal(pkg.engines.node, '>= 24')
   assert.equal(pkg.dependencies['taglib-wasm'], '^2.0.0')
   assert.equal([...buildConfig.matchAll(/target:\s*'node24'/g)].length, 5)
-  assert.match(buildConfig, /recoverAccessCli\.ts/)
+  assert.doesNotMatch(buildConfig, /recoverAccessCli\.ts/)
   assert.match(buildConfig, /migrateLegacyStorageCli\.ts/)
   assert.equal(pkg.scripts['migrate:storage'], 'node dist/server/migrate-storage.cjs')
   assert.match(buildConfig, /'taglib-wasm':\s*'\^2\.0\.0'/)

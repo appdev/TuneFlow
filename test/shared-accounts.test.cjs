@@ -8,65 +8,26 @@ const fixture = () => {
   const output = buildSync({ stdin: { contents: "export * from './packages/service-client/src/client'; export * from './packages/service-client/src/accounts'; export * from './packages/music-core/src/sharedAccountSync'", resolveDir: root }, bundle: true, write: false, format: 'cjs', platform: 'node' }).outputFiles[0].text
   const filename = path.join(root, 'contract-fixture.cjs')
   const loaded = new Module(filename); loaded._compile(output, filename)
-  const api = loaded.exports; const storage = new Map()
-  api.configureAccountAccessStorage({ get: async endpoint => storage.get(endpoint) ?? null, set: async(endpoint, token) => { storage.set(endpoint, token) }, remove: async endpoint => { storage.delete(endpoint) } })
-  return { ...api, storage }
+  return loaded.exports
 }
-test('device tokens are scoped to a server and account routes; stream/playback requests never carry them', async() => {
+test('account reads need no password or authorization; QR identifiers are scoped to each client', async() => {
   const api = fixture(); const calls = []
-  await api.accountAccess.set('https://one.example', 'synthetic-device-token')
-  const transport = async(url, options) => { calls.push({ url, options }); return Response.json({ data: {} }) }
+  const transport = async(url, options) => { calls.push({ url, options }); return Response.json({ data: { tx: true } }) }
   const one = new api.ServiceClient('https://one.example', transport); const other = new api.ServiceClient('https://other.example', transport)
-  await api.sharedAccounts(one).status(); await one.request('/api/v1/playback/tracks/resolve', 'POST', {}); await api.sharedAccounts(other).status()
-  assert.equal(calls[0].options.headers.Authorization, 'Bearer synthetic-device-token')
+  await api.sharedAccounts(one).status(); await one.request('/api/v1/playback/tracks/resolve', 'POST', {}); await api.sharedAccounts(other).status(); await api.sharedAccounts(one).login('tx')
+  for (const call of calls) assert.equal(call.options.headers.Authorization, undefined)
   assert.equal(calls[0].options.redirect, 'error')
-  assert.equal(calls[1].options.headers.Authorization, undefined)
-  assert.equal(calls[2].options.headers.Authorization, undefined)
-  await api.sharedAccounts(one).disconnect(); assert.equal(api.storage.size, 0)
+  assert.match(calls[0].options.headers['X-TuneFlow-Client-Id'], /^[A-Za-z0-9_-]{8,80}$/)
+  assert.equal(calls[1].options.headers['X-TuneFlow-Client-Id'], undefined)
+  assert.notEqual(calls[0].options.headers['X-TuneFlow-Client-Id'], calls[2].options.headers['X-TuneFlow-Client-Id'])
+  assert.equal(calls[0].options.headers['X-TuneFlow-Client-Id'], calls[3].options.headers['X-TuneFlow-Client-Id'])
 })
-test('password login persists only the session token and does not return it to account UI consumers', async() => {
+test('account availability probes work without stored tokens and distinguish network failures', async() => {
   const api = fixture()
-  const client = new api.ServiceClient('https://fixture', async(_url, options) => {
-    assert.equal(JSON.parse(options.body).password, 'fixture-password')
-    return Response.json({ data: { token: 'synthetic-device-token', serverId: 'fixture-server', device: { id: 'fixture-device' } } })
-  })
-  const result = await api.sharedAccounts(client).signIn('fixture-password', 'fixture')
-  assert.equal(result.token, undefined); assert.equal(api.storage.get('https://fixture'), 'synthetic-device-token')
-})
-test('HTTP supports password login and scoped account reads directly, without policy probes or switches', async() => {
-  const api = fixture(); const calls = []
-  const transport = async(url, options) => {
-    calls.push({ url, options })
-    if (url.endsWith('/login')) return Response.json({ data: { token: 'synthetic-token', serverId: 'demo', device: { id: 'fixture' } } })
-    return Response.json({ data: { tx: true } })
-  }
-  const client = new api.ServiceClient('http://192.168.0.70:3125', transport)
-  await api.sharedAccounts(client).signIn('synthetic-password', 'fixture'); await api.sharedAccounts(client).status()
-  assert.equal(calls.length, 2); assert.equal(calls[0].url, client.endpoint + '/api/v1/access/login'); assert.equal(calls[0].options.headers.Authorization, undefined)
-  assert.equal(JSON.parse(calls[0].options.body).password, 'synthetic-password'); assert.equal(calls[1].options.headers.Authorization, 'Bearer synthetic-token')
-  const other = new api.ServiceClient('http://192.168.0.70:3124', transport)
-  await api.sharedAccounts(other).status(); assert.equal(calls[2].options.headers.Authorization, undefined)
-})
-test('revocation clears the captured device token, while transient failures preserve authorization', async() => {
-  const api = fixture(); const endpoint = 'https://fixture'
-  await api.accountAccess.set(endpoint, 'synthetic-device-token')
-  const unavailable = new api.ServiceClient(endpoint, async() => { throw new Error('synthetic network failure') })
+  const available = new api.ServiceClient('http://fixture', async() => Response.json({ data: { serverId: 'fixture-server' } }))
+  assert.deepEqual(await api.probeAccountAccess(available), { state: 'authorized', serverId: 'fixture-server' })
+  const unavailable = new api.ServiceClient('http://fixture', async() => { throw new Error('fixture network failure') })
   assert.deepEqual(await api.probeAccountAccess(unavailable), { state: 'unavailable' })
-  assert.equal(api.storage.get(endpoint), 'synthetic-device-token')
-  const revoked = new api.ServiceClient(endpoint, async() => Response.json({ error: { code: 'DEVICE_AUTH_REQUIRED', message: 'synthetic' } }, { status: 401 }))
-  assert.deepEqual(await api.probeAccountAccess(revoked), { state: 'locked' })
-  assert.equal(api.storage.has(endpoint), false)
-})
-test('signing out revokes the server session and clears only the captured authorization', async() => {
-  const api = fixture(); const endpoint = 'https://fixture'
-  await api.accountAccess.set(endpoint, 'old-session')
-  const client = new api.ServiceClient(endpoint, async(url, options) => {
-    assert.equal(url, endpoint + '/api/v1/access/session'); assert.equal(options.method, 'DELETE')
-    await api.accountAccess.set(endpoint, 'new-session')
-    return Response.json({ data: { signedOut: true } })
-  })
-  await api.sharedAccounts(client).signOut()
-  assert.equal(await api.accountAccess.get(endpoint), 'new-session')
 })
 test('account transport works when React Native URL getters are unavailable', async() => {
   const api = fixture(); const OriginalURL = global.URL

@@ -71,7 +71,7 @@ export default {
           }
         }
       } catch (error) {
-        if (generation == current) status.value = ['DEVICE_AUTH_REQUIRED', 'PLATFORM_LOGIN_REQUIRED'].includes(error?.code) ? 'login_required' : needsLogin ? 'unavailable' : 'unknown'
+        if (generation == current) status.value = error?.code === 'PLATFORM_LOGIN_REQUIRED' ? 'login_required' : needsLogin ? 'unavailable' : 'unknown'
       } finally {
         working.value = false
         emit('busy', false)

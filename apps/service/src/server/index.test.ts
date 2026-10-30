@@ -60,24 +60,10 @@ describe('Service process shutdown', () => {
     expect(result.stdout).toContain('TUNEFLOW_MEDIA_ROOT')
     expect(result.stdout).toContain('TUNEFLOW_CACHE_ROOT')
     expect(result.stdout).toContain('TUNEFLOW_TEMP_ROOT')
-    expect(result.stdout).toContain('TUNEFLOW_ACCESS_PASSWORD')
+    expect(result.stdout).not.toContain('TUNEFLOW_ACCESS_PASSWORD')
   })
 
-  it('exits on an invalid startup password without exposing its value', () => {
-    const storageRoot = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-service-invalid-password-')); roots.push(storageRoot)
-    const password = 'synthetic-invalid\npassword'
-    const result = spawnSync(process.execPath, ['dist/server/index.cjs'], {
-      env: { ...process.env, TUNEFLOW_STORAGE_ROOT: storageRoot, TUNEFLOW_HOST: '127.0.0.1', TUNEFLOW_PORT: '0', TUNEFLOW_ACCESS_PASSWORD: password },
-      encoding: 'utf8',
-      timeout: 10_000,
-    })
-    expect(result.error).toBeUndefined()
-    expect(result.status).toBe(1)
-    expect(result.stderr).toContain('Unable to initialize TUNEFLOW_ACCESS_PASSWORD')
-    expect(result.stdout + result.stderr).not.toContain(password)
-  }, 15_000)
-
-  it('initializes password access before listening and gracefully stops the prepared Service command', async() => {
+  it('serves shared accounts without a password and gracefully stops the prepared Service command', async() => {
     const storageRoot = mkdtempSync(path.join(os.tmpdir(), 'tuneflow-service-signal-'))
     const webRoot = path.join(storageRoot, 'web')
     roots.push(storageRoot)
@@ -93,20 +79,15 @@ describe('Service process shutdown', () => {
         TUNEFLOW_HOST: '127.0.0.1',
         TUNEFLOW_PORT: String(port),
         TUNEFLOW_SKIP_ELECTRON_REBUILD: '1',
-        TUNEFLOW_ACCESS_PASSWORD: 'synthetic-startup-password',
+        TUNEFLOW_ACCESS_PASSWORD: 'obsolete-invalid-value',
       },
       stdio: 'pipe',
     })
     try {
       await waitForHealth(port)
-      const endpoint = `http://127.0.0.1:${port}/api/v1/access`
-      expect(await (await fetch(`${endpoint}/status`)).json()).toEqual({ data: { passwordConfigured: true } })
-      const login = await fetch(`${endpoint}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: 'synthetic-startup-password', name: 'Web' }),
-      })
-      expect(login.status).toBe(200)
+      const response = await fetch(`http://127.0.0.1:${port}/api/v1/accounts/status`, { headers: { Origin: 'https://relay.example.com' } })
+      expect(response.status).toBe(200)
+      expect((await response.json()).data.tx).toBe(false)
       child.kill('SIGTERM')
       const result = await Promise.race([
         new Promise<{ code: number | null, signal: NodeJS.Signals | null }>((resolve, reject) => {

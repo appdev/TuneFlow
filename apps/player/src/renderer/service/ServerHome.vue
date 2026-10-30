@@ -314,7 +314,7 @@ const loadAccountPlaylists = async(force = false, provider = accountPlaylistsPro
 }
 const refreshAccountStatus = async() => {
   const revision = ++statusRevision
-  const status = await getMusicAccountStatus().catch(error => error?.code === 'DEVICE_AUTH_REQUIRED' ? { tx: false, wy: false, kg: false, accounts: { tx: profile(), wy: profile(), kg: profile() } } : undefined)
+  const status = await getMusicAccountStatus().catch(() => undefined)
   if (!active || revision !== statusRevision || !status) return
   accountStatus.value = status
   const selected = selectedDailyProvider.value

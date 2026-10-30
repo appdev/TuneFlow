@@ -4,8 +4,8 @@ import { readKugouSession } from './kugouAccount'
 import { type MusicAccountProvider, getMusicAccountStatus } from './musicAccount'
 import { normalizeEndpoint, ServiceError } from '../../../../../../packages/service-client/src/client'
 
-export const publishAccountToService = async(input: { provider: MusicAccountProvider, endpoint: string, token: string, revision: number }) => {
-  if (!['tx', 'wy', 'kg'].includes(input.provider) || !/^[\w-]{43}$/.test(input.token) || !Number.isInteger(input.revision) || input.revision < 0) throw new ServiceError('INVALID_ACCOUNT_REQUEST')
+export const publishAccountToService = async(input: { provider: MusicAccountProvider, endpoint: string, revision: number }) => {
+  if (!['tx', 'wy', 'kg'].includes(input.provider) || !Number.isInteger(input.revision) || input.revision < 0) throw new ServiceError('INVALID_ACCOUNT_REQUEST')
   const endpoint = normalizeEndpoint(input.endpoint)
   const before = await getMusicAccountStatus()
   if (!before[input.provider]) throw new ServiceError('PLATFORM_LOGIN_REQUIRED')
@@ -16,7 +16,7 @@ export const publishAccountToService = async(input: { provider: MusicAccountProv
   const after = await getMusicAccountStatus()
   if (!owner || owner !== after.accounts[input.provider].importOwner) throw new ServiceError('ACCOUNT_CHANGED')
   // Send in the main process; raw platform credentials never cross renderer IPC.
-  const response = await fetch(`${endpoint}/api/v1/accounts/${input.provider}/session`, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(25_000), headers: { Authorization: `Bearer ${input.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ revision: input.revision, credential }) }).catch(() => { throw new ServiceError('NETWORK_ERROR') })
+  const response = await fetch(`${endpoint}/api/v1/accounts/${input.provider}/session`, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(25_000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision: input.revision, credential }) }).catch(() => { throw new ServiceError('NETWORK_ERROR') })
   const body = await response.json().catch(() => null) as { data?: { status: string }, error?: { code?: string } } | null
   if (!response.ok) {
     const code = body?.error?.code

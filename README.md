@@ -82,11 +82,11 @@ TuneFlow 把音乐整理和日常收听放在一起：在家中的电脑、NAS �
 
 ### 部署服务与 Web
 
-镜像：[`apkdv/tuneflow-server:latest`](https://hub.docker.com/r/apkdv/tuneflow-server)，也可将 `latest` 换成指定版本，如 `2.13.11`。
+镜像：[`apkdv/tuneflow-server:latest`](https://hub.docker.com/r/apkdv/tuneflow-server)，也可将 `latest` 换成指定版本。`2.13.12` 起无需访问密码；旧版 `2.13.11` 仍使用访问密码。
 
 #### 使用 docker run
 
-新部署时，将下面的 `CHANGE_ME_PASSWORD` 替换为自己的密码后执行：
+新部署时执行：
 
 ```sh
 mkdir -p ./music
@@ -95,13 +95,12 @@ docker run -d \
   --name tuneflow-server \
   --init --restart unless-stopped \
   -p 3124:3124 \
-  -e 'TUNEFLOW_ACCESS_PASSWORD=CHANGE_ME_PASSWORD' \
   -v "$PWD/music:/music" \
   -v tuneflow-config:/config \
   apkdv/tuneflow-server:latest
 ```
 
-打开 **`http://服务器IP:3124`**，在账号访问页面输入该密码，选择“解锁并记住”。桌面和 Android 也可连接这个服务地址。
+打开 **`http://服务器IP:3124`** 即可使用，无需设置访问密码。桌面和 Android 连接同一服务后共享平台账号。
 
 #### 使用 NAS 或 Docker 管理面板
 
@@ -111,21 +110,18 @@ docker run -d \
 | --- | --- |
 | 镜像 | `apkdv/tuneflow-server:latest` |
 | 端口（TCP） | 主机 `3124` → 容器 `3124` |
-| 环境变量 | `TUNEFLOW_ACCESS_PASSWORD` = 自己设置的密码（8～128 个字符） |
 | 配置挂载（读写） | 命名卷或主机配置目录 → `/config` |
 | 音乐挂载（读写） | 主机音乐目录 → `/music`；允许 UID/GID `1000:1000` 写入 |
 | 重启策略 | `unless-stopped`（除非手动停止，否则自动重启） |
 
 主机端口可以修改；例如改为 `3125`，就访问 `http://服务器IP:3125`。
 
-#### 密码与升级
+#### 数据与升级
 
-- **首次密码**：启动时自动初始化，无需进入容器。密码不能全为空白或包含控制字符。
-- **修改密码**：在应用中修改；环境变量只用于首次初始化，修改变量或重启不会覆盖已有密码。
 - **数据保存**：`/config` 保存配置与账号状态，`/music` 保存音乐文件。
 - **升级**：备份上述数据，拉取新镜像并重新创建容器，保留原挂载；不要执行 `docker compose down -v`。
 
-请在可信网络中使用，勿分享包含密码的命令或容器配置。Compose、隐藏输入密码和备份步骤见[详细部署文档](apps/service/docs/server-web.md#docker)；忘记密码见[账号访问与恢复](apps/service/docs/platform-accounts.md)。
+无需配置访问密码、可信域名或代理 IP。旧版账号数据会自动迁移，保留原 `/config` 挂载即可。服务访问权限由部署者自行管理；Compose 和备份步骤见[详细部署文档](apps/service/docs/server-web.md#docker)。
 
 ### 安装客户端
 
@@ -174,8 +170,6 @@ TUNEFLOW_WEB_ROOT="$PWD/apps/service/dist/web-qmusic" npm run start:server
 ```
 
 也可在根目录运行 `docker compose up -d --build`，使用仓库的 [Dockerfile](Dockerfile) 与 [compose.yaml](compose.yaml) 构建部署。镜像仅构建共享 Vue Web，不再提供旧 Web 或 Flutter integrated 构建选项。
-
-首次访问密码配置见上文[部署服务与 Web](#部署服务与-web)。仓库自带 Compose 的环境变量配置见[详细部署文档](apps/service/docs/server-web.md#first-access-password-docker-run-or-a-management-panel)。
 
 ## 验证与贡献
 

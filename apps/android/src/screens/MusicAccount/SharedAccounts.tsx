@@ -9,15 +9,12 @@ import { getWorkspace, notifyAccountsChanged, refreshServiceLists, subscribeAcco
 import { sharedAccounts, publishMobileAccount, accountNames } from '@/service/accounts'
 import { setDailyProvider } from '@/core/musicAccount/daily'
 import { playFromPage } from '@/core/player/selection'
-import { ServiceError } from '@/service/client'
 import type { AccountProvider, AccountStatus, AccountPlaylist, AccountLogin } from '../../../../../packages/service-client/src/accounts'
-import PasswordAccess from './PasswordAccess'
 import { pollAccountLogin } from '../../../../../packages/service-client/src/accountLogin'
 
 export default ({ initialProvider = 'tx', onBack, onNative }: { initialProvider?: AccountProvider, onBack: () => void, onNative: (provider: AccountProvider) => void }) => {
   const theme = useTheme(); const inset = useStatusbarHeight()
   const [provider, setProvider] = useState<AccountProvider>(initialProvider)
-  const [authorized, setAuthorized] = useState(false)
   const [status, setStatus] = useState<AccountStatus>()
   const [lists, setLists] = useState<AccountPlaylist[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -41,13 +38,12 @@ export default ({ initialProvider = 'tx', onBack, onNative }: { initialProvider?
   }, [provider])
   useEffect(() => {
     mounted.current = true; setLists([]); setFlow(undefined)
-    if (authorized) void load().catch(reason => { if (mounted.current && !(reason instanceof ServiceError && reason.code === 'DEVICE_AUTH_REQUIRED')) setError(reason instanceof Error ? reason.message : '账号加载失败') })
-    else { setStatus(undefined); setSelected(new Set()); setMessage(''); setError('') }
+    void load().catch(reason => { if (mounted.current) setError(reason instanceof Error ? reason.message : '账号加载失败') })
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true })
-    const unsubscribe = subscribeAccounts(() => { if (authorized && !running.current) void load().catch(reason => { if (mounted.current) { setStatus(undefined); setLists([]); if (reason instanceof ServiceError && reason.code === 'DEVICE_AUTH_REQUIRED') { setAuthorized(false); setFlow(undefined) } } }) })
+    const unsubscribe = subscribeAccounts(() => { if (!running.current) void load().catch(reason => { if (mounted.current) { setStatus(undefined); setLists([]); setError(reason instanceof Error ? reason.message : '账号加载失败') } }) })
     const invalidate = () => { version.current++ }
     return () => { mounted.current = false; invalidate(); subscription.remove(); unsubscribe() }
-  }, [load, onBack, authorized])
+  }, [load, onBack])
   useEffect(() => {
     if (!flow) return
     const workspace = getWorkspace(); const client = sharedAccounts(workspace.client)
@@ -58,7 +54,7 @@ export default ({ initialProvider = 'tx', onBack, onNative }: { initialProvider?
       status: status => {
         setError('')
         if (status === 'connected') {
-          setFlow(undefined); setMessage('已登录，各端解锁即可使用账号歌单和推荐'); notifyAccountsChanged()
+          setFlow(undefined); setMessage('已登录，各端即可使用账号歌单和推荐'); notifyAccountsChanged()
           void load().catch(reason => { if (mounted.current && workspace === getWorkspace()) setError(reason instanceof Error ? reason.message : '账号加载失败') })
           return
         }
@@ -94,8 +90,6 @@ export default ({ initialProvider = 'tx', onBack, onNative }: { initialProvider?
   return <ScrollView style={{ flex: 1, paddingTop: inset, backgroundColor: theme['c-content-background'] }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <View style={styles.row}>{action('返回', onBack)}<Text size={20}>音乐平台账号</Text></View>
     <Text size={13} color={theme['q-text-secondary']}>登录音乐平台，随时使用你的歌单与个人推荐。各端共享，导入保留已有内容。</Text>
-    <PasswordAccess onChange={setAuthorized} />
-    {authorized ? <>
       <View style={styles.row}>{(['tx', 'wy', 'kg'] as const).map(id => <View key={id}>{action(`${accountNames[id]}${status?.[id] ? ' · 已登录' : ''}`, () => { setProvider(id); setMore(false); setDailyKey(''); setError('') })}</View>)}</View>
       <View style={[styles.section, { backgroundColor: theme['q-surface-tint'] }]}>
       <Text size={16}>{accountNames[provider]}</Text><Text size={12} color={theme['q-text-secondary']}>{status?.[provider] ? '已登录 · 各端共享' : '使用官方应用扫码登录，已有歌单和音乐不会受到影响。'}</Text>
@@ -119,7 +113,6 @@ export default ({ initialProvider = 'tx', onBack, onNative }: { initialProvider?
         <Button accessibilityRole="checkbox" accessibilityState={{ checked: selected.has(item.id) }} onPress={() => { setSelected(previous => { const next = new Set(previous); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next }) }}><Text size={14}>{selected.has(item.id) ? '☑ ' : '☐ '}{item.name} · {item.trackCount} 首</Text></Button>
         {action('播放歌单', () => { preview(item.id) })}
       </View>)}
-    </> : null}
     {message ? <Text accessibilityLiveRegion="polite" size={13}>{message}</Text> : null}
     {error ? <Text accessibilityLiveRegion="polite" size={13} color={theme['q-text-secondary']}>{error}</Text> : null}
   </ScrollView>

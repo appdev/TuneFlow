@@ -13,7 +13,6 @@ const help = [
   '  TUNEFLOW_WEB_ROOT      Web assets directory (default: ./dist/web)',
   '  TUNEFLOW_HOST          Bind host (default: 127.0.0.1)',
   '  TUNEFLOW_PORT          Bind port (default: 3124)',
-  '  TUNEFLOW_ACCESS_PASSWORD  Initialize shared access password (8–128 characters; ignored if already configured)',
 ].join('\n')
 
 const main = async() => {

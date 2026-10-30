@@ -156,7 +156,7 @@ export default () => {
   mainHandle(WIN_MAIN_RENDERER_EVENT_NAME.music_account_status, async() => {
     return getMusicAccountStatus()
   })
-  mainHandle<{ provider: MusicAccountProvider, endpoint: string, token: string, revision: number }, Awaited<ReturnType<typeof publishAccountToService>>>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_publish, async({ params }) => publishAccountToService(params))
+  mainHandle<{ provider: MusicAccountProvider, endpoint: string, revision: number }, Awaited<ReturnType<typeof publishAccountToService>>>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_publish, async({ params }) => publishAccountToService(params))
   mainHandle<QQFavoriteRequest, QQFavoriteResult>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_qq_favorite_add, async({ params }) => addQQFavoriteSong(params))
   mainHandle<MusicAccountProvider, MusicAccountLoginResult>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_login, async({ params: provider }) => {
     if (provider == 'tx') cancelAccountTransfer()

@@ -1,11 +1,11 @@
 import { build } from 'esbuild'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, writeFile, rm } from 'node:fs/promises'
 import path from 'node:path'
 
 const root = process.cwd()
 const serverRoot = path.join(root, 'dist/server')
 await mkdir(serverRoot, { recursive: true })
-await build({ entryPoints: [path.join(root, 'src/server/accounts/recoverAccessCli.ts')], bundle: true, platform: 'node', target: 'node24', format: 'cjs', outfile: path.join(serverRoot, 'recover-account-access.cjs') })
+await rm(path.join(serverRoot, 'recover-account-access.cjs'), { force: true })
 await build({ entryPoints: [path.join(root, 'src/server/accounts/verifyBrowserCli.ts')], bundle: true, platform: 'node', target: 'node24', format: 'cjs', packages: 'external', outfile: path.join(serverRoot, 'verify-account-browser.cjs') })
 await writeFile(path.join(serverRoot, 'package.json'), `${JSON.stringify({
   private: true,

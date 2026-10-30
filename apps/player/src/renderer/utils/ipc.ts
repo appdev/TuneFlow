@@ -8,7 +8,6 @@ import { type QQFavoriteRequest, type QQFavoriteResult } from '@common/types/qqF
 import type { AccountTransferInfo, AccountTransferState } from '@common/types/accountTransfer'
 import { getSharedAccountStatus, getSharedAccountPlaylists } from '@renderer/service/accounts'
 import { getWorkspace } from '@renderer/service/session'
-import { accountAccess } from '@renderer/service/client'
 import { sharedAccounts } from '../../../../../packages/service-client/src/accounts'
 
 export const startAccountTransfer = async() => rendererInvoke<AccountTransferInfo>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_transfer_start)
@@ -146,9 +145,8 @@ export const loginMusicAccount = async(provider: MusicAccountProvider) => {
 }
 export const publishMusicAccount = async(provider: MusicAccountProvider) => {
   const workspace = getWorkspace(); const status = await getSharedAccountStatus()
-  const token = await accountAccess.get(workspace.client.endpoint)
-  if (!token || workspace !== getWorkspace()) throw new Error('请先授权当前设备')
-  return rendererInvoke(WIN_MAIN_RENDERER_EVENT_NAME.music_account_publish, { provider, endpoint: workspace.client.endpoint, token, revision: status.revisions[provider] })
+  if (workspace !== getWorkspace()) throw new Error('连接已变更')
+  return rendererInvoke(WIN_MAIN_RENDERER_EVENT_NAME.music_account_publish, { provider, endpoint: workspace.client.endpoint, revision: status.revisions[provider] })
 }
 export const logoutMusicAccount = async(provider: MusicAccountProvider) => {
   return rendererInvoke<MusicAccountProvider, MusicAccountLogoutResult>(WIN_MAIN_RENDERER_EVENT_NAME.music_account_logout, provider)

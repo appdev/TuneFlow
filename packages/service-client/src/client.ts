@@ -24,12 +24,6 @@ export interface ProviderDto { id: string, name: string, searchKinds: string[], 
 export class ServiceError extends Error {
   constructor(public code: string, public status = 0) { super(({
     DOWNLOAD_TASK_ACTIVE: '这首歌曲已有未完成的下载，请先完成或移除旧任务，再选择新的音质。',
-    DEVICE_AUTH_REQUIRED: '请输入访问密码，解锁共享账号。',
-    INVALID_ACCESS_PASSWORD: '访问密码不正确，请重试。',
-    ACCESS_PASSWORD_NOT_CONFIGURED: '尚未设置访问密码。请由服务管理员配置 TUNEFLOW_ACCESS_PASSWORD 环境变量并启动服务，或在已登录的应用中设置。',
-    ACCESS_PASSWORD_CHANGED: '访问密码已更新，请重新输入。',
-    ACCESS_PASSWORD_LENGTH: '访问密码需为 8 至 128 个字符。',
-    DEVICE_LIMIT: '记住的访问会话过多，请修改访问密码后重试。',
     ACCOUNT_CHANGED: '账号已发生变化，请刷新后重试。',
     PLATFORM_LOGIN_REQUIRED: '平台授权已过期，请重新登录。',
     ACCOUNT_LOGIN_EXPIRED: '二维码已过期或已取消，请重新获取。',
@@ -38,16 +32,6 @@ export class ServiceError extends Error {
     ACCOUNT_RATE_LIMIT: '操作过于频繁，请稍后重试。',
   } as Record<string, string>)[code] ?? `请求失败（${code}）`) }
 }
-
-export interface AccountAccessStorage { get: (endpoint: string) => Promise<string | null>, set: (endpoint: string, token: string) => Promise<void>, remove: (endpoint: string) => Promise<void> }
-const accessKey = (endpoint: string) => `tuneflow.device.v1.${encodeURIComponent(endpoint)}`
-let accessStorage: AccountAccessStorage = {
-  get: async endpoint => typeof localStorage === 'undefined' ? null : localStorage.getItem(accessKey(endpoint)),
-  set: async(endpoint, token) => { if (typeof localStorage !== 'undefined') localStorage.setItem(accessKey(endpoint), token) },
-  remove: async endpoint => { if (typeof localStorage !== 'undefined') localStorage.removeItem(accessKey(endpoint)) },
-}
-export const configureAccountAccessStorage = (storage: AccountAccessStorage) => { accessStorage = storage }
-export const accountAccess = { get: (endpoint: string) => accessStorage.get(normalizeEndpoint(endpoint)), set: (endpoint: string, token: string) => accessStorage.set(normalizeEndpoint(endpoint), token), remove: (endpoint: string) => accessStorage.remove(normalizeEndpoint(endpoint)) }
 
 // Shared address contract with the Android Service client.
 export const normalizeEndpoint = (input: string): string => {
@@ -62,6 +46,7 @@ export const normalizeEndpoint = (input: string): string => {
 
 export class ServiceClient {
   readonly endpoint: string
+  private readonly accountClientId = `client_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`
   constructor(endpoint: string, private readonly transport: typeof fetch = fetch) { this.endpoint = normalizeEndpoint(endpoint) }
 
   resourceUrl(path: string): string {
@@ -79,14 +64,13 @@ export class ServiceClient {
     const timeout = setTimeout(abort, path.includes('/resolve') ? 100_000 : 25_000)
     try {
       const protectedAccount = /^\/api\/v1\/(?:accounts|access)(?:\/|\?|$)/.test(path)
-      const token = protectedAccount ? await accessStorage.get(this.endpoint) : null
       // Window.fetch rejects a ServiceClient receiver in Chromium/Electron.
       const transport = this.transport
       const response = await transport(this.endpoint + path, {
         method,
         signal: controller.signal,
         credentials: 'omit',
-        headers: { Accept: 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        headers: { Accept: 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(protectedAccount ? { 'X-TuneFlow-Client-Id': this.accountClientId } : {}) },
         ...(protectedAccount ? { redirect: 'error' as const, cache: 'no-store' as const } : {}),
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       })

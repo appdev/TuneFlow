@@ -43,7 +43,7 @@ function fixture(platform, saved, previouslyConnected = false) {
     './client': { ServiceClient: Client, ServiceError: class extends Error { constructor(code) { super(code); this.code = code } } },
     './workspace': { ServiceWorkspace: Workspace, DEFAULT_ENDPOINT: 'http://fixture', PROFILE_KEY: profileKey },
     [prefix + 'packages/service-client/src/connection']: policy,
-    [prefix + 'packages/service-client/src/accounts']: { probeAccountAccess: async() => ({ state: 'locked' }) },
+    [prefix + 'packages/service-client/src/accounts']: { probeAccountAccess: async() => ({ state: 'authorized', serverId: 'fixture' }) },
     'react-native': { AppState: { addEventListener: (event, fn) => events.set(event, fn) } },
     '@react-native-async-storage/async-storage': { default: { getItem: async key => storage.get(key) ?? null, setItem: async(key, value) => { storage.set(key, value) } } },
   }, {
@@ -64,7 +64,7 @@ test('shared settings policy gates account/source/download settings only', () =>
 })
 
 for (const platform of ['darwin', 'web', 'android']) {
-  test(`${platform}: first connection, independent account unlock, and authorization preservation`, async() => {
+  test(`${platform}: first connection and shared accounts without unlock`, async() => {
     const f = fixture(platform)
     await f.init()
     assert.equal(f.session.serviceStatus.hasConnected, false)
@@ -77,7 +77,7 @@ for (const platform of ['darwin', 'web', 'android']) {
     assert.equal(f.session.serviceStatus.hasConnected, true)
     assert.equal(f.storage.get(tokenKey), 'synthetic-retained-token')
     assert.equal(f.storage.get(policy.connectionKey('http://fixture')), '1')
-    assert.equal(f.snapshots.length, 1, 'locked platform accounts do not block shared music data')
+    assert.equal(f.snapshots.length, 1, 'shared accounts do not block shared music data')
   })
   test(`${platform}: outage retains setup/data and automatic reconnect restores readiness`, async() => {
     const f = fixture(platform, 'http://fixture')
