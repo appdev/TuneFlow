@@ -1,7 +1,19 @@
 {
-  "version": "2.13.9",
-  "desc": "TuneFlow 2.13.9\n\n桌面、Web、Android 与 Service 统一版本，保留已有应用标识、签名、账号、歌单和设置兼容性。\n\n- 下载时校验实际音频格式，FLAC 请求收到其他格式时继续尝试音源或按现有规则降级，并同步文件后缀。\n- 改进网易云扫码登录、状态轮询与歌单读取，完善连接配置和自定义音源管理。\n- 调整多端导航、下载列表与交互，更新应用、网页、托盘和 Android 图标。\n- Docker 使用共享 Vue Web，并补齐账号浏览器运行依赖。",
+  "version": "2.13.13",
+  "desc": "TuneFlow 2.13.13\n\n桌面、Web、Android 与 Service 统一升级，沿用现有应用标识、账号、歌单和设置。本次提供 Docker 镜像和各平台客户端预览包。\n\n- 桌面与 Web 重排顶部导航与搜索，收紧来源选择菜单，优化设置、下载、排行榜和我的列表。\n- 歌单和推荐详情使用紧凑封面布局，统一歌曲行高和滚动条留白，为列表保留更多可用空间。\n- 新安装默认使用经典蓝白，提供浅色、深色及系统外观；已有主题偏好保持。\n- Android 手机端新增底部导航、双列歌单、榜单预览和分组设置，调整迷你播放器、播放详情与下载列表；平板和车机保留原有布局。\n- 修复手机设置返回目录后的重复跳转，清理深链参数日志，并修正 Android 类型检查和离线验收工具。",
   "history": [
+    {
+      "version": "2.13.12",
+      "desc": "TuneFlow 2.13.12\n\n本次发布 Docker 服务与内置 Web，连接服务后可直接使用共享平台账号。桌面和 Android 源码同步更新，安装包与公开更新通道保持不变。\n\n- 移除共享访问密码、解锁界面和设备授权令牌，无需配置 TUNEFLOW_ACCESS_PASSWORD。\n- 移除账号接口来源限制，中转与反向代理无需额外填写可信域名或代理 IP。\n- 账号数据改为直接保存；旧加密数据使用原密钥自动迁移，保留旧文件用于回退，平台登录、歌单和音乐保持。\n- 简化 Docker 配置说明，发布前验证无密码访问、原账号保留、二维码展示与取消及重启持久化。"
+    },
+    {
+      "version": "2.13.11",
+      "desc": "TuneFlow 2.13.11\n\n本次发布 Docker 镜像及内置 Web，提交当前完整业务改动；桌面和 Android 安装包、公开更新通道保持不变。\n\n- 新增 TUNEFLOW_ACCESS_PASSWORD，首次启动自动初始化共享访问密码；已有密码优先，重启保留在应用中修改的密码。\n- 统一桌面、Web、Android 的列表字号、颜色与选中态，简化重复平台图标，同步应用图标和部署说明。\n- 纳入面向 AI 工具的 CLI 源码，支持结构化搜索、播放控制、队列、进度查询及下载，复用共享 Service 契约；本地播放需要 mpv。CLI 不打入 Docker 镜像。\n- Docker 发布前验证首次密码登录、修改密码及重启保留密码；非法初始配置会阻止启动，错误不输出密码值。"
+    },
+    {
+      "version": "2.13.9",
+      "desc": "TuneFlow 2.13.9\n\n桌面、Web、Android 与 Service 统一版本，保留已有应用标识、签名、账号、歌单和设置兼容性。\n\n- 下载时校验实际音频格式，FLAC 请求收到其他格式时继续尝试音源或按现有规则降级，并同步文件后缀。\n- 改进网易云扫码登录、状态轮询与歌单读取，完善连接配置和自定义音源管理。\n- 调整多端导航、下载列表与交互，更新应用、网页、托盘和 Android 图标。\n- Docker 使用共享 Vue Web，并补齐账号浏览器运行依赖。"
+    },
     {
       "version": "0.4.27",
       "desc": "TuneFlow 0.4.27\n\n统一产品名称与发布包，桌面、Web 和 Android 使用 TuneFlow 名称，保留已有账号、歌单、设置和下载记录。\n\n- 桌面安装包、应用显示名、窗口标题、托盘和 Web 页面统一为 TuneFlow；更新和反馈入口指向当前仓库。\n- Android 仅提供 arm64-v8a 和 universal 通用版，其他架构使用通用版；更新下载同步选择对应附件并校验 SHA-256。\n- 通用版保留全部受支持架构的原生库；versionCode 基数 55，通用版版本码高于上一版各架构包，支持覆盖升级。\n- 账号、推荐、歌单同步、下载、边播边存与自动切换平台功能保持；播放继续使用统一音乐服务。\n\n安装说明：\n\n- 使用 TuneFlow-v0.4.27 标签。原预览版应用 ID、签名及配置目录保持不变，请覆盖安装，无需卸载。\n- 已安装 0.4.26 的 Android 客户端仍按旧文件名下载安装包，请从本发布页手动下载新版覆盖安装一次；新版已支持 TuneFlow 包名更新。\n- 桌面为预览便携包，macOS 临时签名且未公证，Windows 未正式签名；请退出旧程序后替换应用。\n- Web 包含 /V2/ 兼容入口；本次不重新发布服务镜像或更新已有容器。\n"
@@ -163,13 +175,13 @@
       "desc": "Q-music Android 首个适配版本。\n\n- 基于 LX Music Mobile 1.8.4。\n- 使用独立应用 ID，可与 LX Music 共存。\n- 统一 Q-music 品牌与 qmusic:// 深链。\n- 保留后台播放、媒体控制、本地音乐与同步能力。"
     }
   ],
-  "commit": "5fe1ab8c85286402c56a5fe99a77ea801e7d17e8",
+  "commit": "182c1949af4b272cc4d655e7706078dd260830ad",
   "repository": "appdev/TuneFlow",
   "assets": [
     {
-      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/681116492",
-      "id": 681116492,
-      "node_id": "RA_kwDOT02oOM4omQNM",
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/701675833",
+      "id": 701675833,
+      "node_id": "RA_kwDOT02oOM4p0rk5",
       "name": "manifest-android.json",
       "label": "",
       "uploader": {
@@ -195,17 +207,17 @@
       },
       "content_type": "application/json",
       "state": "uploaded",
-      "size": 525,
-      "digest": "sha256:6764b56be30cbdcde8aba008ea1de62dc83d3f0db2fed42ae9cd012470ac113c",
+      "size": 528,
+      "digest": "sha256:dbecc929c0da5ebb0db0092a85172e08987feca6751a86e6c29007d66359511c",
       "download_count": 0,
-      "created_at": "2026-10-27T09:35:26Z",
-      "updated_at": "2026-10-27T09:35:27Z",
-      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.9/manifest-android.json"
+      "created_at": "2026-11-02T12:25:54Z",
+      "updated_at": "2026-11-02T12:25:54Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.13/manifest-android.json"
     },
     {
-      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/681116403",
-      "id": 681116403,
-      "node_id": "RA_kwDOT02oOM4omQLz",
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/701675638",
+      "id": 701675638,
+      "node_id": "RA_kwDOT02oOM4p0rh2",
       "name": "manifest-desktop.json",
       "label": "",
       "uploader": {
@@ -231,17 +243,17 @@
       },
       "content_type": "application/json",
       "state": "uploaded",
-      "size": 1215,
-      "digest": "sha256:c3fc74749eb41e9e74572b8725fad7dd612c8a90ac555af1519b38f5eb140923",
+      "size": 1222,
+      "digest": "sha256:1e044e3f6744baeb4b3d9ce6d5f440c344a951a91b3045b102f954838500bc01",
       "download_count": 0,
-      "created_at": "2026-10-27T09:35:24Z",
-      "updated_at": "2026-10-27T09:35:24Z",
-      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.9/manifest-desktop.json"
+      "created_at": "2026-11-02T12:25:51Z",
+      "updated_at": "2026-11-02T12:25:51Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.13/manifest-desktop.json"
     },
     {
-      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/681116451",
-      "id": 681116451,
-      "node_id": "RA_kwDOT02oOM4omQMj",
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/701675744",
+      "id": 701675744,
+      "node_id": "RA_kwDOT02oOM4p0rjg",
       "name": "SHA256SUMS-android.txt",
       "label": "",
       "uploader": {
@@ -267,17 +279,17 @@
       },
       "content_type": "text/plain; charset=utf-8",
       "state": "uploaded",
-      "size": 208,
-      "digest": "sha256:18b0fa44bb74ca55aba43c27691922634a9891b6acbff255f0401d0f03651d27",
+      "size": 210,
+      "digest": "sha256:c9378d24c1e6d0f2703a9c409d290b1a87164c7226570c5af56305f882d31a61",
       "download_count": 0,
-      "created_at": "2026-10-27T09:35:25Z",
-      "updated_at": "2026-10-27T09:35:25Z",
-      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.9/SHA256SUMS-android.txt"
+      "created_at": "2026-11-02T12:25:52Z",
+      "updated_at": "2026-11-02T12:25:52Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.13/SHA256SUMS-android.txt"
     },
     {
-      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/681116346",
-      "id": 681116346,
-      "node_id": "RA_kwDOT02oOM4omQK6",
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/701675571",
+      "id": 701675571,
+      "node_id": "RA_kwDOT02oOM4p0rgz",
       "name": "SHA256SUMS-desktop.txt",
       "label": "",
       "uploader": {
@@ -303,18 +315,18 @@
       },
       "content_type": "text/plain; charset=utf-8",
       "state": "uploaded",
-      "size": 580,
-      "digest": "sha256:f256f7fc87f18970b1a35529271988312d4f0bae5c6b8dc3783ee6e0da300d01",
+      "size": 586,
+      "digest": "sha256:fefaa8dd02a9a28b5b818ec0d8c77e0e4cae411c7df4aada3ea12995ce868e65",
       "download_count": 0,
-      "created_at": "2026-10-27T09:35:23Z",
-      "updated_at": "2026-10-27T09:35:23Z",
-      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.9/SHA256SUMS-desktop.txt"
+      "created_at": "2026-11-02T12:25:49Z",
+      "updated_at": "2026-11-02T12:25:50Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.13/SHA256SUMS-desktop.txt"
     },
     {
-      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/681114908",
-      "id": 681114908,
-      "node_id": "RA_kwDOT02oOM4omP0c",
-      "name": "TuneFlow-2.13.9-linux-arm64.tar.gz",
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/701673473",
+      "id": 701673473,
+      "node_id": "RA_kwDOT02oOM4p0rAB",
+      "name": "TuneFlow-2.13.13-linux-arm64.tar.gz",
       "label": "",
       "uploader": {
         "login": "github-actions[bot]",
@@ -339,18 +351,18 @@
       },
       "content_type": "application/x-gtar",
       "state": "uploaded",
-      "size": 124130722,
-      "digest": "sha256:cfedd1aba02ceb883956d1749129caedccc98dbac3501e23e359bd4421ffef54",
+      "size": 124134489,
+      "digest": "sha256:d86a2cf644612456d52ad83622dc7a081f9ad2e0ffbda23c64d45d251c086184",
       "download_count": 0,
-      "created_at": "2026-10-27T09:34:44Z",
-      "updated_at": "2026-10-27T09:34:49Z",
-      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.9/TuneFlow-2.13.9-linux-arm64.tar.gz"
+      "created_at": "2026-11-02T12:25:06Z",
+      "updated_at": "2026-11-02T12:25:10Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.13/TuneFlow-2.13.13-linux-arm64.tar.gz"
     },
     {
-      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/681115115",
-      "id": 681115115,
-      "node_id": "RA_kwDOT02oOM4omP3r",
-      "name": "TuneFlow-2.13.9-linux-x64.tar.gz",
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/701673699",
+      "id": 701673699,
+      "node_id": "RA_kwDOT02oOM4p0rDj",
+      "name": "TuneFlow-2.13.13-linux-x64.tar.gz",
       "label": "",
       "uploader": {
         "login": "github-actions[bot]",
@@ -375,18 +387,18 @@
       },
       "content_type": "application/x-gtar",
       "state": "uploaded",
-      "size": 123779353,
-      "digest": "sha256:632c73650a3e98cd012a78e6682435119e377d0cdefa4e241e4a82728ae099ae",
+      "size": 123788135,
+      "digest": "sha256:7d412bb5926233262094f6a22ee0150e5e1d086390af6b793b7a799c685ad6ce",
       "download_count": 0,
-      "created_at": "2026-10-27T09:34:50Z",
-      "updated_at": "2026-10-27T09:34:55Z",
-      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.9/TuneFlow-2.13.9-linux-x64.tar.gz"
+      "created_at": "2026-11-02T12:25:11Z",
+      "updated_at": "2026-11-02T12:25:17Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.13/TuneFlow-2.13.13-linux-x64.tar.gz"
     },
     {
-      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/681115330",
-      "id": 681115330,
-      "node_id": "RA_kwDOT02oOM4omP7C",
-      "name": "TuneFlow-2.13.9-mac-arm64.zip",
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/701673963",
+      "id": 701673963,
+      "node_id": "RA_kwDOT02oOM4p0rHr",
+      "name": "TuneFlow-2.13.13-mac-arm64.zip",
       "label": "",
       "uploader": {
         "login": "github-actions[bot]",
@@ -411,18 +423,18 @@
       },
       "content_type": "application/zip",
       "state": "uploaded",
-      "size": 120498527,
-      "digest": "sha256:1d0b981833ac42f6dd0b2020d752be94164831a17f0f50f3dda91cab0711681d",
+      "size": 120510706,
+      "digest": "sha256:fa73f4bfd807ccc5718229ba9ec5389891e7e41a979374e3bc0c45cc8e399b34",
       "download_count": 0,
-      "created_at": "2026-10-27T09:34:56Z",
-      "updated_at": "2026-10-27T09:35:00Z",
-      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.9/TuneFlow-2.13.9-mac-arm64.zip"
+      "created_at": "2026-11-02T12:25:18Z",
+      "updated_at": "2026-11-02T12:25:23Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.13/TuneFlow-2.13.13-mac-arm64.zip"
     },
     {
-      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/681115512",
-      "id": 681115512,
-      "node_id": "RA_kwDOT02oOM4omP94",
-      "name": "TuneFlow-2.13.9-mac-x64.zip",
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/701674307",
+      "id": 701674307,
+      "node_id": "RA_kwDOT02oOM4p0rND",
+      "name": "TuneFlow-2.13.13-mac-x64.zip",
       "label": "",
       "uploader": {
         "login": "github-actions[bot]",
@@ -447,18 +459,18 @@
       },
       "content_type": "application/zip",
       "state": "uploaded",
-      "size": 128037155,
-      "digest": "sha256:e18092455f991eef653895008f861bf47290755aa159c760931c0903a0c347f2",
+      "size": 128048860,
+      "digest": "sha256:1ef8c542f92b590da003dc7a5578111b4a2ef0e80c389ccdf405cf36a4434ff8",
       "download_count": 0,
-      "created_at": "2026-10-27T09:35:01Z",
-      "updated_at": "2026-10-27T09:35:05Z",
-      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.9/TuneFlow-2.13.9-mac-x64.zip"
+      "created_at": "2026-11-02T12:25:24Z",
+      "updated_at": "2026-11-02T12:25:28Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.13/TuneFlow-2.13.13-mac-x64.zip"
     },
     {
-      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/681115697",
-      "id": 681115697,
-      "node_id": "RA_kwDOT02oOM4omQAx",
-      "name": "TuneFlow-2.13.9-win-arm64.zip",
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/701674667",
+      "id": 701674667,
+      "node_id": "RA_kwDOT02oOM4p0rSr",
+      "name": "TuneFlow-2.13.13-win-arm64.zip",
       "label": "",
       "uploader": {
         "login": "github-actions[bot]",
@@ -483,18 +495,18 @@
       },
       "content_type": "application/zip",
       "state": "uploaded",
-      "size": 146284701,
-      "digest": "sha256:c0565c243fa6a108293f9e2a5c5aa73a33df5f92dc1d43ee2ba1143c6daa9219",
+      "size": 146298961,
+      "digest": "sha256:cabe4f223e6d671269d5f6e852e5dec4f47ba368d9f1822f996edde3d9237b98",
       "download_count": 0,
-      "created_at": "2026-10-27T09:35:06Z",
-      "updated_at": "2026-10-27T09:35:10Z",
-      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.9/TuneFlow-2.13.9-win-arm64.zip"
+      "created_at": "2026-11-02T12:25:30Z",
+      "updated_at": "2026-11-02T12:25:36Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.13/TuneFlow-2.13.13-win-arm64.zip"
     },
     {
-      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/681115894",
-      "id": 681115894,
-      "node_id": "RA_kwDOT02oOM4omQD2",
-      "name": "TuneFlow-2.13.9-win-x64.zip",
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/701675053",
+      "id": 701675053,
+      "node_id": "RA_kwDOT02oOM4p0rYt",
+      "name": "TuneFlow-2.13.13-win-x64.zip",
       "label": "",
       "uploader": {
         "login": "github-actions[bot]",
@@ -519,18 +531,18 @@
       },
       "content_type": "application/zip",
       "state": "uploaded",
-      "size": 146903507,
-      "digest": "sha256:3ed67d1ec7e0599673e926330c83ce9b8d16b16156c66ef9e579f9f5cf484954",
+      "size": 146917078,
+      "digest": "sha256:4e4431aa4dbd3ed9c829c968d6ddb8d157a93840782a53542778e2b3f261bf59",
       "download_count": 0,
-      "created_at": "2026-10-27T09:35:11Z",
-      "updated_at": "2026-10-27T09:35:17Z",
-      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.9/TuneFlow-2.13.9-win-x64.zip"
+      "created_at": "2026-11-02T12:25:37Z",
+      "updated_at": "2026-11-02T12:25:43Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.13/TuneFlow-2.13.13-win-x64.zip"
     },
     {
-      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/681116106",
-      "id": 681116106,
-      "node_id": "RA_kwDOT02oOM4omQHK",
-      "name": "TuneFlow-Android-2.13.9-arm64-v8a.apk",
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/701675360",
+      "id": 701675360,
+      "node_id": "RA_kwDOT02oOM4p0rdg",
+      "name": "TuneFlow-Android-2.13.13-arm64-v8a.apk",
       "label": "",
       "uploader": {
         "login": "github-actions[bot]",
@@ -555,18 +567,18 @@
       },
       "content_type": "application/vnd.android.package-archive",
       "state": "uploaded",
-      "size": 25496923,
-      "digest": "sha256:e576cb0f20a1b09bd56567f8417edf4095cc58a0acbe5bf6c1f901a5b9398b04",
+      "size": 25501019,
+      "digest": "sha256:050f57c75fdcb5f30c948d8d1905626c143738b180d7722dd8516206f9c95a4d",
       "download_count": 0,
-      "created_at": "2026-10-27T09:35:17Z",
-      "updated_at": "2026-10-27T09:35:19Z",
-      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.9/TuneFlow-Android-2.13.9-arm64-v8a.apk"
+      "created_at": "2026-11-02T12:25:44Z",
+      "updated_at": "2026-11-02T12:25:45Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.13/TuneFlow-Android-2.13.13-arm64-v8a.apk"
     },
     {
-      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/681116212",
-      "id": 681116212,
-      "node_id": "RA_kwDOT02oOM4omQI0",
-      "name": "TuneFlow-Android-2.13.9-universal.apk",
+      "url": "https://api.github.com/repos/appdev/TuneFlow/releases/assets/701675464",
+      "id": 701675464,
+      "node_id": "RA_kwDOT02oOM4p0rfI",
+      "name": "TuneFlow-Android-2.13.13-universal.apk",
       "label": "",
       "uploader": {
         "login": "github-actions[bot]",
@@ -591,12 +603,12 @@
       },
       "content_type": "application/vnd.android.package-archive",
       "state": "uploaded",
-      "size": 68155098,
-      "digest": "sha256:59212c824a56becdc4040dfda666c5bcf04db064b112b1fd923a050276359b87",
+      "size": 36098450,
+      "digest": "sha256:f859523a5b254d373bb273c5d82802866eab89ade337ee84d754c82a1536053e",
       "download_count": 0,
-      "created_at": "2026-10-27T09:35:20Z",
-      "updated_at": "2026-10-27T09:35:22Z",
-      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.9/TuneFlow-Android-2.13.9-universal.apk"
+      "created_at": "2026-11-02T12:25:46Z",
+      "updated_at": "2026-11-02T12:25:48Z",
+      "browser_download_url": "https://github.com/appdev/TuneFlow/releases/download/TuneFlow-v2.13.13/TuneFlow-Android-2.13.13-universal.apk"
     }
   ]
 }
