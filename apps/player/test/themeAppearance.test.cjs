@@ -25,6 +25,20 @@ function load(relative) {
 const api = load(mobile ? 'src/theme/appearance.ts' : 'src/common/theme/appearance.ts')
 const themes = mobile ? load('src/theme/themes/themes.ts').default : require('../src/common/theme/index.json')
 
+test('参考主题的浅深背景、文字和强调色与 YesPlayMusic 一致', () => {
+  const theme = themes.find(theme => theme.id === 'yesplay')
+  assert.ok(theme)
+  for (const dark of [false, true]) {
+    const next = api.adaptThemeAppearance(theme, dark)
+    const colors = next.config.extInfo
+    assert.equal(colors['--tf-paper'], dark ? '#222222' : '#ffffff')
+    assert.equal(colors['--tf-surface'], dark ? '#323232' : '#f5f5f7')
+    assert.equal(colors['--tf-ink'], dark ? '#ffffff' : '#000000')
+    assert.equal(colors['--tf-accent'], '#335eea')
+    assert.equal(colors['--tf-accent-ink'], '#ffffff')
+  }
+})
+
 test('升级沿用当前配色，旧系统和定时设置映射为独立外观模式', () => {
   assert.equal(api.getBaseThemeId({ 'theme.id': 'china_ink', 'theme.autoByTime': true }), 'china_ink')
   assert.equal(api.getBaseThemeId({ 'theme.id': 'auto', 'theme.lightId': 'pink', 'theme.darkId': 'black' }), 'pink')

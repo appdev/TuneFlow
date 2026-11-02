@@ -623,6 +623,7 @@
   "sync_qr_invalid": "The sync QR code is invalid or expired",
   "sync_qr_connecting": "Desktop sync details received. Connecting…",
   "theme_black": "Black",
+  "theme_yesplay": "Classic Blue & White",
   "theme_blue": "Blue",
   "theme_blue2": "Purple Blue",
   "theme_blue_plus": "Blue Plus",

@@ -184,5 +184,10 @@ defineExpose({ hideMenu: handleMenuClick })
 .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 
+.listsContent { padding: 16px 0; overflow-x: hidden; overflow-y: auto; }
+.listsItem { border-radius: 10px; margin-bottom: 8px; &.active { background: var(--tf-tint); color: var(--tf-accent); box-shadow: none; } }
+.listsLabel { min-height: 48px; padding: 8px 12px; box-sizing: border-box; line-height: 1.5; font-size: 14px; }
+.name { white-space: normal; overflow-wrap: anywhere; }
+.number { width: 20px; font-size: 12px; }
 </style>
 

@@ -19,29 +19,29 @@ export default memo(({ isHome = false, onOpenDetail }: { isHome?: boolean, onOpe
   const { keyboardShown } = useKeyboard()
   const autoHidePlayBar = useSettingValue('common.autoHidePlayBar')
   const musicInfo = usePlayerMusicInfo()
-  const { isCar, wide } = useAdaptiveLayout()
+  const { isCar, wide, phone } = useAdaptiveLayout()
   const [compact, setCompact] = useState(false)
   const artworkUri = musicInfo.pic?.startsWith('/') ? `file://${musicInfo.pic}` : musicInfo.pic
 
   const playerComponent = useMemo(() => (
     <GlassSurface
-      radius={Q_UI.radius.miniPlayer}
+      radius={phone ? 14 : Q_UI.radius.miniPlayer}
       onLayout={event => { setCompact(event.nativeEvent.layout.width < (isCar ? 480 : wide ? 390 : 330)) }}
-      style={[styles.container, wide && styles.wideContainer]}
+      style={[styles.container, wide && styles.wideContainer, phone && { marginHorizontal: 12, marginBottom: 0, borderRadius: 14 }]}
     >
-      {artworkUri ? <Image source={{ uri: artworkUri, headers: defaultHeaders }} resizeMode="cover" blurRadius={24} style={styles.ambientArt} /> : null}
+      {artworkUri && !phone ? <Image source={{ uri: artworkUri, headers: defaultHeaders }} resizeMode="cover" blurRadius={24} style={styles.ambientArt} /> : null}
       <View style={styles.topRow}>
-        {!compact ? <Pic isHome={isHome} onOpenDetail={onOpenDetail} /> : null}
+        {!compact || phone ? <Pic isHome={isHome} onOpenDetail={onOpenDetail} /> : null}
         <View style={[styles.trackInfo, compact && styles.compactInfo]}>
           <Title isHome={isHome} onOpenDetail={onOpenDetail} />
         </View>
-        <View style={[styles.controls, wide && { width: 196 }, isCar && { width: 232 }]}>
+        <View style={[styles.controls, wide && { width: 196 }, isCar && { width: 232 }, phone && { width: 88 }]}>
           <ControlBtn />
         </View>
       </View>
       <PlayInfo isHome={isHome} />
     </GlassSurface>
-  ), [artworkUri, isHome, compact, onOpenDetail, isCar, wide])
+  ), [artworkUri, isHome, compact, onOpenDetail, isCar, wide, phone])
 
   // console.log('render pb')
 

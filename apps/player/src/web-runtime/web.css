@@ -44,6 +44,9 @@ html.web #right::after { display: none; }
   html.web #right::before { display: none; }
 }
 
+/* Detail controls use viewport coordinates, so their backdrop must fill it too.
+   Restore the centered browsing canvas when the detail transition finishes. */
+html.web #root:has(.q-player-detail),
 html.web:fullscreen #root,
 html.web body:fullscreen #root,
 html.web #root:fullscreen {
@@ -52,3 +55,5 @@ html.web #root:fullscreen {
   margin-inline: 0;
   box-shadow: none;
 }
+
+html.web .q-player-detail { border-radius: 0; }

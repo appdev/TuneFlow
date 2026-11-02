@@ -10,15 +10,15 @@ import useAdaptiveLayout from '@/utils/hooks/useAdaptiveLayout'
 export default () => {
   const isPlay = useIsPlay()
   const colors = useGlassColors()
-  const { isCar, wide } = useAdaptiveLayout()
+  const { isCar, wide, phone } = useAdaptiveLayout()
   const targetSize = isCar ? 56 : wide ? 48 : 40
   const queueRef = useRef<PlayQueueType>(null)
   return <View style={styles.container}>
-    <TransportButton color={colors.primary} icon="prevMusic" label={global.i18n.t('play_prev')} size={targetSize} iconSize={isCar ? 25 : wide ? 21 : 17} onPress={() => { void playPrev() }} />
+    {!phone ? <TransportButton color={colors.primary} icon="prevMusic" label={global.i18n.t('play_prev')} size={targetSize} iconSize={isCar ? 25 : wide ? 21 : 17} onPress={() => { void playPrev() }} /> : null}
     <View style={[styles.primaryTarget, wide && { width: 52, height: 56 }, isCar && { width: 64, height: 64 }]}>
       <TransportButton color={colors.primary} icon={isPlay ? 'pause' : 'play'} label={global.i18n.t(isPlay ? 'pause' : 'play')} primary size={isCar ? 64 : wide ? 52 : 44} faceSize={isCar ? 48 : wide ? 38 : 30} iconSize={isCar ? 23 : wide ? 19 : 15} onPress={togglePlay} />
     </View>
-    <TransportButton color={colors.primary} icon="nextMusic" label={global.i18n.t('play_next')} size={targetSize} iconSize={isCar ? 25 : wide ? 21 : 17} onPress={() => { void playNext() }} />
+    {!phone ? <TransportButton color={colors.primary} icon="nextMusic" label={global.i18n.t('play_next')} size={targetSize} iconSize={isCar ? 25 : wide ? 21 : 17} onPress={() => { void playNext() }} /> : null}
     <TransportButton color={colors.primary} icon="menu" label={global.i18n.t('play_queue_title')} size={targetSize} iconSize={isCar ? 25 : wide ? 22 : 19} onPress={() => { queueRef.current?.show() }} />
     <PlayQueue ref={queueRef} />
   </View>

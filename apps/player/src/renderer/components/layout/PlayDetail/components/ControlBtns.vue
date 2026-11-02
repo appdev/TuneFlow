@@ -646,4 +646,9 @@ export default {
   }
 }
 
+.footerLeftControlBtns.detail {
+  button { color: var(--tf-ink); opacity: .8; &:hover { color: var(--tf-accent); background-color: var(--tf-tint) !important; box-shadow: none; } }
+  .footerLeftControlBtn.active { color: var(--tf-accent); background: var(--tf-tint); box-shadow: none; &:hover { color: var(--tf-accent); background-color: var(--tf-tint) !important; } }
+  .toolDivider { background: var(--tf-rule); }
+}
 </style>

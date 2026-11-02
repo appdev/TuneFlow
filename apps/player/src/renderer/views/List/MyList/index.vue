@@ -1,5 +1,5 @@
 <template>
-  <div ref="dom_lists" :class="$style.lists">
+  <div ref="dom_lists" class="tf-my-lists" :class="$style.lists">
     <div :class="$style.listHeader">
       <div :class="$style.titleRow">
         <h2 :class="$style.listsTitle">{{ $t('my_list') }}</h2>
@@ -247,6 +247,7 @@ export default {
       isShowNewList,
       isNewListLeave,
       handleCreateList,
+      handleImportList,
       handleListsItemRigthClick,
       isShowMenu,
       handleMenuClick,
@@ -547,4 +548,16 @@ export default {
 }
 
 
+.lists { width: 216px; border-radius: 0; border-right: 1px solid var(--tf-rule); padding-right: 24px; background: none; box-shadow: none; backdrop-filter: none; }
+.listHeader { padding: 0 0 16px; border-color: var(--tf-rule); gap: 16px; }
+.listsTitle { font-size: 14px; font-weight: 500; color: var(--tf-muted); }
+.listsAdd { min-width: 36px; min-height: 36px; color: var(--tf-accent); opacity: 1; }
+.importBtn { background: none; box-shadow: none; color: var(--tf-muted); padding: 0 8px; font-size: 13px; }
+.listsContent { padding: 16px 0; overflow-x: hidden; }
+.listsContent .listsItem { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.listsLabel { width: 100%; min-width: 0; max-width: 100%; }
+.listsItem { border-radius: 10px; &.active { background: var(--tf-tint); box-shadow: none; color: var(--tf-accent); &:before { display: none; } } }
+.listsLabel { min-height: 54px; padding: 8px; box-sizing: border-box; }
+@media (max-width: 900px) { .lists { width: 176px; padding-right: 16px; } }
+@media (max-width: 760px) { .lists { width: 144px; padding-right: 12px; } }
 </style>

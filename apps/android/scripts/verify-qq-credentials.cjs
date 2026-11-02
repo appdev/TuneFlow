@@ -9,12 +9,15 @@ function load(file, globals) {
   return context.exports
 }
 let rawCookie = ''
-const cookies = load('cookies.ts', { require: () => ({ NativeModules: { UtilsModule: { getWebCookie: async () => rawCookie } } }) })
+const credentials = load('qqCredentials.ts', {})
+const native = { NativeModules: { UtilsModule: { getWebCookie: async () => rawCookie } } }
+const imported = load('qqImportedSession.ts', { require: id => id === 'react-native' ? native : credentials })
+const cookies = load('cookies.ts', { require: id => id === 'react-native' ? native : id === './qqImportedSession' ? imported : credentials })
 for (const identifier of ['uin', 'qqmusic_uin', 'musicid']) {
   for (const key of ['qm_keyst', 'qqmusic_key', 'musickey']) {
     const fixture = { [identifier]: 'o00123456', [key]: 'fixture-token' }
     assert.equal(cookies.isQQLoginCookieValid(fixture), true)
-    assert.deepEqual({ ...cookies.getQQCredentials(fixture) }, { uin: '123456', authst: 'fixture-token' })
+    assert.deepEqual({ ...cookies.getQQCredentials(fixture) }, { uin: '123456', authst: 'fixture-token', isWeChat: false, tmeLoginType: 2 })
   }
 }
 for (const fixture of [{}, { uin: '123456', skey: 'qq-only' }, { uin: '0', qm_keyst: 'fixture' }, { qqmusic_uin: 'abc', qqmusic_key: 'fixture' }, { uin: '123456', qqmusic_key: ' ' }]) {
@@ -22,7 +25,7 @@ for (const fixture of [{}, { uin: '123456', skey: 'qq-only' }, { uin: '0', qm_ke
 }
 let requestBody
 const qq = load('qq.ts', {
-  require: () => cookies, AbortController, setTimeout, clearTimeout,
+  require: id => id === './qqCredentials' ? credentials : cookies, AbortController, setTimeout, clearTimeout,
   fetch: async (_url, request) => {
     requestBody = JSON.parse(request.body)
     return { ok: true, json: async () => ({ code: 0, url: { code: 0, data: { sip: ['https://audio.example.test/'], midurlinfo: [{ filename: requestBody.url.param.filename[0], purl: 'fixture.mp3' }] } } }) }

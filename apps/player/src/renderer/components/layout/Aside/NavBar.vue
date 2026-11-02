@@ -1,5 +1,5 @@
 <template>
-  <div ref="dom_menu" :class="$style.menu">
+  <div ref="dom_menu" :class="[$style.menu, { [$style.horizontal]: horizontal }]" data-tf-navigation :data-tf-utilities="section === 'tools' ? '' : undefined">
     <ul ref="dom_list" :class="$style.list" role="toolbar">
       <li
         v-show="indicator.height > 0"
@@ -9,7 +9,7 @@
         aria-hidden="true"
       />
       <li v-for="item in menus" :key="item.to" :class="$style.navItem" role="presentation">
-        <router-link :class="[$style.link, {[$style.active]: $route.meta.name == item.name}]" role="tab" :aria-selected="$route.meta.name == item.name" :to="item.to" :aria-label="item.tips">
+        <router-link :class="[$style.link, {[$style.active]: $route.meta.name == item.name}]" role="tab" :aria-selected="$route.meta.name == item.name" :to="item.to" :aria-label="item.tips" :title="item.tips" :data-nav-name="item.name">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
             <path :d="item.icon" />
           </svg>
@@ -27,7 +27,8 @@ import { useRoute } from '@common/utils/vueRouter'
 
 export default {
   name: 'NavBar',
-  setup() {
+  props: { horizontal: Boolean, section: { type: String, default: 'all' } },
+  setup(props: { horizontal: boolean, section: string }) {
     const t = useI18n()
     const dom_menu = ref<HTMLElement>()
     const dom_list = ref<HTMLElement>()
@@ -76,7 +77,7 @@ export default {
           enable: true,
           name: 'Setting',
         },
-      ].filter(m => m.enable)
+      ].filter(m => m.enable && (props.section === 'all' || (props.section === 'tools' ? ['Download', 'Setting'].includes(m.name) : !['Download', 'Setting'].includes(m.name))))
     })
     const route = useRoute()
     const activeIndex = computed(() => menus.value.findIndex(m => m.name == route.meta.name))
@@ -221,5 +222,39 @@ export default {
 
 @media (prefers-reduced-motion: reduce) {
   .indicatorReady, .link { transition: none; }
+}
+.horizontal {
+  flex: 0 1 auto;
+  min-width: 0;
+  .list { flex-direction: row; align-items: center; gap: 8px; }
+  .indicator { display: none; }
+  .link {
+    width: auto;
+    height: 44px;
+    padding: 0 16px;
+    color: var(--tf-muted);
+    border-radius: 10px;
+    background: transparent;
+    svg { display: none; }
+    span { font-size: 16px; font-weight: 600; }
+    &.active { color: var(--tf-accent); background: var(--tf-tint); }
+    &:hover:not(.active) { color: var(--tf-ink); background: var(--tf-surface); }
+    &[data-nav-name='Download'], &[data-nav-name='Setting'] {
+      width: 44px;
+      padding: 0;
+      justify-content: center;
+      svg { display: block; }
+      span { display: none; }
+    }
+  }
+  @media (max-width: 1100px) {
+    .list { gap: 4px; }
+    .link { padding: 0 10px; span { font-size: 14px; } }
+  }
+  @media (max-width: 760px) {
+    width: 100%;
+    .list { justify-content: space-between; gap: 0; }
+    .link { padding: 0 8px; }
+  }
 }
 </style>

@@ -23,6 +23,7 @@ function mountDownloads() {
   }
   const dependencies = {
     vue,
+    '@renderer/utils/compositions/useTrackRowHeight': { default: () => ({ value: 56 }) },
     './session': { getWorkspace: () => ({ client }), LIBRARY_ID: 'service_library' },
     '@renderer/store/setting': { appSetting: { 'common.fontSize': 14 } },
     '@renderer/store': { isFullscreen: { value: false } },

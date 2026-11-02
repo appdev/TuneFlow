@@ -7,7 +7,10 @@ module.exports = function readSource(filename) {
     if (visited.has(filename)) throw Error('Circular source facade')
     visited.add(filename)
     const source = fs.readFileSync(filename, 'utf8')
-    const redirect = /^export \* from ['"]([^'"]+)['"]/m.exec(source)
+    // Follow only a pure facade. Mixed barrels also contain implementation that
+    // must remain visible to the VM loader and its injected dependencies.
+    const runtimeSource = source.replace(/^(?:import|export) type [^\n]+$/gm, '')
+    const redirect = /^\s*export \* from ['"]([^'"]+)['"];?\s*$/.exec(runtimeSource)
     if (!redirect) return source
     filename = path.resolve(path.dirname(filename), redirect[1] + '.ts')
   }

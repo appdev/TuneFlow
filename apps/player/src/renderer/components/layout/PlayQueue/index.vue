@@ -70,7 +70,7 @@
             v-slot="{ item, index }"
             :class="$style.list"
             :list="currentList"
-            :item-height="56"
+            :item-height="trackRowHeight"
             key-name="id"
             container-class="scroll"
           >
@@ -143,6 +143,9 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from '@common/utils/vueTools'
 import { LIST_IDS } from '@common/constants'
+import useTrackRowHeight from '@renderer/utils/compositions/useTrackRowHeight'
+
+const trackRowHeight = useTrackRowHeight()
 import { play, pause, playList, playTempListByIndex } from '@renderer/core/player'
 import { useI18n } from '@renderer/plugins/i18n'
 import { getListMusics } from '@renderer/store/list/action'

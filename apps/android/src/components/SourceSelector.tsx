@@ -17,6 +17,7 @@ export interface SourceSelectorProps<S extends Sources> {
   center?: _DorpDownMenuProps<any>['center']
   plain?: boolean
   iconOnly?: boolean
+  labelOnly?: boolean
   onSourceChange: (source: S[number]) => void
 }
 
@@ -39,7 +40,7 @@ export const useSourceListI18n = (list: Sources) => {
   }, [list, t])
 }
 
-const Component = <S extends Sources>({ fontSize = 15, center, plain = false, iconOnly = false, onSourceChange }: SourceSelectorProps<S>, ref: Ref<SourceSelectorType<S>>) => {
+const Component = <S extends Sources>({ fontSize = 15, center, plain = false, iconOnly = false, labelOnly = false, onSourceChange }: SourceSelectorProps<S>, ref: Ref<SourceSelectorType<S>>) => {
   const [list, setList] = useState([] as unknown as S)
   // Do not assume a provider before the async source list arrives. Rendering
   // a hard-coded Kuwo mark here made the Android header briefly show the wrong
@@ -89,10 +90,11 @@ const Component = <S extends Sources>({ fontSize = 15, center, plain = false, ic
         ...(iconOnly ? styles.iconSourceButton : plain ? styles.plainSourceButton : styles.sourceButton),
         backgroundColor: plain ? 'transparent' : theme['q-surface-base'],
         borderColor: plain ? 'transparent' : theme['q-outline'],
+        ...(labelOnly ? { width: 96, minWidth: 96 } : {}),
       }}
     >
       <View style={iconOnly ? styles.iconSourceMenu : plain ? styles.plainSourceMenu : styles.sourceMenu}>
-        <SourceLogo source={currentSource} size={24} disabled={!source} />
+        {!labelOnly ? <SourceLogo source={currentSource} size={24} disabled={!source} /> : null}
         {!iconOnly
           ? <Text style={{ ...styles.sourceText, textAlign: center ? 'center' : 'left' }} numberOfLines={1} ellipsizeMode="tail" size={fontSize}>{sourceLabel}</Text>
           : null}

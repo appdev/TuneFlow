@@ -11,6 +11,7 @@ import Text from '@/components/common/Text'
 import ContentState from '@/components/common/ContentState'
 import ListSkeleton from '@/components/common/ListSkeleton'
 import { useDockInset } from '@/components/common/DockInset'
+import useAdaptiveLayout from '@/utils/hooks/useAdaptiveLayout'
 
 type FlatListType = FlatListProps<ListInfoItem>
 
@@ -29,6 +30,8 @@ export interface ListType {
 export default forwardRef<ListType, ListProps>(({ onRefresh, onLoadMore, onOpenDetail }, ref) => {
   const flatListRef = useRef<FlatList>(null)
   const dockInset = useDockInset()
+  const { phone, width } = useAdaptiveLayout()
+  const coverSize = phone ? Math.floor((width - 54) / 2) : undefined
   const [currentList, setList] = useState<ListInfoItem[]>([])
   const [showSource, setShowSource] = useState(false)
   const [status, setStatus] = useState<Status>('idle')
@@ -57,6 +60,7 @@ export default forwardRef<ListType, ListProps>(({ onRefresh, onLoadMore, onOpenD
       index={index}
       showSource={showSource}
       onPress={onOpenDetail}
+      coverSize={coverSize}
     />
   )
   const getkey: FlatListType['keyExtractor'] = item => item.id
@@ -112,16 +116,19 @@ export default forwardRef<ListType, ListProps>(({ onRefresh, onLoadMore, onOpenD
   return (
     <View style={styles.container}>
       <FlatList
+        key={phone ? `phone-grid-${coverSize}` : 'catalog-list'}
+        numColumns={phone ? 2 : 1}
+        columnWrapperStyle={phone ? { gap: 14 } : undefined}
         ref={flatListRef}
         style={styles.list}
-        contentContainerStyle={[styles.listContent, { paddingBottom: 8 + dockInset }]}
+        contentContainerStyle={[styles.listContent, phone && { paddingHorizontal: 20 }, { paddingBottom: 8 + dockInset }]}
         data={currentList}
         maxToRenderPerBatch={10}
         windowSize={8}
         removeClippedSubviews={true}
         renderItem={renderItem}
         keyExtractor={getkey}
-        getItemLayout={getItemLayout}
+        getItemLayout={phone ? undefined : getItemLayout}
         onEndReachedThreshold={0.6}
         onEndReached={handleLoadMore}
         refreshControl={refreshControl}

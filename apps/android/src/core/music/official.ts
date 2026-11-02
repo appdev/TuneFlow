@@ -5,6 +5,14 @@ import { getQQRequestComm } from '@/core/musicAccount/qqCredentials'
 
 const officialUrlCache = new Map<string, { url: string, quality: LX.Quality, expiresAt: number }>()
 
+interface QQUrlResponse {
+  url?: { code?: number, data?: { sip?: string[], midurlinfo?: Array<{ filename?: string, purl?: string }> } }
+}
+interface NeteaseUrlResponse {
+  code?: number
+  data?: Array<{ code?: number, url?: string }>
+}
+
 const getQualityFallbacks = (quality: LX.Quality): LX.Quality[] => {
   switch (quality) {
     case 'flac24bit': return ['flac24bit', 'flac', '320k', '128k']
@@ -63,7 +71,7 @@ const getQQMusicUrl = async(musicInfo: LX.Music.MusicInfo_tx, quality: LX.Qualit
       },
     },
   })
-  const { body } = await request.promise
+  const { body } = await request.promise as { body: QQUrlResponse }
   if (body?.url?.code != null && body.url.code != 0) return null
   const sip = body?.url?.data?.sip?.find(Boolean) ?? ''
   const urlInfos: Array<{ filename?: string, purl?: string }> = body?.url?.data?.midurlinfo ?? []
@@ -113,7 +121,7 @@ const getQQMusicUrlGuest = async(musicInfo: LX.Music.MusicInfo_tx, quality: LX.Q
       },
     },
   })
-  const { body } = await request.promise
+  const { body } = await request.promise as { body: QQUrlResponse }
   if (body?.url?.code != null && body.url.code != 0) return null
   const sip = body?.url?.data?.sip?.find(Boolean) ?? ''
   const urlInfos: Array<{ filename?: string, purl?: string }> = body?.url?.data?.midurlinfo ?? []
@@ -162,7 +170,7 @@ const getNeteaseMusicUrl = async(musicInfo: LX.Music.MusicInfo_online_common, qu
         encodeType: 'flac',
       }),
     })
-    const { body } = await request.promise
+    const { body } = await request.promise as { body: NeteaseUrlResponse }
     const item = body?.data?.[0]
     if (body?.code == 200 && item?.code == 200 && item.url) {
       return { url: item.url as string, quality: candidate as LX.Quality }

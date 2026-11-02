@@ -18,6 +18,8 @@ const api = h.load('core/musicAccount/daily.ts', {
     },
   },
   './cookies': h.cookies,
+  './kugou': {},
+  '@/utils/musicSdk/kg/songList': {},
   './requests': h.requests,
   '@/utils/musicSdk/tx/songList': h.qq,
   '@/utils/musicSdk/wy/songList': h.wy,

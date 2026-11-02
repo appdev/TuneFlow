@@ -40,6 +40,17 @@ TUNEFLOW_WEB_ROOT="$PWD/apps/service/dist/web-qmusic" npm run start:server
 
 也可运行 `npm --prefix apps/player run build:web`，输出 `apps/player/dist/web-client`。根命令 `npm run build:service` 保留旧 Web 与服务的开发构建，不能替代共享 Vue Web 构建；Docker 不使用该入口。
 
+### 本地页面连接已有 Service
+
+验收本地界面时，可将静态页面与真实 API 放在一个本地 origin，无需替换远端部署：
+
+```sh
+npm --prefix apps/player run build:web
+TUNEFLOW_WEB_SERVICE_ORIGIN=http://127.0.0.1:3124 npm --prefix apps/player run preview:web
+```
+
+打开 `http://127.0.0.1:39745`。预览仅监听本机，透传 `/api/v1/`、客户端身份请求头和媒体 Range 响应，不替换数据或注入模拟账号。页面中的操作会作用于真实 Service。可用 `TUNEFLOW_WEB_PREVIEW_ROOT` 指定已保存的构建，`TUNEFLOW_WEB_PREVIEW_PORT` 指定本地端口。Service 停止时返回连接错误，不回退到演示数据。
+
 ## Docker 默认构建与可选覆盖
 
 根目录 [Dockerfile](../../../Dockerfile) 仅构建共享 Vue Web：

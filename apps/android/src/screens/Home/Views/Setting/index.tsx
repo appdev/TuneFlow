@@ -1,5 +1,6 @@
 import Vertical from './Vertical'
 import Horizontal from './Horizontal'
+import Phone from './Phone'
 import useAdaptiveLayout from '@/utils/hooks/useAdaptiveLayout'
 import { useBackHandler } from '@/utils/hooks/useBackHandler'
 import { useCallback } from 'react'
@@ -10,7 +11,7 @@ import { setNavActiveId } from '@/core/common'
 export type { SettingScreenIds } from './Main'
 
 export default () => {
-  const { wide } = useAdaptiveLayout()
+  const { wide, phone } = useAdaptiveLayout()
   useBackHandler(useCallback(() => {
     if (Object.keys(commonState.componentIds).length == 1 && commonState.navActiveId == 'nav_setting') {
       setNavActiveId(commonState.lastNavActiveId)
@@ -19,5 +20,5 @@ export default () => {
     return false
   }, []))
 
-  return wide ? <Horizontal /> : <Vertical />
+  return phone ? <Phone /> : wide ? <Horizontal /> : <Vertical />
 }

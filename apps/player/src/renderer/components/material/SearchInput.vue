@@ -1,11 +1,12 @@
 <template>
-  <div :class="$style.container">
-    <div :class="[$style.search, {[$style.active]: focus}, {[$style.big]: big}, {[$style.small]: small}]">
-      <div :class="$style.form">
+  <div :class="['tf-material-search', $style.container]">
+    <div :class="['tf-search-frame', $style.search, {[$style.active]: focus}, {[$style.big]: big}, {[$style.small]: small}]">
+      <div :class="['tf-search-form', $style.form]">
         <input
           ref="dom_input"
           v-model.trim="text"
           :placeholder="placeholder"
+          :aria-label="placeholder"
           @focus="handleFocus"
           @blur="handleBlur"
           @input="$emit('update:modelValue', text)"
@@ -29,6 +30,7 @@
               <use xlink:href="#icon-search" />
             </svg>
           </slot>
+          <span v-if="showSubmitLabel">{{ $t('search') }}</span>
         </button>
       </div>
       <div v-if="list" :class="$style.list" :style="listStyle">
@@ -55,6 +57,7 @@ import { appSetting } from '@renderer/store/setting'
 
 export default {
   props: {
+    showSubmitLabel: Boolean,
     placeholder: {
       type: String,
       default: 'Search for something...',

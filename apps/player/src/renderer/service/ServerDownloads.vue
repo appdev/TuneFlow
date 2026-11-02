@@ -1,13 +1,11 @@
 <template>
-  <section :class="$style.page">
+  <section class="tf-downloads" :class="$style.page">
+    <header class="tf-workspace-heading"><div><h1>下载</h1><p>音乐下载完成后，在音乐库继续收听。</p></div><div class="tf-workspace-actions"><button :disabled="busy" @click="load">刷新任务</button><router-link to="/setting?name=SettingDownload">下载设置</router-link></div></header>
     <div :class="$style.table">
       <header :class="$style.toolbar">
-        <h2><svg aria-hidden="true" viewBox="0 0 425.2 425.2"><use xlink:href="#icon-download-2" /></svg>下载</h2>
+        <h2>下载任务</h2>
         <span :class="$style.count">共 {{ tasks.length }} 个任务</span>
-        <button :disabled="busy" @click="load">刷新任务</button>
-        <router-link to="/setting?name=SettingDownload">下载设置</router-link>
       </header>
-      <p :class="$style.hint">下载完成后可在“我的音乐 → 音乐库”播放；移除任务记录会保留已下载的文件。</p>
       <p v-if="error" role="alert">{{ error }}</p>
       <div :class="[$style.row, $style.head, 'scroll']" aria-hidden="true">
         <span :class="$style.index">#</span><span>歌曲名</span><span :class="$style.artist">艺术家</span><span>下载状态</span><span :class="$style.actionHeading">操作</span>
@@ -17,10 +15,11 @@
         <article :class="[$style.row, $style.task, { [$style.running]: task.status === 'running' }]" :aria-label="`${task.musicInfo.name}，${labels[task.status]}`">
           <span :class="$style.index">{{ index + 1 }}</span>
           <div :class="$style.song">
-            <div :class="$style.title" :title="task.musicInfo.name">
+            <img v-if="task.musicInfo.meta?.picUrl" :class="$style.cover" :src="task.musicInfo.meta.picUrl" alt="" loading="lazy" @error="$event.target.style.visibility = 'hidden'">
+            <div :class="$style.songCopy"><div :class="$style.title" :title="task.musicInfo.name">
               <strong>{{ task.musicInfo.name || '未知歌曲' }}</strong>
             </div>
-            <span :class="$style.mobileArtist">{{ task.musicInfo.singer || '未知艺术家' }}</span>
+            <span :class="$style.mobileArtist">{{ task.musicInfo.singer || '未知艺术家' }}</span></div>
           </div>
           <span :class="[$style.artist, $style.ellipsis]" :title="task.musicInfo.singer">{{ task.musicInfo.singer || '—' }}</span>
           <div :class="$style.status" :data-status="task.status">
@@ -39,14 +38,13 @@
           </div>
         </article>
       </base-virtualized-list>
+      <p :class="$style.hint">移除任务记录会保留已下载的文件。</p>
     </div>
   </section>
 </template>
 <script setup lang="ts">
-import { ref, shallowRef, computed, onMounted, onActivated, onDeactivated, onBeforeUnmount } from 'vue'
-import { appSetting } from '@renderer/store/setting'
-import { isFullscreen } from '@renderer/store'
-import { getFontSizeWithScreen } from '@renderer/utils'
+import { ref, shallowRef, onMounted, onActivated, onDeactivated, onBeforeUnmount } from 'vue'
+import useTrackRowHeight from '@renderer/utils/compositions/useTrackRowHeight'
 import { getWorkspace, LIBRARY_ID } from './session'
 import { type DownloadDto } from './client'
 import { dialog } from '@renderer/plugins/Dialog'
@@ -54,7 +52,7 @@ import { dialog } from '@renderer/plugins/Dialog'
 defineOptions({ name: 'ServerDownloads' })
 
 const tasks = shallowRef<DownloadDto[]>([])
-const taskRowHeight = computed(() => Math.max(44, Math.ceil((isFullscreen.value ? getFontSizeWithScreen() : appSetting['common.fontSize']) * 3)))
+const taskRowHeight = useTrackRowHeight()
 const progress = (value: number) => Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : 0
 const busy = ref(false)
 const error = ref('')
@@ -187,4 +185,27 @@ onBeforeUnmount(stop)
   .actions { flex-direction: column; gap: 0; button, a { padding: 0 .4em; } }
   .quality { display: none; }
 }
+.page { padding: 32px 0 0; gap: 32px; color: var(--tf-ink); }
+.table { border: 0; border-radius: 0; background: none; box-shadow: none; }
+.toolbar { padding: 0 0 20px; h2 { font-size: 20px; } }
+.count { color: var(--tf-muted); font-size: 14px; }
+.hint { padding: 16px 0; opacity: 1; color: var(--tf-muted); font-size: 14px; }
+.head { padding-inline: 12px; border-top: 0; border-bottom: 1px solid var(--tf-rule); min-height: 44px; color: var(--tf-muted); }
+.task { margin: 0; padding-inline: 12px; height: 100%; border: 0; border-bottom: 1px solid var(--tf-rule); border-radius: 0; }
+.running { background: none; }
+.song { display: flex; align-items: center; gap: 12px; }
+.songCopy { min-width: 0; }
+.cover { width: 44px; height: 44px; object-fit: cover; flex: none; border-radius: 6px; }
+.mobileArtist { display: block; font-size: 13px; color: var(--tf-muted); margin-top: 6px; }
+.row { grid-template-columns: 44px minmax(0, 2fr) minmax(0, 1fr) minmax(7.5em, 1.2fr) 9em; }
+.title strong { font-weight: 500; color: var(--tf-ink); }
+.actions { font-size: 14px; }
+.quality, .detail, .percentage { color: var(--tf-muted); }
+.status[data-status='running'], .status[data-status='completed'] { color: var(--tf-accent); }
+.statusLabel { font-size: 14px; }
+.empty { opacity: 1; color: var(--tf-muted); }
+.page :global(.tf-workspace-actions) { button, a { min-height: 44px; box-sizing: border-box; padding: 8px 16px; border-radius: 10px; background: var(--tf-surface); display: inline-flex; align-items: center; } }
+@container (max-width: 680px) { .row { grid-template-columns: minmax(0, 1fr) 7.5em 7.5em; } .cover { display: none; } }
+@container (max-width: 440px) { .row { grid-template-columns: minmax(0, 1fr) 6em 3.6em; } }
+@media (max-width: 760px) { .page { padding-top: 24px; gap: 24px; } }
 </style>

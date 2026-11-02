@@ -819,4 +819,76 @@ const handleImgError = () => {
     }
   }
 }
+.footer, .footer.detailFooter {
+  position: relative;
+  inset: auto;
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(280px, 1.25fr) minmax(240px, 1fr);
+  column-gap: 24px;
+  width: 100%;
+  height: 104px;
+  flex: 0 0 104px;
+  margin: 0;
+  padding: 8px max(var(--tf-gutter), calc((100% - var(--tf-page-width)) / 2 + var(--tf-gutter)));
+  border: 0;
+  border-radius: 0;
+  background: var(--tf-paper);
+  color: var(--tf-ink);
+  box-shadow: none;
+  backdrop-filter: none;
+  pointer-events: auto;
+  &::before { display: none; }
+  .trackInfo { display: flex; width: 100%; height: 64px; color: var(--tf-ink); gap: 12px; }
+  .coverBtn { width: 56px; height: 56px; border: 0; border-radius: 8px; box-shadow: none; background: var(--tf-surface); &:hover, &:active { transform: none; box-shadow: none; } }
+  .coverPlaceholder { color: var(--tf-muted); }
+  .trackTitle { font-size: 14px; color: var(--tf-ink); }
+  .trackMeta { font-size: 12px; color: var(--tf-muted); margin-top: 4px; }
+  .centerControl, .toolArea {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    max-width: 100%;
+    height: 64px;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    color: var(--tf-ink);
+    box-shadow: none;
+    backdrop-filter: none;
+    transform: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto;
+    &::before { display: none; }
+  }
+  .playControl { height: 40px; gap: 12px; color: var(--tf-ink); }
+  .playBtn { width: 36px; height: 36px; opacity: 1; color: var(--tf-ink); svg { width: 20px; height: 20px; filter: none; } &:hover { transform: none; color: var(--tf-accent); } }
+  .playBtnPrimary { width: 40px; height: 40px; color: var(--tf-paper); background: var(--tf-ink); svg { width: 24px; height: 24px; } &:hover { color: var(--tf-paper); background: var(--tf-muted); transform: none; } }
+  .progressRow { width: 100%; grid-template-columns: 36px minmax(0, 1fr) 36px; gap: 8px; margin-top: 4px; }
+  .timeLabel, .progressRow .timeLabel:first-child { color: var(--tf-muted); font-size: 12px; font-weight: 400; }
+  .progress { --q-progress-track-color: var(--tf-rule); --q-progress-bar-color: var(--tf-accent); --q-progress-drag-color: var(--tf-accent); box-shadow: none; }
+  .toolArea { overflow-x: auto; overflow-y: hidden; justify-content: flex-end; scrollbar-width: thin; gap: 4px; }
+  .tools { flex: 0 0 auto; width: max-content; flex-wrap: nowrap; color: var(--tf-ink); }
+  .queueBtn { flex: none; width: 36px; height: 36px; color: var(--tf-muted); &:hover, &.active { background: var(--tf-tint); color: var(--tf-accent); } }
+  .queueBadge { color: var(--tf-accent-ink); background: var(--tf-accent); border-color: var(--tf-paper); }
+}
+@media (max-width: 1050px) {
+  .footer, .footer.detailFooter { grid-template-columns: minmax(120px, 1fr) minmax(240px, 1.2fr) minmax(160px, 1fr); gap: 16px; .toolArea { justify-content: flex-start; } }
+}
+@media (max-width: 760px) {
+  .footer, .footer.detailFooter {
+    height: 132px; flex-basis: 132px; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); grid-template-rows: 64px 44px; gap: 8px 12px;
+    .toolArea { grid-column: 1 / -1; height: 44px; justify-content: flex-start; }
+    .trackInfo { gap: 8px; }
+    .coverBtn { width: 44px; height: 44px; }
+    .trackTitle { font-size: 12px; }
+    .playControl { gap: 4px; }
+    .playBtn { width: 32px; height: 32px; }
+    .playBtnPrimary { width: 36px; height: 36px; }
+    .progressRow { gap: 4px; grid-template-columns: 32px minmax(0, 1fr) 32px; }
+    .timeLabel { font-size: 10px; }
+  }
+}
 </style>

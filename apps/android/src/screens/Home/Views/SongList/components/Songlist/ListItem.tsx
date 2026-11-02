@@ -10,11 +10,12 @@ import Button from '@/components/common/Button'
 
 export const ITEM_HEIGHT = 92
 
-export default memo(({ item, index, showSource, onPress }: {
+export default memo(({ item, index, showSource, onPress, coverSize }: {
   item: ListInfoItem
   index: number
   showSource: boolean
   onPress: (item: ListInfoItem, index: number) => void
+  coverSize?: number
 }) => {
   const theme = useTheme()
   const handlePress = () => {
@@ -26,22 +27,23 @@ export default memo(({ item, index, showSource, onPress }: {
   return (
     <Button
       accessibilityLabel={item.name}
-      style={styles.item}
+      style={[styles.item, coverSize ? { width: coverSize, height: coverSize + 92, marginHorizontal: 0, flexDirection: 'column', alignItems: 'stretch' } : null]}
       onPress={handlePress}
     >
       <View
         style={{
           ...styles.cover,
           backgroundColor: theme['q-surface-tint'],
+          ...(coverSize ? { width: coverSize, height: coverSize, borderRadius: 14 } : {}),
         }}
       >
         <Image
           url={item.img}
           nativeID={`${NAV_SHEAR_NATIVE_IDS.songlistDetail_pic}_from_${item.id}`}
-          style={styles.coverImage}
+          style={[styles.coverImage, coverSize ? { width: coverSize, height: coverSize } : null]}
         />
       </View>
-      <View style={styles.content}>
+      <View style={[styles.content, coverSize ? { paddingLeft: 0, paddingTop: 8, flex: 0 } : null]}>
         <ListText style={styles.title} numberOfLines={2}>
           {item.name}
         </ListText>

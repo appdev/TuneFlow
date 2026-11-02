@@ -1,7 +1,7 @@
 <template lang="pug">
 transition(enter-active-class="q-detail-enter-active" leave-active-class="q-detail-leave-active" @after-enter="handleAfterEnter" @after-leave="handleAfterLeave")
-  div(v-if="isShowPlayerDetail" :class="[$style.container, appSetting['playDetail.style.layout'] == 'immersive' ? $style.immersive : $style.classic, { fullscreen: isFullscreen }]" @contextmenu="handleContextMenu")
-    div(:class="$style.bg" :style="detailBgStyle")
+  div(v-if="isShowPlayerDetail" :data-cover-layout="appSetting['playDetail.style.layout']" :class="['q-player-detail', $style.container, appSetting['playDetail.style.layout'] == 'immersive' ? $style.immersive : $style.classic, { fullscreen: isFullscreen }]" @contextmenu="handleContextMenu")
+    div(:class="['tf-detail-backdrop', $style.bg]" :style="detailBgStyle")
     //- div(:class="$style.bg" :style="bgStyle")
     //- div(:class="$style.bg2")
     ControlBtnsLeftHeader(v-if="!isMac && appSetting['common.controlBtnPosition'] == 'left'" :detail-action-enabled="appSetting['playDetail.style.layout'] != 'immersive'")
@@ -9,10 +9,10 @@ transition(enter-active-class="q-detail-enter-active" leave-active-class="q-deta
     button(type="button" :class="$style.detailBackBtn" :aria-label="$t('player__hide_detail_tip')" @click="hide")
       svg(viewBox="0 0 24 24" aria-hidden="true")
         path(d="M6.5 9.5 12 15l5.5-5.5")
-    div(ref="dom_main" :class="[$style.main, {[$style.showComment]: isCommentLayoutVisible, [$style.commentOpening]: isCommentLayoutOpening, [$style.commentGliding]: isCommentLayoutGliding, [$style.commentClosing]: isCommentLayoutClosing, [$style.commentSettling]: isCommentLayoutSettling}]" :style="mainStyle")
+    div(ref="dom_main" :class="['tf-detail-main', $style.main, {[$style.showComment]: isCommentLayoutVisible, [$style.commentOpening]: isCommentLayoutOpening, [$style.commentGliding]: isCommentLayoutGliding, [$style.commentClosing]: isCommentLayoutClosing, [$style.commentSettling]: isCommentLayoutSettling}]" :style="mainStyle")
       div.left(:class="$style.left")
         div(ref="dom_record" :class="['q-album-stage', $style.albumStage, { [$style.albumStagePlaying]: isPlay }]")
-          div(:class="$style.record")
+          div(:class="['tf-record', $style.record]")
             img(v-if="musicInfo.pic" :key="musicInfo.pic" :class="$style.img" :src="musicInfo.pic")
             div(v-else :class="$style.emptyCover")
               EmptyCoverMark(:class="$style.emptyCoverMark")
@@ -1464,4 +1464,22 @@ export default {
   }
 }
 
+.container {
+  background: var(--tf-paper);
+  color: var(--tf-ink);
+  border-radius: 0;
+  .bg { display: none; }
+  .detailBackBtn { color: var(--tf-muted); background: transparent; border: 0; border-radius: 10px; box-shadow: none; backdrop-filter: none; &:hover { color: var(--tf-ink); background: var(--tf-surface); transform: none; } }
+  .metadataLink:hover { color: var(--tf-accent); }
+  .description { padding: 0; color: var(--tf-muted); p { color: var(--tf-muted); &:first-child { color: var(--tf-ink); font-size: 24px; } } }
+  .emptyCover { background: var(--tf-surface); color: var(--tf-muted); }
+}
+.immersive {
+  .main:not(.showComment) { max-width: var(--tf-page-width); width: calc(100% - 96px); margin: 0 auto; padding: 80px 40px 128px; gap: 96px; }
+  .main:not(.showComment) .left { flex: 0 1 440px; align-items: flex-start; }
+  .albumStage { width: min(100%, 440px); &:before { display: none; } &:hover { transform: none; filter: none; } }
+  .record { border-radius: var(--tf-radius); border: 0; box-shadow: none; background: var(--tf-surface); &:before { display: none; } }
+}
+@media (max-width: 1050px) { .immersive .main:not(.showComment) { width: calc(100% - 48px); gap: 40px; padding-inline: 0; } .immersive .main:not(.showComment) .left { flex-basis: 40%; } }
+@media (max-width: 760px) { .immersive .main:not(.showComment) { width: calc(100% - 32px); padding: 64px 0 144px; gap: 24px; } .immersive .main:not(.showComment) .left { flex-basis: 36%; } }
 </style>

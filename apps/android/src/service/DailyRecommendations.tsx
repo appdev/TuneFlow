@@ -14,7 +14,8 @@ import { useTheme } from '@/store/theme/hook'
 import { Q_TOUCH_HIT_SLOP, Q_UI } from '@/theme/ui'
 import { createStyle, toast } from '@/utils/tools'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AppState, FlatList, InteractionManager, Modal, SafeAreaView, ScrollView, View } from 'react-native'
+import { Alert, AppState, FlatList, InteractionManager, Modal, SafeAreaView, ScrollView, View } from 'react-native'
+import PhoneHomeShortcuts from '@/components/PhoneHomeShortcuts'
 import { Icon } from '@/components/common/Icon'
 import DailyArtwork from '@/screens/Home/Views/Search/BlankView/DailyArtwork'
 import Skeleton from '@/components/common/Skeleton'
@@ -30,7 +31,8 @@ const MODE_KEY = '@qmusic_service_daily_mode'
 export default () => {
   const t = useI18n()
   const theme = useTheme()
-  const { wide } = useAdaptiveLayout()
+  const { wide, phone, width } = useAdaptiveLayout()
+  const phoneCoverSize = Math.floor((width - 54) / 2)
   const isPlay = useIsPlay()
   const playMusicInfo = usePlayMusicInfo()
   const sourceRef = useRef<DailySource>('tx')
@@ -190,13 +192,25 @@ export default () => {
         ...styles.container,
         backgroundColor: theme['q-surface-raised'],
         borderColor: theme['q-outline'],
+        ...(phone ? { borderWidth: 0, borderRadius: 0, paddingHorizontal: 0, paddingTop: 0, backgroundColor: theme['q-surface-base'] } : {}),
       }}
     >
-      <View style={styles.providerBar}>
+      {phone ? <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+        <Button accessibilityLabel="选择推荐平台" style={{ flex: 1, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6 }} onPress={() => { Alert.alert('选择推荐平台', undefined, [...(['tx', 'wy', 'kg', 'server'] as const).map(source => ({ text: source === 'server' ? '推荐' : t(source === 'tx' ? 'setting_music_account_qq' : source === 'kg' ? 'setting_music_account_kugou' : 'setting_music_account_netease'), onPress: () => { void changeProvider(source) } })), { text: t('cancel'), style: 'cancel' }]) }}><Text size={13} color={theme['q-text-primary']}>{provider === 'server' ? '推荐' : t(provider === 'tx' ? 'setting_music_account_qq' : provider === 'kg' ? 'setting_music_account_kugou' : 'setting_music_account_netease')}</Text><Icon name="chevron-down" rawSize={14} color={theme['q-text-secondary']} /></Button>
+        <Button accessibilityLabel={t('daily_refresh')} disabled={loading || startingPlayback} style={styles.settingsButton} onPress={() => { void load(sourceRef.current, true) }}><Icon name="available_updates" rawSize={18} color={theme['q-text-secondary']} /></Button>
+        <Button accessibilityLabel={t('daily_settings')} style={styles.settingsButton} onPress={openAccount}><Icon name="slider" rawSize={18} color={theme['q-text-secondary']} /></Button>
+      </View> : <View style={styles.providerBar}>
         {(['tx', 'wy', 'kg', 'server'] as const).map(source => <Button key={source} ripple={null} disabled={startingPlayback} accessibilityRole="tab" accessibilityState={{ selected: provider == source }} onPress={() => { void changeProvider(source) }} style={[styles.providerChip, { backgroundColor: provider == source ? theme['q-surface-tint'] : 'transparent' }]}><Text size={12} color={provider == source ? theme['q-accent-text'] : theme['q-text-secondary']}>{source === 'server' ? '推荐' : t(source == 'tx' ? 'setting_music_account_qq' : source == 'kg' ? 'setting_music_account_kugou' : 'setting_music_account_netease')}</Text></Button>)}
         <Button accessibilityLabel={t('daily_settings')} style={styles.settingsButton} onPress={openAccount}><Icon name="slider" rawSize={19} color={theme['q-text-secondary']} /></Button>
-      </View>
-      <Button accessibilityLabel={t('search_daily_open')} style={styles.feature} onPress={() => { setDetailVisible(true) }}>
+      </View>}
+      {phone ? <View style={[styles.feature, { alignItems: 'center' }]}>
+        <Button accessibilityLabel={t('search_daily_open')} style={{ width: 144, height: 144, borderRadius: 14, overflow: 'hidden' }} onPress={() => { setDetailVisible(true) }}>{renderCover(list[0])}</Button>
+        <View style={styles.titleContent}>
+          <Text size={22} style={styles.title} color={theme['q-text-primary']}>{t('search_daily_recommend')}</Text>
+          <Text size={12} style={styles.subtitle} numberOfLines={2} color={theme['q-text-secondary']}>{sourceLabel}</Text>
+          <Button accessibilityLabel={t('search_daily_recommend_play')} disabled={!list.length || startingPlayback} style={{ minHeight: 44, marginTop: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: theme['q-accent'] }} onPress={() => { void handlePlay() }}><Icon name="play" rawSize={15} color={theme['q-on-accent']} /><Text size={12} color={theme['q-on-accent']}>{t('search_daily_recommend_play')}</Text></Button>
+        </View>
+      </View> : <Button accessibilityLabel={t('search_daily_open')} style={styles.feature} onPress={() => { setDetailVisible(true) }}>
         <View style={styles.mosaic}>
           {[0, 1, 2, 3].map(index => <View key={index} style={styles.tile}>{renderCover(list[index])}</View>)}
           <View style={{ ...styles.dateBadge, backgroundColor: theme['q-surface-raised'] }}>
@@ -209,25 +223,26 @@ export default () => {
           <Text size={12} style={styles.subtitle} color={theme['q-text-secondary']}>{sourceLabel}</Text>
           <Text size={12} style={styles.openHint} color={theme['q-accent-text']}>{t('search_daily_open')} ›</Text>
         </View>
-      </Button>
+      </Button>}
       {result ? <Button onPress={() => { if (sourceRef.current !== 'server') openAccount() }} style={styles.sourceNotice}><Text size={11} color={theme['q-text-secondary']}>{dailyFeedNotice(result)}</Text></Button> : null}
-      <View style={[styles.actions, wide && { width: '100%', maxWidth: 400 }]}>
+      {phone ? <PhoneHomeShortcuts /> : null}
+      {!phone ? <View style={[styles.actions, wide && { width: '100%', maxWidth: 400 }]}>
         <Button accessibilityLabel={t('daily_refresh')} disabled={loading || startingPlayback} style={{ ...styles.action, backgroundColor: theme['q-surface-tint'] }} onPress={() => { void load(sourceRef.current, true) }}>
           <Text size={12} color={theme['q-accent-text']}>{t('daily_refresh')}</Text>
         </Button>
-        <Button accessibilityLabel={t('search_daily_recommend_play')} disabled={!list.length || startingPlayback} style={{ ...styles.action, backgroundColor: theme['q-accent'] }} onPress={() => { void handlePlay() }}>
+        {!phone ? <Button accessibilityLabel={t('search_daily_recommend_play')} disabled={!list.length || startingPlayback} style={{ ...styles.action, backgroundColor: theme['q-accent'] }} onPress={() => { void handlePlay() }}>
           <Icon accessible={false} name="play" rawSize={14} color={theme['q-on-accent']} />
           <Text size={12} color={theme['q-on-accent']}>{t('search_daily_recommend_play')}</Text>
-        </Button>
-      </View>
+        </Button> : null}
+      </View> : null}
       {loading && !list.length
         ? (
             <View accessible accessibilityLabel={t('search_daily_recommend_loading')} style={styles.skeleton}>
               <Skeleton width={96} height={16} radius={8} style={styles.discoveryTitle} />
-              <View style={styles.rail}>
-                {[0, 1, 2].map(index => (
-                  <View key={index} style={styles.discoveryItem}>
-                    <Skeleton height={120} radius={12} />
+              <View style={[styles.rail, phone && { flexWrap: 'wrap', gap: 14 }]}>
+                {(phone ? [0, 1, 2, 3] : [0, 1, 2]).map(index => (
+                  <View key={index} style={[styles.discoveryItem, phone && { width: phoneCoverSize }]}>
+                    <Skeleton height={phone ? phoneCoverSize : 120} radius={12} />
                     <Skeleton width="78%" height={12} style={styles.skeletonTitle} />
                     <Skeleton width="48%" height={10} />
                   </View>
@@ -248,7 +263,13 @@ export default () => {
           : list.length
             ? <>
                 <Text size={17} style={styles.discoveryTitle} color={theme['q-text-primary']}>{t('search_today_discovery')}</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
+                {phone ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14 }}>
+                  {list.slice(0, 8).map((item, index) => <Button key={`${item.source}_${item.id}`} disabled={startingPlayback} accessibilityLabel={`${t('play')} · ${item.name} · ${item.singer}`} style={{ width: phoneCoverSize }} onPress={() => { void handlePlay(index) }}>
+                    {renderCover(item)}
+                    <Text numberOfLines={1} size={13} style={styles.trackTitle} color={theme['q-text-primary']}>{item.name}</Text>
+                    <Text numberOfLines={1} size={11} color={theme['q-text-secondary']}>{item.singer}</Text>
+                  </Button>)}
+                </View> : <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
                   {list.slice(0, 9).map((item, index) => (
                     <Button key={`${item.source}_${item.id}`} disabled={startingPlayback} accessibilityLabel={`${t('play')} · ${item.name} · ${item.singer}`} style={styles.discoveryItem} onPress={() => { void handlePlay(index) }}>
                       {renderCover(item)}
@@ -256,7 +277,7 @@ export default () => {
                       <Text numberOfLines={1} size={11} color={theme['q-text-secondary']}>{item.singer}</Text>
                     </Button>
                   ))}
-                </ScrollView>
+                </ScrollView>}
               </>
             : <View style={styles.state}><Text size={12} color={theme['q-text-secondary']}>{t('search_daily_recommend_empty')}</Text></View>}
       <Modal visible={detailVisible} animationType="slide" onRequestClose={() => { setDetailVisible(false) }}>

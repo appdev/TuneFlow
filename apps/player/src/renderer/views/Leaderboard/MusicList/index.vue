@@ -1,7 +1,7 @@
 <template>
   <div :class="$style.container">
     <div :class="$style.actions">
-      <base-btn :disabled="queueLoading || !listDetailInfo.list.length || !!listDetailInfo.noItemLabel" @click="handlePlayList(0, true)">{{ $t(queueLoading ? 'list__loading' : 'list__play_all') }}</base-btn>
+      <button type="button" class="tf-primary" :disabled="queueLoading || !listDetailInfo.list.length || !!listDetailInfo.noItemLabel" @click="handlePlayList(0, true)"><svg-icon name="play-outline" />{{ $t(queueLoading ? 'list__loading' : 'list__play_all') }}</button>
       <base-btn :disabled="loading || !boardId" @click="getList(boardId, listDetailInfo.page, true)">{{ $t(failed ? 'play_queue__retry' : 'playlist_import_modal__refresh') }}</base-btn>
       <span v-if="queueError" role="status">{{ $t('leaderboard__queue_failed') }}</span>
     </div>
@@ -15,6 +15,7 @@
       :no-item="listDetailInfo.noItemLabel"
       source-tag
       play-in-context
+      comfortable
       @show-menu="hideListsMenu"
       @play-list="handlePlayList"
       @toggle-page="togglePage"
@@ -90,4 +91,8 @@ defineExpose({ hideMenu })
   flex: auto;
 }
 
+.actions { padding: 0 0 24px; align-items: center; flex-wrap: wrap; }
+.actions >button:not(:global(.tf-primary)) { min-height: 44px; border: 0; border-radius: 10px; background: var(--tf-surface); box-shadow: none; color: var(--tf-ink); }
+.actions { position: absolute; top: 0; right: 0; padding: 0; gap: 8px; }
+@media (max-width: 900px) { .actions { position: static; padding-bottom: 12px; } }
 </style>

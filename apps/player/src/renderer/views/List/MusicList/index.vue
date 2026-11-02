@@ -1,5 +1,10 @@
 <template>
-  <div :class="[$style.list, $style.listColumns, { [$style.selecting]: isSelectionMode }]">
+  <div class="tf-library-detail" :class="[$style.list, $style.listColumns, { [$style.selecting]: isSelectionMode }]">
+    <header v-if="currentPlaylist" :class="$style.collectionHeading">
+      <img v-if="currentPlaylist.img || currentPlaylist.pic" :src="currentPlaylist.img || currentPlaylist.pic" alt="" @error="$event.target.style.visibility = 'hidden'">
+      <span v-else :class="$style.coverFallback" aria-hidden="true"><svg-icon :name="currentPlaylist.id === 'love' ? 'love' : 'music'" /></span>
+      <div><h2>{{ ['default', 'love'].includes(currentPlaylist.id) ? $t(currentPlaylist.name) : currentPlaylist.name }}</h2><p>{{ list.length }} 首歌曲</p><button type="button" :disabled="!list.length" class="tf-primary" @click="handlePlayMusic(0)"><svg-icon name="play-outline" />{{ $t('list__play_all') }}</button></div>
+    </header>
     <div v-if="route.query.from == 'cloud-library'" :class="$style.cloudReturnBar">
       <button type="button" :class="$style.cloudBack" @click="returnToCloud">
         <svg-icon name="angle-right-solid" />
@@ -8,7 +13,7 @@
       <button type="button" :class="$style.cloudClose" aria-label="关闭导入结果" title="关闭导入结果" @click="closeImportResult">×</button>
     </div>
     <material-list-toolbar
-      :count="list.length" :selected-count="selectedList.length" :selecting="isSelectionMode" show-play
+      :count="list.length" :selected-count="selectedList.length" :selecting="isSelectionMode"
       :download-visible="appSetting['download.enable']" :download-enabled="canDownloadSelection"
       @select="startSelection" @invert="invertSelection" @play="handlePlayMusic(0)" @select-all="handleSelectAllData" @clear="removeAllSelect"
       @add="handleShowMusicAddModal(0)" @download="handleShowDownloadModal(0)"
@@ -62,6 +67,7 @@
             <input type="checkbox" :checked="selectedList.includes(item)" :aria-label="$t('list__select_song', { name: item.name })" @click.stop @change="toggleSelectData(index)">
           </div>
           <div class="list-item-cell auto name" :aria-label="item.name">
+            <img v-if="item.meta.picUrl" :class="$style.trackCover" :src="item.meta.picUrl" alt="" loading="lazy" @error="$event.target.style.visibility = 'hidden'">
             <span class="select name">{{ item.name }}</span>
           </div>
           <div class="list-item-cell" :class="$style.singerColumn"><span class="select" :aria-label="item.singer">{{ item.singer }}</span></div>
@@ -94,6 +100,7 @@
             <input type="checkbox" :checked="selectedList.includes(item)" :aria-label="$t('list__select_song', { name: item.name })" @click.stop @change="toggleSelectData(index)">
           </div>
           <div class="list-item-cell auto name">
+            <img v-if="item.meta.picUrl" :class="$style.trackCover" :src="item.meta.picUrl" alt="" loading="lazy" @error="$event.target.style.visibility = 'hidden'">
             <span class="select name" :aria-label="item.name">{{ item.name }}</span>
           </div>
           <div class="list-item-cell" :class="$style.singerColumn"><span class="select" :aria-label="item.singer">{{ item.singer }}</span></div>
@@ -535,4 +542,36 @@ export default {
   }
 }
 
+.list { background: none; border-radius: 0; box-shadow: none; backdrop-filter: none; height: auto; min-height: 0;
+  :global(.thead) { background: none; border-color: var(--tf-rule); }
+  :global(.list-item) { border-radius: 0; margin: 0; width: 100%; border-bottom: 1px solid var(--tf-rule); }
+}
+.collectionHeading { display: flex; flex: none; align-items: center; gap: 24px; margin-bottom: 24px; >img, .coverFallback { width: 176px; height: 176px; object-fit: cover; border-radius: var(--tf-radius); flex: none; } h2 { font-size: 32px; line-height: 1.3; color: var(--tf-ink); overflow-wrap: anywhere; } p { margin: 12px 0 24px; font-size: 14px; color: var(--tf-muted); } >div { min-width: 0; } }
+.coverFallback { display: grid; place-items: center; background: var(--tf-tint); color: var(--tf-accent); svg { width: 56px; height: 56px; } }
+.playlistHeading { display: none; }
+.trackCover { width: 36px; height: 36px; object-fit: cover; flex: none; border-radius: 6px; margin-right: 12px; }
+.list :global(.list-item-cell.auto.name) { display: flex; align-items: center; }
+.list {
+  :global(.scroll) { overflow-x: hidden; }
+  :global(.list-item-cell) { min-width: 0; box-sizing: border-box; }
+  :global(.list-item-cell.auto) { flex: 1 1 0; width: 0; }
+  :global(.list-item:hover) { transform: none; }
+}
+@container (max-width: 430px) {
+  .listColumns .singerColumn { display: none; }
+  .listColumns .actionColumn { width: 88px !important; flex-basis: 88px !important; }
+}
+@media (max-width: 900px) { .collectionHeading { gap: 16px; >img, .coverFallback { width: 120px; height: 120px; } h2 { font-size: 26px; } p { margin: 8px 0 16px; } } }
+@media (max-width: 600px) { .collectionHeading { flex-wrap: wrap; >img, .coverFallback { width: 80px; height: 80px; } h2 { font-size: 22px; } } }
+.collectionHeading {
+  gap: 16px; margin-bottom: 12px; flex-wrap: nowrap;
+  >img, .coverFallback { width: 64px; height: 64px; border-radius: 10px; }
+  .coverFallback svg { width: 28px; height: 28px; }
+  >div { flex: 1; display: grid; grid-template-columns: minmax(0,1fr) auto; column-gap: 16px; align-items: center; }
+  h2 { font-size: 24px; grid-column: 1; grid-row: 1; }
+  p { margin: 4px 0 0; grid-column: 1; grid-row: 2; font-size: 13px; }
+  button { grid-column: 2; grid-row: 1 / 3; }
+}
+@media (max-width: 900px) { .collectionHeading { gap: 12px; >img, .coverFallback { width: 56px; height: 56px; } h2 { font-size: 22px; } } }
+@media (max-width: 600px) { .collectionHeading { >div { display: block; } button { margin-top: 8px; } h2 { font-size: 20px; } } }
 </style>

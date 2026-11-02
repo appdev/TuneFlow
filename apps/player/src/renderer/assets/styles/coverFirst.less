@@ -1,0 +1,212 @@
+/* Hallmark · shape: app screen · genre: modern-minimal · theme: TuneFlow · modes: light+dark · v2.0.0 */
+/* Hallmark · pre-emit critique: cover-led music canvas and quiet native chrome */
+html, body { overflow-x: clip; }
+#root:has(.tf-app) { color-scheme: var(--tf-color-scheme); color: var(--tf-ink); background-color: var(--tf-paper); }
+#container.tf-app {
+  --color-font: var(--tf-ink);
+  --color-font-label: var(--tf-muted);
+  --q-surface: var(--tf-surface);
+  --q-surface-strong: var(--tf-surface);
+  --q-surface-soft: var(--tf-paper);
+  --q-outline: var(--tf-rule);
+  display: flex;
+  flex-direction: column;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--tf-paper);
+  color: var(--tf-ink);
+  font-family: var(--tf-font);
+  font-synthesis: none;
+  padding-bottom: 104px;
+  :focus-visible { outline: 2px solid var(--tf-accent); outline-offset: 2px; }
+  #right {
+    width: 100%;
+    max-width: var(--tf-page-width);
+    margin: 0 auto;
+    padding: 0 var(--tf-gutter);
+    min-height: 0;
+    flex: 1;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    overflow: visible;
+    &::before, &::after { display: none; }
+  }
+  #toolbar.tf-toolbar {
+    height: 80px;
+    min-height: 80px;
+    padding: 0;
+    gap: 24px;
+    justify-content: space-between;
+    background: var(--tf-paper);
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    z-index: 30;
+  }
+  .tf-search-slot, .tf-search-slot:focus-within {
+    width: 224px;
+    min-width: 150px;
+    max-width: 100%;
+    transform: none;
+    transition: none;
+    will-change: auto;
+    input { min-height: 40px; border: 1px solid var(--tf-muted); border-radius: 10px; box-shadow: none; color: var(--tf-ink); background: var(--tf-paper); }
+  }
+  .tf-search-popover {
+    left: auto;
+    right: 0;
+    width: min(580px, calc(100dvw - 48px));
+    max-width: none;
+    border: 1px solid var(--tf-rule);
+    border-radius: var(--tf-radius);
+    background: var(--tf-paper);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--tf-ink) 10%, transparent);
+    backdrop-filter: none;
+  }
+  .tf-search-slot .tf-material-search { width: 100%; min-width: 0; max-width: 100%; }
+  .tf-search-slot .tf-search-frame { box-sizing: border-box; border: 1px solid var(--tf-muted); border-radius: 10px; background: var(--tf-paper); box-shadow: none; backdrop-filter: none; transition: none; }
+  .tf-search-slot .tf-search-form { height: 38px; input { flex: 1; width: 0; min-width: 0; min-height: 38px; border: 0; background: none; } button { color: var(--tf-muted); } }
+  // Like YesPlayMusic's Navbar, the wrapper owns the focus treatment.
+  .tf-search-slot .tf-search-frame { border-color: transparent; background: var(--tf-surface); }
+  .tf-search-slot .tf-search-frame:focus-within { border-color: var(--tf-accent); background: var(--tf-tint); box-shadow: none; }
+  .tf-search-slot .tf-search-form input, .tf-search-slot .tf-search-form input:focus-visible { border: 0; border-radius: 0; outline: none; box-shadow: none; background: transparent; }
+  .tf-settings input:not([type=checkbox]):not([type=radio]):not([type=range]):focus-visible, .tf-settings select:focus-visible { outline: none; border-color: var(--tf-accent); box-shadow: none; }
+  // Inset native thumbs preserve virtual-list sizing and scroll behavior.
+  .scroll {
+    scrollbar-color: auto;
+    scrollbar-width: auto;
+    &::-webkit-scrollbar { width: 14px; height: 14px; background: transparent; }
+    &::-webkit-scrollbar-track { background: transparent; border: 0; margin: 8px; }
+    &::-webkit-scrollbar-thumb { border: 4px solid transparent; border-radius: 999px; background: color-mix(in srgb, var(--tf-muted) 40%, transparent); background-clip: padding-box; }
+    &::-webkit-scrollbar-thumb:hover { background-color: var(--tf-muted); }
+    &::-webkit-scrollbar-corner { background: transparent; }
+  }
+  #view { min-height: 0; }
+  #player { height: 104px; background: var(--tf-paper); border-top: 1px solid var(--tf-rule); &::before { display: none; } }
+  &.show-player-detail #player { height: 104px; }
+  &.mac-native-window:not(.show-player-detail) #toolbar { padding-left: 56Px; }
+  &.control-btn-right:not(.show-player-detail) #toolbar { padding-right: 160Px; }
+}
+html.web #container.tf-app #toolbar { padding-inline: 0; }
+html.web #root:has(.tf-app) { width: 100%; max-width: none; margin: 0; }
+html.web body:has(.tf-app) { background: var(--tf-paper); }
+// Detail pages share one compact header and leave the remaining height to tracks.
+#container.tf-app {
+  .tf-detail-header { --tf-detail-cover-size: 144px; display: grid; grid-template-columns: 64px var(--tf-detail-cover-size) minmax(0, 1fr); grid-template-areas: 'back cover copy'; align-items: start; gap: 12px 24px; min-height: 0; padding: 8px 0 20px; }
+  .tf-detail-back { grid-area: back; justify-self: start; align-self: start; display: inline-flex; align-items: center; gap: 6px; width: auto; height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--tf-surface); color: var(--tf-muted); font-size: 13px; line-height: 1; cursor: pointer; svg { width: 12px; height: 12px; transform: rotate(180deg); } &:hover { color: var(--tf-ink); } }
+  .tf-detail-cover { grid-area: cover; width: var(--tf-detail-cover-size); height: var(--tf-detail-cover-size); border-radius: 12px; }
+  .tf-detail-copy { grid-area: copy; min-width: 0; min-height: 0; height: var(--tf-detail-cover-size); align-self: start; display: flex; flex-direction: column; justify-content: space-between; gap: 4px; h2, h3 { flex: none; margin: 0; padding: 0; font-size: 26px; font-weight: 700; line-height: 1.2; white-space: nowrap; display: block; overflow: hidden; text-overflow: ellipsis; } p { min-height: 0; margin: 0; font-size: 13px; line-height: 1.4; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; -webkit-line-clamp: 1; } }
+  .tf-detail-actions { flex: none; width: auto; flex-wrap: nowrap; padding-left: 0; gap: 8px; margin-top: 0; button { min-height: 36px; padding: 6px 14px; font-size: 13px; } }
+  .tf-catalog-detail .thead { padding-left: 0; padding-right: 14px; }
+  .tf-catalog-detail .list-item { width: 100%; margin: 0; border-radius: 0; box-shadow: none; border-bottom: 1px solid var(--tf-rule); &:hover { transform: none; } }
+  .tf-catalog-detail .list-item-cell.auto { min-width: 0; flex: 1 1 0; width: 0; }
+}
+@media (max-width: 760px) {
+  #container.tf-app {
+    .tf-detail-header { --tf-detail-cover-size: 96px; grid-template-columns: 96px minmax(0, 1fr); grid-template-areas: 'back back' 'cover copy'; gap: 10px 16px; padding-bottom: 16px; }
+    .tf-detail-copy { gap: 2px; h2, h3 { font-size: 18px; } p { font-size: 11px; line-height: 1.25; } }
+    .tf-detail-actions { margin-top: 0; gap: 6px; button { min-height: 32px; padding: 6px 8px; font-size: 12px; } }
+  }
+}
+@media (max-height: 800px) and (min-width: 761px) {
+  #container.tf-app {
+    .tf-detail-header { --tf-detail-cover-size: 96px; gap: 16px; padding-block: 8px 12px; }
+    .tf-detail-copy { gap: 2px; h2, h3 { font-size: 22px; } p { font-size: 12px; line-height: 1.25; } }
+    .tf-detail-actions { margin-top: 0; button { min-height: 32px; padding-block: 4px; } }
+  }
+}
+.tf-workspace-heading { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 24px; h1 { font-size: 32px; line-height: 1.25; color: var(--tf-ink); margin: 0; overflow-wrap: anywhere; } p { margin: 12px 0 0; font-size: 16px; color: var(--tf-muted); } }
+#container.tf-app .tf-settings {
+  .tf-preference-group { padding: 24px 0; margin: 0; }
+  .tf-preference-group h3 { font-size: 16px; margin-bottom: 16px; line-height: 1.5; }
+  .tf-preference-row { display: flex; align-items: center; justify-content: space-between; min-height: 60px; gap: 24px; line-height: 1.6; font-size: 15px; cursor: pointer; >span { min-width: 0; overflow-wrap: anywhere; } }
+  .tf-preference-options { display: flex; flex-wrap: wrap; gap: 8px 24px; >label { min-height: 44px; display: flex; align-items: center; gap: 12px; font-size: 15px; line-height: 1.6; cursor: pointer; } }
+  .tf-preference-group input { width: 18px; height: 18px; flex: none; margin: 0; accent-color: var(--tf-accent); cursor: pointer; }
+  .tf-preference-help { font-size: 13px; color: var(--tf-muted); line-height: 1.8; margin: 8px 0 16px; max-width: 68ch; }
+  .tf-checkbox { max-width: 100%; margin: 4px 16px 4px 0; vertical-align: top; >label { min-height: 40px; gap: 4px; line-height: 1.65; } [role=checkbox], [role=radio] { width: 18px; height: 18px; flex-shrink: 0; } }
+  #setting-panel { p { line-height: 1.8; font-size: 14px; color: var(--tf-muted); } .gap-left { margin-left: 0; } }
+}
+.tf-workspace-actions { display: flex; flex-wrap: wrap; gap: 8px; button { min-height: 44px; padding: 8px 16px; border: 0; border-radius: 10px; background: var(--tf-surface); color: var(--tf-ink); cursor: pointer; } }
+#container.tf-app .tf-leaderboard {
+  .thead { background: none; border-bottom: 1px solid var(--tf-rule); }
+  .list-item { margin: 0; width: 100%; border-radius: 0; box-shadow: none; border-bottom: 1px solid var(--tf-rule); &:hover { transform: none; background: var(--tf-surface); } }
+  .list-item-cell { min-width: 0; box-sizing: border-box; }
+  .list-item-cell.auto { flex: 1 1 0; width: 0; }
+  .scroll { overflow-x: hidden; }
+}
+#container.tf-app .tf-service-settings {
+  padding: 0; max-width: 800px; color: var(--tf-ink); background: none; border: 0; border-radius: 0; box-shadow: none;
+  h2 { margin-top: 0; font-size: 24px; line-height: 1.3; }
+  p { color: var(--tf-muted); font-size: 14px; line-height: 1.8; }
+  >label { display: flex; justify-content: space-between; align-items: center; gap: 24px; min-height: 76px; padding: 12px 0; margin: 0; border-bottom: 1px solid var(--tf-rule); font-size: 16px; color: var(--tf-ink); }
+  input:not([type=checkbox]) { max-width: 240px; min-width: 0; min-height: 40px; box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--tf-muted); border-radius: 10px; background: var(--tf-surface); color: var(--tf-ink); }
+  input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--tf-accent); }
+  >button { min-height: 40px; border: 0; border-radius: 10px; padding: 8px 16px; background: var(--tf-surface); color: var(--tf-ink); }
+}
+#container.tf-app .tf-primary { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 20px; border: 0; border-radius: 999px; background: var(--tf-accent); color: var(--tf-accent-ink); font: inherit; cursor: pointer; svg { width: 18px; height: 18px; } &:disabled { opacity: .45; cursor: default; } }
+@media (max-width: 760px) { .tf-workspace-heading { flex-wrap: wrap; gap: 16px; h1 { font-size: 28px; } } }
+html[style*='font-family'] #container.tf-app { font-family: inherit; }
+// Keep primary navigation together; give search the flexible space before tools.
+#container.tf-app #toolbar.tf-toolbar {
+  gap: 16px;
+  .tf-search-tools { flex: 1; min-width: 0; justify-content: flex-end; }
+  .tf-search-slot, .tf-search-slot:focus-within { flex: 1; width: auto; min-width: 0; }
+  .tf-search-frame { height: 44px; border-color: var(--tf-rule); border-radius: 12px; }
+  .tf-search-form { flex: none; height: 42px; input { min-height: 42px; padding-left: 146px !important; font-size: 15px; line-height: normal; } }
+  .tf-source-trigger { top: 6px; left: 8px; width: 128px; height: 32px; border-radius: 0; padding: 0 8px; gap: 6px; justify-content: flex-start; background: none; border-right: 1px solid var(--tf-rule); }
+  .tf-source-name { flex: 1; min-width: 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tf-search-form button:last-child { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 12px; font-size: 14px; color: var(--tf-accent); border-radius: 0 10px 10px 0; background: var(--tf-tint); svg { width: 18px; height: 18px; } }
+  .tf-search-popover { width: max(100%, min(580px, calc(100dvw - 48px))); }
+  .tf-search-popover.tf-source-popover {
+    left: 0; right: auto; width: 240px; max-width: calc(100dvw - 32px); border-radius: 12px;
+    [role=listbox] { display: block; padding: 8px; box-sizing: border-box; }
+    [role=option] { min-height: 44px; padding: 0 12px; gap: 12px; border: 0; border-radius: 8px; font-size: 14px; color: var(--tf-ink); >span { font-size: 14px; } >[role=img] { flex: none; } &:hover { background: var(--tf-surface); } }
+    [role=option][aria-selected=true] { color: var(--tf-accent); background: var(--tf-tint); }
+  }
+  [data-tf-navigation] { flex: none; a { height: 44px; padding-inline: 10px; span { font-size: 14px; } } a[data-nav-name=Download], a[data-nav-name=Setting] { width: 44px; padding: 0; } }
+  [data-tf-utilities] { margin-left: -8px; }
+}
+@media (min-width: 901px) {
+  #container.tf-app #toolbar.tf-toolbar .tf-search-slot,
+  #container.tf-app #toolbar.tf-toolbar .tf-search-slot:focus-within { max-width: 400px; }
+}
+@media (max-width: 1100px) { #container.tf-app #toolbar.tf-toolbar { gap: 10px; [data-tf-navigation] a { padding-inline: 8px; } .tf-search-form button:last-child { padding-inline: 10px; >span { display: none; } } } }
+@media (max-width: 900px) {
+  #container.tf-app #toolbar.tf-toolbar {
+    height: auto; min-height: 120px; flex-wrap: wrap; align-content: center; gap: 8px;
+    .tf-search-tools { flex: 1; }
+    [data-tf-navigation]:not([data-tf-utilities]) { order: 3; flex-basis: 100%; width: 100%; >ul { justify-content: space-between; } }
+    [data-tf-utilities] { order: 0; flex-basis: auto; width: auto; margin-left: 0; }
+    .tf-search-form input { font-size: 14px; }
+  }
+}
+@media (max-width: 1100px) {
+  #container.tf-app {
+    --tf-gutter: 1.5rem;
+    #toolbar.tf-toolbar { gap: 12px; }
+    .tf-search-slot, .tf-search-slot:focus-within { width: 180px; min-width: 140px; }
+  }
+}
+@media (max-width: 900px) {
+  #container.tf-app.control-btn-right:not(.show-player-detail) #toolbar { padding-right: 0; padding-top: 34Px; min-height: 108px; }
+  #container.tf-app.mac-native-window:not(.show-player-detail) #toolbar { padding-left: 0; padding-top: 30Px; min-height: 108px; }
+  html.web #container.tf-app #toolbar { padding-top: 0; min-height: 80px; }
+}
+@media (max-width: 760px) {
+  #container.tf-app {
+    --tf-gutter: 1rem;
+    padding-bottom: 132px;
+    #player, &.show-player-detail #player { height: 132px; }
+    #toolbar.tf-toolbar { flex-wrap: wrap; height: auto; min-height: 120px; align-content: center; gap: 8px; }
+    [data-tf-navigation] { order: 3; }
+    .tf-search-slot, .tf-search-slot:focus-within { width: 176px; min-width: 0; }
+    .tf-search-popover { width: min(580px, calc(100dvw - 32px)); }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #container.tf-app *, #container.tf-app *::before, #container.tf-app *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

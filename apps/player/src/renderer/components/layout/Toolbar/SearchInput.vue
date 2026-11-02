@@ -1,7 +1,8 @@
 <template>
-  <div ref="searchSlotRef" :class="[$style.searchSlot, { [$style.focused]: isFocused }]" @keydown.esc.stop="handleEscape" @focusout="handleFocusOut">
-    <material-search-input v-model="searchText" :placeholder="$t('search')" :list="panelVisible && !sourceMenuVisible ? tipList : []" :visible-list="false" @event="handleEvent" />
+  <div ref="searchSlotRef" :class="['tf-search-slot', $style.searchSlot, { [$style.focused]: isFocused }]" @keydown.esc.stop="handleEscape" @focusout="handleFocusOut">
+    <material-search-input v-model="searchText" :placeholder="$t('search__input_hint')" :list="panelVisible && !sourceMenuVisible ? tipList : []" :visible-list="false" show-submit-label @event="handleEvent" />
     <button
+      class="tf-source-trigger"
       type="button"
       :class="[$style.sourceButton, { [$style.menuOpen]: sourceMenuVisible }]"
       :title="selectedSourceLabel"
@@ -13,29 +14,28 @@
     >
       <source-icon v-if="selectedSource != 'all'" :source="selectedSource" :size="18" />
       <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z" /></svg>
+      <span class="tf-source-name">{{ selectedSourceLabel }}</span>
       <i aria-hidden="true" />
     </button>
     <transition enter-active-class="animated-fast fadeIn" leave-active-class="animated-fast fadeOut">
-      <div v-show="panelVisible || sourceMenuVisible" :class="[$style.searchPopover, { [$style.expandedPopover]: isFocused }]">
-        <div v-show="sourceMenuVisible" :class="[$style.sourceMenu, { [$style.inlineSourceMenu]: isFocused }]" role="listbox" :aria-label="$t('search__source_select')" @mousedown.prevent>
-          <div :class="$style.sourceMenuHeading">
-            <strong>{{ $t('search__source_select') }}</strong>
-            <span>{{ selectedSourceLabel }}</span>
-          </div>
+      <div v-if="sourceMenuVisible" key="sources" :class="['tf-search-popover', 'tf-source-popover', $style.searchPopover]">
+        <div :class="$style.sourceMenu" role="listbox" :aria-label="$t('search__source_select')" ignore-tip @mousedown.prevent>
           <button
             v-for="item in sourceOptions" :key="item.id" type="button" role="option"
             :aria-selected="selectedSource == item.id"
             :class="{ [$style.activeSource]: selectedSource == item.id }"
-            :title="item.label" @click.stop="selectSource(item.id)"
+            ignore-tip @click.stop="selectSource(item.id)"
             @keydown.enter.prevent @keyup.enter.stop="selectSource(item.id)"
           >
-            <source-icon v-if="item.id != 'all'" :source="item.id" :size="19" />
+            <source-icon v-if="item.id != 'all'" :source="item.id" :size="19" :title="null" ignore-tip />
             <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z" /></svg>
             <span>{{ item.label }}</span>
             <svg v-if="selectedSource == item.id" :class="$style.sourceCheck" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
           </button>
         </div>
-        <section v-show="panelVisible" :class="$style.searchPanel" @mousedown.prevent>
+      </div>
+      <div v-else-if="panelVisible" key="suggestions" :class="['tf-search-popover', $style.searchPopover, { [$style.expandedPopover]: isFocused }]">
+        <section :class="$style.searchPanel" @mousedown.prevent>
           <div v-if="searchText" :class="$style.suggestionList">
             <button v-for="(item, index) in tipList" :key="item" type="button" data-search-suggestion :class="{ [$style.selectedSuggestion]: selectedTipIndex == index }" @click="search(item)">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.8 5.2a5.6 5.6 0 1 0 0 11.2 5.6 5.6 0 0 0 0-11.2zm4.1 9.7 4 4" /></svg>

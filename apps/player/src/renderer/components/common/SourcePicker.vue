@@ -1,5 +1,5 @@
 <template>
-  <span :class="$style.root">
+  <span :class="[$style.root, { [$style.prominent]: prominent }]">
     <button
       v-if="hasAlternatives"
       ref="triggerRef"
@@ -13,6 +13,7 @@
       @click.stop="toggle"
       @keydown.esc.stop.prevent="close"
     >
+      <source-icon v-if="prominent" :source="currentSource" :size="20" />
       <span>{{ currentSourceName }}</span>
       <i v-if="hasAlternatives" :class="$style.chevron" aria-hidden="true" />
     </button>
@@ -21,7 +22,7 @@
       <div
         v-if="isOpen"
         ref="menuRef"
-        :class="$style.menu"
+        :class="[$style.menu, { [$style.prominentMenu]: prominent }]"
         :style="menuStyle"
         role="menu"
         :aria-label="currentSourceName"
@@ -56,6 +57,7 @@ import SourceIcon from './SourceIcon.vue'
 
 const props = withDefaults(defineProps<{
   value: string
+  prominent?: boolean
   options?: string[]
   sourceName?: (source: string) => string
 }>(), {
@@ -299,5 +301,13 @@ onBeforeUnmount(unbindFloatingListeners)
 @keyframes popIn {
   from { opacity: 0; transform: translateY(4px) scale(.97); }
   to { opacity: 1; transform: none; }
+}
+.prominent { display: flex; width: 100%; margin: 0;
+  .trigger { width: 100%; height: 44px; padding: 0 12px; justify-content: flex-start; gap: 10px; border: 1px solid var(--tf-rule); border-radius: 10px; font-size: 14px; color: var(--tf-ink); background: var(--tf-surface); box-shadow: none; &:hover, &.open { border-color: var(--tf-accent); background: var(--tf-tint); } &:active { transform: none; } }
+  .chevron { margin-left: auto; }
+}
+.prominentMenu { width: 208px; padding: 8px; background: var(--tf-paper); color: var(--tf-ink); border: 1px solid var(--tf-rule); border-radius: 12px; box-shadow: 0 8px 24px color-mix(in srgb,var(--tf-ink) 12%,transparent); backdrop-filter: none; animation: none;
+  .option { min-height: 44px; padding: 0 12px; border: 0; color: var(--tf-ink); gap: 12px; >span { font-size: 14px; } >:first-child { flex: none; } &:hover { background: var(--tf-surface); } &:active { transform: none; } }
+  .optionActive { background: var(--tf-tint); color: var(--tf-accent); }
 }
 </style>

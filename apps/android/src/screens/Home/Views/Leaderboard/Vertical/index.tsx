@@ -1,4 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import useAdaptiveLayout from '@/utils/hooks/useAdaptiveLayout'
+import { useBackHandler } from '@/utils/hooks/useBackHandler'
+import commonState from '@/store/common/state'
 import { View } from 'react-native'
 import { createStyle, toast } from '@/utils/tools'
 
@@ -24,6 +27,13 @@ const MAX_WIDTH = scaleSizeW(200)
 export default () => {
   const drawer = useRef<DrawerLayoutFixedType>(null)
   const theme = useTheme()
+  const { phone } = useAdaptiveLayout()
+  const [showBoards, setShowBoards] = useState(true)
+  useBackHandler(useCallback(() => {
+    if (!phone || showBoards || commonState.navActiveId !== 'nav_top') return false
+    setShowBoards(true)
+    return true
+  }, [phone, showBoards]))
   const musicListRef = useRef<MusicListType>(null)
   const isUnmountedRef = useRef(false)
   const boardsListRef = useRef<BoardsListType>(null)
@@ -40,6 +50,7 @@ export default () => {
     })
   }
   const onBoundChange: BoardsListProps['onBoundChange'] = (id) => {
+    if (phone) setShowBoards(false)
     boundInfo.current.id = id
     const source = boundInfo.current.source
     const requestId = ++boardsRequestIdRef.current
@@ -71,6 +82,7 @@ export default () => {
     void handleCollect(id, name, boundInfo.current.source)
   }
   const onShowBound = () => {
+    if (phone) { setShowBoards(true); return }
     requestAnimationFrame(() => {
       drawer.current?.openDrawer()
     })
@@ -158,6 +170,11 @@ export default () => {
   }, [])
 
 
+  if (phone) return <View style={styles.container}>
+    <HeaderBar ref={headerBarRef} onShowBound={onShowBound} onSourceChange={onSourceChange} />
+    <View style={{ flex: 1, display: showBoards ? 'flex' : 'none' }} accessibilityElementsHidden={!showBoards} importantForAccessibility={showBoards ? 'auto' : 'no-hide-descendants'}>{navigationView()}</View>
+    <View style={{ flex: 1, display: showBoards ? 'none' : 'flex' }} accessibilityElementsHidden={showBoards} importantForAccessibility={showBoards ? 'no-hide-descendants' : 'auto'}><MusicList ref={musicListRef} /></View>
+  </View>
   return (
     <DrawerLayoutFixed
       ref={drawer}

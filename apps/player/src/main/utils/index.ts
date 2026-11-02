@@ -8,8 +8,10 @@ import defaultHotKey from '@common/defaultHotKey'
 import { migrateDataJson, migrateHotKey, migrateUserApi, parseDataFile } from './migrate'
 import { nativeTheme, powerSaveBlocker } from 'electron'
 import { joinPath } from '@common/utils/nodejs'
-import themes from '@common/theme/index.json'
+import builtInThemes from '@common/theme/index.json'
 import { buildThemeMaterial } from '@common/theme/material'
+
+const themes: LX.Theme[] = builtInThemes
 
 export const parseEnvParams = (argv = process.argv): { cmdParams: LX.CmdParams, deeplink: string | null } => {
   const cmdParams: LX.CmdParams = {}

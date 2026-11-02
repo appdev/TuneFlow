@@ -1,7 +1,7 @@
 .listColumns {
   container-type: inline-size;
 
-  :global(.thead) { padding-left: 7px; padding-right: 7px; }
+  :global(.thead) { padding-left: 0; padding-right: 14px; }
   :global(table) { table-layout: fixed; }
   :global(th) { box-sizing: border-box; }
   :global(th) {
@@ -18,7 +18,7 @@
   }
   .numberColumn, .durationColumn { font-variant-numeric: tabular-nums; }
   :global(.list-item-cell.auto) { min-width: 0; }
-  :global(.list-item) { height: calc(100% - 4px); }
+  :global(.list-item) { height: 100%; }
   .numberColumn { width: 34px !important; flex: 0 0 34px !important; }
   .singerColumn { width: 22% !important; flex: 0 0 22% !important; }
   .albumColumn { width: 22% !important; flex: 0 0 22% !important; }

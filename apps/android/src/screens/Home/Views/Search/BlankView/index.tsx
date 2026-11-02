@@ -32,7 +32,7 @@ export default forwardRef<BlankViewType, BlankViewProps>(({ onSearch }, ref) => 
   const t = useI18n()
   const theme = useTheme()
   const dockInset = useDockInset()
-  const { wide, width, railWidth } = useAdaptiveLayout()
+  const { wide, width, railWidth, phone } = useAdaptiveLayout()
   const inlineWelcome = wide && width - railWidth >= 680
 
   const handleShow = useCallback(() => {
@@ -56,9 +56,9 @@ export default forwardRef<BlankViewType, BlankViewProps>(({ onSearch }, ref) => 
   return (
     visible
       ? (
-          <ScrollView contentContainerStyle={[styles.scrollContent, wide && styles.wideContent, { paddingBottom: 32 + dockInset }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            <View style={inlineWelcome && styles.welcomeRow}>
-            <View
+          <ScrollView contentContainerStyle={[styles.scrollContent, wide && styles.wideContent, phone && { paddingHorizontal: 20 }, { paddingBottom: 32 + dockInset }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <View style={[inlineWelcome && styles.welcomeRow, phone && { display: 'none' }]}>
+            {!phone ? <View
               style={{
                 ...styles.welcomeCard,
                 ...(inlineWelcome ? { flex: 1, marginBottom: 0 } : {}),
@@ -69,7 +69,7 @@ export default forwardRef<BlankViewType, BlankViewProps>(({ onSearch }, ref) => 
                 <Text style={styles.welcomeTitle} size={25} color={theme['q-text-primary']}>{t('search__welcome')}</Text>
                 <Text style={styles.welcomeSubtitle} size={13} color={theme['q-text-secondary']}>{t('search_welcome_subtitle')}</Text>
               </View>
-            </View>
+            </View> : null}
             <View style={[styles.shortcuts, inlineWelcome && styles.inlineShortcuts]}>
               {([
                 { id: 'nav_love', icon: 'love' },
@@ -77,7 +77,7 @@ export default forwardRef<BlankViewType, BlankViewProps>(({ onSearch }, ref) => 
                 { id: 'nav_songlist', icon: 'album' },
               ] as const).map(item => (
                 <Button key={item.id} accessibilityLabel={t(item.id)} style={styles.shortcut} onPress={() => { setNavActiveId(item.id) }}>
-                  <View style={{ ...styles.shortcutIcon, backgroundColor: theme['q-surface-tint'] }}><Icon accessible={false} name={item.icon} rawSize={21} color={theme['q-accent-text']} /></View>
+                  <View style={{ ...styles.shortcutIcon, backgroundColor: phone ? theme['q-surface-base'] : theme['q-surface-tint'] }}><Icon accessible={false} name={item.icon} rawSize={21} color={theme[phone ? 'q-text-primary' : 'q-accent-text']} /></View>
                   <Text size={12} color={theme['q-text-primary']}>{t(item.id)}</Text>
                 </Button>
               ))}

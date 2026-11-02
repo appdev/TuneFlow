@@ -36,8 +36,8 @@ const styles = StyleSheet.create({
 export default ({ isHome, onOpenDetail }: { isHome: boolean, onOpenDetail?: () => void }) => {
   const musicInfo = usePlayerMusicInfo()
   const theme = useTheme()
-  const { wide, isCar } = useAdaptiveLayout()
-  const size = wide ? (isCar ? 48 : 44) : PIC_HEIGHT
+  const { wide, isCar, phone } = useAdaptiveLayout()
+  const size = wide ? (isCar ? 48 : 44) : phone ? 42 : PIC_HEIGHT
   const picAnimation = useTrackChangeAnimation(musicInfo.pic, 0)
   const handlePress = () => {
     // console.log('')

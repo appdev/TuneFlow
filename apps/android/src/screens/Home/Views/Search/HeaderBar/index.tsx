@@ -15,6 +15,9 @@ import Button from '@/components/common/Button'
 import { Icon } from '@/components/common/Icon'
 import { setNavActiveId } from '@/core/common'
 import { useI18n } from '@/lang'
+import Text from '@/components/common/Text'
+import useAdaptiveLayout from '@/utils/hooks/useAdaptiveLayout'
+import { phonePalette } from '@/theme/phone'
 
 type Sources = Readonly<Array<MusicSource | SonglistSource>>
 type SourceSelectorProps = _SourceSelectorProps<Sources>
@@ -43,6 +46,7 @@ export default forwardRef<HeaderBarType, HeaderBarProps>(({ showBack, onBack, on
   const searchInputRef = useRef<SearchInputType>(null)
   const theme = useTheme()
   const t = useI18n()
+  const { phone } = useAdaptiveLayout()
 
   useImperativeHandle(ref, () => ({
     setSourceList(list, source) {
@@ -61,7 +65,9 @@ export default forwardRef<HeaderBarType, HeaderBarProps>(({ showBack, onBack, on
 
 
   return (
-    <View style={{ ...styles.searchBar, borderBottomColor: theme['q-outline'] }}>
+    <>
+    {phone && !showBack ? <View style={styles.phoneHeading}><Text size={25} style={{ flex: 1, fontWeight: '700' }} color={theme['q-text-primary']}>{t('mobile_discover')}</Text><Button accessibilityLabel={t('nav_setting')} style={styles.settings} onPress={() => { global.lx.settingActiveId = 'basic'; setNavActiveId('nav_setting') }}><Icon name="setting" rawSize={22} color={theme['q-text-primary']} /></Button></View> : null}
+    <View style={{ ...styles.searchBar, ...(phone ? { paddingHorizontal: 20, height: 60 } : {}), borderBottomColor: theme['q-outline'] }}>
       {showBack ? <Button accessibilityLabel={t('search_back_home')} style={styles.back} onPress={onBack}>
         <Icon name="chevron-left" rawSize={22} color={theme['q-text-primary']} />
       </Button> : null}
@@ -70,10 +76,11 @@ export default forwardRef<HeaderBarType, HeaderBarProps>(({ showBack, onBack, on
           ...styles.searchControl,
           backgroundColor: theme['q-surface-base'],
           borderColor: theme['q-outline'],
+          ...(phone ? { borderRadius: 14, backgroundColor: theme['q-surface-raised'], borderColor: phonePalette[theme.isDark ? 'dark' : 'light'].field, flexDirection: 'row-reverse' as const } : {}),
         }}
       >
         <View style={styles.selector}>
-          <SourceSelector ref={sourceSelectorRef} onSourceChange={onSourceChange} fontSize={12} center plain iconOnly />
+          <SourceSelector ref={sourceSelectorRef} onSourceChange={onSourceChange} fontSize={12} center plain iconOnly={!phone} labelOnly={phone} />
         </View>
         <View style={{ ...styles.divider, backgroundColor: theme['q-outline'] }} />
         <SearchInput
@@ -84,14 +91,16 @@ export default forwardRef<HeaderBarType, HeaderBarProps>(({ showBack, onBack, on
           onFocusText={onShowTipList}
         />
       </View>
-      {!showBack ? <Button accessibilityLabel={t('nav_setting')} style={styles.settings} onPress={() => { setNavActiveId('nav_setting') }}>
+      {!showBack && !phone ? <Button accessibilityLabel={t('nav_setting')} style={styles.settings} onPress={() => { setNavActiveId('nav_setting') }}>
         <Icon name="setting" rawSize={22} color={theme['q-text-primary']} />
       </Button> : null}
     </View>
+    </>
   )
 })
 
 const styles = StyleSheet.create({
+  phoneHeading: { minHeight: 64, paddingLeft: 20, paddingRight: 12, flexDirection: 'row', alignItems: 'center' },
   back: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   settings: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   searchBar: {

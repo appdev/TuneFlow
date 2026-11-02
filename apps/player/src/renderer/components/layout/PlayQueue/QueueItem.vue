@@ -57,7 +57,8 @@ const displayInfo = computed(() => {
 .row {
   color: var(--q-list-text);
   position: relative;
-  height: 56px;
+  height: var(--tf-track-row-height, 56px);
+  box-sizing: border-box;
   display: flex;
   align-items: stretch;
   border-bottom: 1px solid var(--q-outline);

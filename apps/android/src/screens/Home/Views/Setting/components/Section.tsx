@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native'
 import { createStyle } from '@/utils/tools'
 import { useTheme } from '@/store/theme/hook'
 import Text from '@/components/common/Text'
+import useAdaptiveLayout from '@/utils/hooks/useAdaptiveLayout'
 
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 
 export default ({ title, children }: Props) => {
   const theme = useTheme()
+  const { phone } = useAdaptiveLayout()
 
   return (
     <View style={styles.container}>
@@ -20,10 +22,11 @@ export default ({ title, children }: Props) => {
           ...styles.card,
           backgroundColor: theme['q-surface-raised'],
           borderColor: theme['q-outline'],
+          ...(phone ? { borderWidth: 0, borderRadius: 0, backgroundColor: theme['q-surface-base'] } : {}),
         }}
       >
         <View style={styles.header}>
-          <View style={{ ...styles.titleAccent, backgroundColor: theme['q-accent'] }} />
+          {!phone ? <View style={{ ...styles.titleAccent, backgroundColor: theme['q-accent'] }} /> : null}
           <Text
             style={styles.title}
             color={theme['q-text-primary']}

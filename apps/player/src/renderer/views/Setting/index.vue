@@ -1,5 +1,7 @@
 <template>
-  <div :class="$style.main">
+  <div class="tf-settings" :class="$style.main">
+    <header class="tf-workspace-heading"><div><h1>设置</h1><p>外观、播放与应用偏好。</p></div></header>
+    <div :class="$style.workspace">
     <div class="scroll" :class="$style.toc">
       <ul ref="tocRef" :class="$style.tocList" role="tablist" aria-label="设置分类" aria-orientation="vertical">
         <li
@@ -52,6 +54,7 @@
         <SettingUpdate />
         <SettingAbout /> -->
       </dl>
+    </div>
     </div>
   </div>
 </template>
@@ -488,5 +491,33 @@ export default {
 //   to { background: transparent; }
 // }
 
+.main {
+  flex-direction: column; padding: 32px 0 0; gap: 32px; border: 0; background: var(--tf-paper); color: var(--tf-ink);
+}
+.workspace { display: flex; flex: 1; min-height: 0; gap: 40px; }
+.toc { flex-basis: 216px; padding: 0 24px 24px 0; border-right: 1px solid var(--tf-rule); overflow-y: auto; }
+.tocList { gap: 0; }
+.tocIndicator { display: none; }
+.tocH2 { height: 44px; padding: 0 14px; border-radius: 10px; font-size: 14px; font-weight: 400; color: var(--tf-ink); &:not(.active):hover { background: var(--tf-surface); box-shadow: none; } &.active { background: var(--tf-tint); color: var(--tf-accent); font-weight: 600; } }
+.tocIcon { display: none; }
+.setting {
+  height: auto; min-width: 0; padding: 8px 24px 32px 0; font-size: 16px;
+  :global {
+    dl { max-width: 800px; margin: 0; }
+    dt, dd { padding: 16px 0; border-radius: 0; box-shadow: none; background: none; backdrop-filter: none; }
+    dt { font-size: 24px; }
+    dd { border-bottom: 1px solid var(--tf-rule); }
+    h3 { color: var(--tf-ink); font-size: 16px; font-weight: 500; }
+  }
+}
+@media (max-width: 900px) { .workspace { gap: 24px; } .toc { flex-basis: 176px; padding-right: 16px; } }
+@media (max-width: 760px) {
+  .main { padding-top: 24px; gap: 24px; }
+  .workspace { flex-direction: column; gap: 20px; }
+  .toc { flex: none; padding: 0 0 12px; border-right: 0; border-bottom: 1px solid var(--tf-rule); overflow-x: auto; }
+  .tocList { flex-direction: row; width: max-content; }
+  .tocH2 { width: auto; }
+  .setting { flex: 1; }
+}
 </style>
 

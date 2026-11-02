@@ -27,6 +27,9 @@ const IcoMoon = createIconSetFromIcoMoon(icoMoonConfig)
 
 // 常用操作统一为细线图标，播放控制使用同一套实心字形。
 const outlineIcons: Record<string, string> = {
+  'phone-sun': 'sun',
+  'phone-moon': 'moon',
+  'phone-appearance': 'monitor',
   'search-2': 'search',
   setting: 'settings',
   slider: 'sliders',

@@ -229,8 +229,8 @@ export default {
         '--playDetail-lrc-font-size': (isCommentLayoutVisible.value ? size * 0.82 : immersive ? size * 1.08 : size) + 'rem',
         '--playDetail-lrc-space-top-height': isCommentLayoutVisible.value ? (immersive ? '0%' : '8%') : immersive ? '44%' : '58%',
         '--playDetail-lrc-space-bottom-height': isCommentLayoutVisible.value ? (immersive ? '100%' : '92%') : immersive ? '44%' : '58%',
-        '--playDetail-lrc-color': immersive ? 'rgba(255, 255, 255, .42)' : 'rgba(54, 58, 60, .72)',
-        '--playDetail-lrc-active-color': immersive ? 'rgba(255, 255, 255, .98)' : '#6374ff',
+        '--playDetail-lrc-color': 'var(--tf-muted)',
+        '--playDetail-lrc-active-color': 'var(--tf-ink)',
       }
     })
 
@@ -767,4 +767,18 @@ export default {
   }
 }
 
+.right { color: var(--tf-ink); }
+.trackName { color: var(--tf-ink); }
+.trackArtist { color: var(--tf-muted); }
+.right .noLyric { color: var(--tf-muted); opacity: 1; animation: none; }
+.classic .lyric, .immersive .lyric {
+  :global(.lrc) { color: var(--tf-muted) !important; }
+  :global(.lrc.active), :global(.lrc.active span) { color: var(--tf-ink) !important; }
+}
+.immersive .trackHeader { display: none; }
+.lyric :global(.line-content) { opacity: 1; font-weight: 700; text-shadow: none; filter: none; }
+.lyric :global(.line-content.q-current-line), .lyric :global(.line-content.line-mode.active) { text-shadow: none; filter: none; }
+.lyric :global(.line-content.q-current-line ~ .line-content) { opacity: 1; }
+.lyric :global(.line-content.line-mode.active .font-lrc), .lyric :global(.line-content.q-current-line.line-mode .font-lrc) { text-shadow: none; }
+.lyricSelectContent .lrcActive { color: var(--tf-accent); }
 </style>

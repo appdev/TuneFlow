@@ -1,7 +1,10 @@
 <template>
   <div id="my-list" :class="$style.container" @click="handleContainerClick">
+    <header class="tf-workspace-heading"><h1>我的音乐</h1><div class="tf-workspace-actions"><button type="button" @click="$refs.myList.handleImportList(undefined, 0)">导入列表</button><button type="button" class="tf-primary" @click="$refs.myList.isShowNewList = true">新建列表</button></div></header>
+    <div :class="$style.workspace">
     <MyList ref="myList" :list-id="listId" @show-menu="$refs.musicList.handleMenuClick()" />
     <MusicList ref="musicList" :list-id="listId" @show-menu="$refs.myList.handleMenuClick()" />
+    </div>
   </div>
 </template>
 
@@ -77,4 +80,9 @@ export default {
     radial-gradient(circle at 16% 14%, var(--color-primary-alpha-900), transparent 34%);
 }
 
+.container { flex-direction: column; padding: 32px 0 0; gap: 32px; background: var(--tf-paper); }
+.workspace { display: flex; gap: 40px; min-height: 0; flex: 1; }
+@media (max-width: 900px) { .workspace { gap: 24px; } }
+@media (max-width: 760px) { .container { padding-top: 24px; gap: 24px; } .workspace { gap: 16px; } }
+.container { padding-top: 16px; gap: 16px; :global(.tf-workspace-heading h1) { font-size: 24px; } }
 </style>

@@ -158,6 +158,7 @@ export default {
   name: 'MaterialOnlineList',
   components: { SourcePicker },
   props: {
+    comfortable: Boolean,
     playInContext: {
       type: Boolean,
       default: false,
@@ -404,8 +405,8 @@ export default {
   flex-flow: column nowrap;
   font-size: 14px;
   :global(.list-item) {
-    margin: 2px 7px;
-    width: calc(100% - 14px);
+    margin: 0;
+    width: 100%;
   }
 }
 

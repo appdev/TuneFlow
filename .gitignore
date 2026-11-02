@@ -72,6 +72,8 @@ typings/
 # Local development and automation artifacts
 .codex/
 .playwright-mcp/
+.work/
+.hallmark/
 docs/superpowers/
 ._*
 

@@ -157,7 +157,8 @@ export default {
   flex-flow: column nowrap;
   position: relative;
   box-sizing: border-box;
-  padding: 12px 14px calc(@height-player + 12px);
+  // The app shell already reserves the fixed player's height.
+  padding: 12px 14px;
   min-height: 0;
 }
 .header {

@@ -36,12 +36,10 @@
 </template>
 
 <script>
-import { ref, watch, computed, markRawList } from '@common/utils/vueTools'
+import { ref, watch, markRawList } from '@common/utils/vueTools'
 import { playList } from '@renderer/core/player'
 import { getListMusics, removeListMusics } from '@renderer/store/list/action'
-import { isFullscreen } from '@renderer/store'
-import { appSetting } from '@renderer/store/setting'
-import { getFontSizeWithScreen } from '@renderer/utils'
+import useTrackRowHeight from '@renderer/utils/compositions/useTrackRowHeight'
 import { LIST_IDS } from '@common/constants'
 import { useI18n } from '@root/lang'
 
@@ -60,9 +58,7 @@ export default {
   setup(props) {
     const t = useI18n()
     const duplicateList = ref([])
-    const listItemHeight = computed(() => {
-      return Math.ceil((isFullscreen.value ? getFontSizeWithScreen() : appSetting['common.fontSize']) * 3.2)
-    })
+    const listItemHeight = useTrackRowHeight()
 
     const handlePlay = (index) => {
       const { index: musicInfoIndex } = duplicateList.value[index]

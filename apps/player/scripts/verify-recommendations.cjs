@@ -253,6 +253,7 @@ test('desktop homepage keeps songs on transient refresh failure, clears changed 
     '@renderer/components/common/SourceIcon.vue': {},
     '@renderer/core/music': { getPicPath: async() => '' }, '@renderer/core/player/selection': {},
     '@renderer/core/player/action': {}, '@renderer/store/player/state': { playMusicInfo: {} },
+    '@renderer/store/player/action': { setShowPlayerDetail: () => {} },
     './session': { getWorkspace: () => workspace, serviceStatus: {}, subscribeService: () => () => {}, subscribeRecommendations: () => () => {} },
     './accounts': { accountNames: { tx: 'QQ', wy: 'WY', kg: 'KG' } },
     './recommendations': { ...client.recommendations, loadDailyFeed: async(...args) => { calls++; return next(...args) } }, './client': client.api,

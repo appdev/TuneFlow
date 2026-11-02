@@ -3,8 +3,29 @@
 const fs = require('fs')
 const path = require('path')
 const { createThemeColors } = require('./utils')
+const { buildReferenceMaterial } = require('./reference')
 
 const defaultThemes = [
+  {
+    id: 'yesplay',
+    name: '经典蓝白',
+    isDark: false,
+    isDarkFont: false,
+    config: {
+      primary: 'rgb(51, 94, 234)',
+      font: 'rgb(0, 0, 0)',
+      '--background-image': 'none',
+      '--background-image-position': 'center',
+      '--background-image-size': 'cover',
+      '--color-btn-hide': '#3bc2b2',
+      '--color-btn-min': '#85c43b',
+      '--color-btn-close': '#fab4a0',
+      '--color-badge-primary': 'var(--color-primary)',
+      '--color-badge-secondary': '#4baed5',
+      '--color-badge-tertiary': '#e7aa36',
+      ...buildReferenceMaterial(false),
+    },
+  },
   {
     id: 'green',
     name: '绿意盎然',

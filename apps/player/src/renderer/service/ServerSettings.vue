@@ -1,5 +1,5 @@
 <template>
-  <section :class="[$style.panel, { [$style.sourcesPanel]: section === 'sources' }]">
+  <section class="tf-service-settings" :class="[$style.panel, { [$style.sourcesPanel]: section === 'sources' }]">
     <template v-if="section === 'connection'">
       <h2>连接设置</h2>
       <p>音乐库、歌单、收藏、播放记录与下载在各设备间保持一致。更改连接地址不会删除数据。</p>

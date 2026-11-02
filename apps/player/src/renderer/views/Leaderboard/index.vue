@@ -1,9 +1,11 @@
 <template>
-  <div :class="$style.leaderboard">
+  <div class="tf-leaderboard" :class="$style.leaderboard">
+    <header class="tf-workspace-heading"><h1>{{ $t('leaderboard') }}</h1></header>
+    <div :class="$style.workspace">
     <div :class="$style.lists">
-      <div :class="$style.listsHeading">{{ $t('leaderboard') }}</div>
+      <div :class="$style.listsHeading">音乐平台</div>
       <div :class="$style.listsSelect">
-        <base-selection :model-value="source" :class="$style.select" :list="sourceList" item-key="id" item-name="name" @update:model-value="handleToggleSource" />
+        <SourcePicker :value="source" :options="sourceList.map(item => item.id)" :source-name="id => sourceNames[id]" prominent @change="handleToggleSource" />
       </div>
       <BoardList ref="boardListRef" :board-id="boardId" :source="source" @show-menu="$refs.musicListRef?.hideMenu()" />
     </div>
@@ -17,6 +19,7 @@
       </header>
       <MusicList ref="musicListRef" :source="source" :board-id="boardId" @show-menu="$refs.boardListRef?.hideMenu()" />
     </div>
+    </div>
   </div>
 </template>
 
@@ -28,6 +31,7 @@ import MusicList from './MusicList/index.vue'
 import { sources, boards } from '@renderer/store/leaderboard/state'
 import { sourceNames } from '@renderer/store'
 import SourceIcon from '@renderer/components/common/SourceIcon.vue'
+import SourcePicker from '@renderer/components/common/SourcePicker.vue'
 import { useRoute, useRouter } from '@common/utils/vueRouter'
 
 
@@ -69,6 +73,7 @@ export default {
     BoardList,
     MusicList,
     SourceIcon,
+    SourcePicker,
   },
   beforeRouteEnter: verifyQueryParams,
   beforeRouteUpdate: verifyQueryParams,
@@ -244,4 +249,18 @@ export default {
   .boardTitle h2 { font-size: 20px; }
 }
 
+.leaderboard { flex-direction: column; gap: 32px; padding: 32px 0 0; }
+.workspace { flex: 1; min-height: 0; display: flex; gap: 40px; }
+.lists { width: 216px; border-radius: 0; background: none; box-shadow: none; backdrop-filter: none; padding-right: 24px; border-right: 1px solid var(--tf-rule); box-sizing: border-box; }
+.listsHeading { padding: 0 0 12px; color: var(--tf-muted); font-size: 14px; font-weight: 400; }
+.listsSelect { padding-bottom: 24px; border-bottom: 1px solid var(--tf-rule); }
+.list { height: auto; background: none; border-radius: 0; box-shadow: none; backdrop-filter: none; }
+.boardHeader { padding: 0 0 24px; gap: 16px; border: 0; }
+.boardTitle { span { font-size: 14px; color: var(--tf-muted); } h2 { margin-top: 8px; font-size: 32px; font-weight: 600; color: var(--tf-ink); } }
+@media (max-width: 900px) { .workspace { gap: 24px; } .lists { width: 176px; padding-right: 16px; } .boardTitle h2 { font-size: 28px; } }
+@media (max-width: 760px) { .leaderboard { padding-top: 24px; gap: 24px; } .workspace { gap: 16px; } .lists { width: 144px; padding-right: 12px; } .boardTitle h2 { font-size: 24px; } }
+.leaderboard { padding-top: 16px; gap: 16px; :global(.tf-workspace-heading h1) { font-size: 24px; } }
+.boardHeader { min-height: 72px; padding: 0 220px 16px 0; box-sizing: border-box; }
+.boardTitle h2 { font-size: 24px; margin-top: 4px; }
+@media (max-width: 900px) { .boardHeader { min-height: 0; padding: 0 0 12px; } .boardTitle h2 { font-size: 22px; } }
 </style>

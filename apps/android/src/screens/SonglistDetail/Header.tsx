@@ -14,6 +14,7 @@ import { useI18n } from '@/lang'
 import IconButton from '@/components/common/IconButton'
 import { useMotion } from '@/utils/useMotion'
 import { Q_UI } from '@/theme/ui'
+import useAdaptiveLayout from '@/utils/hooks/useAdaptiveLayout'
 
 const IMAGE_WIDTH = 92
 const COVER_RADIUS = Q_UI.radius.control
@@ -40,6 +41,8 @@ const Pic = ({ componentId, playCount, imgUrl }: {
   imgUrl?: string
 }) => {
   const [pic, setPic] = useState(imgUrl)
+  const { phone } = useAdaptiveLayout()
+  const coverSize = phone ? 112 : IMAGE_WIDTH
   const [animated, setAnimated] = useState(false)
   const info = useListInfo()
   useEffect(() => {
@@ -51,7 +54,7 @@ const Pic = ({ componentId, playCount, imgUrl }: {
   })
 
   return (
-    <View style={{ ...styles.listItemImg, width: IMAGE_WIDTH, height: IMAGE_WIDTH }}>
+    <View style={{ ...styles.listItemImg, width: coverSize, height: coverSize }}>
       <Image nativeID={`${NAV_SHEAR_NATIVE_IDS.songlistDetail_pic}_to_${info.id}`} url={pic} style={{ flex: 1, borderRadius: COVER_RADIUS }} />
       {
         playCount && animated ? <CountText count={playCount} /> : null
@@ -135,6 +138,7 @@ export const FixedHeader = ({ titleCollapsed = false }: { titleCollapsed?: boole
 
 export default forwardRef<HeaderType, HeaderProps>(({ componentId }: { componentId: string }, ref) => {
   const theme = useTheme()
+  const { phone } = useAdaptiveLayout()
   const info = useListInfo()
   const [detailInfo, setDetailInfo] = useState<DetailInfo>({ name: '', desc: '', playCount: '', imgUrl: info.img })
 
@@ -150,14 +154,15 @@ export default forwardRef<HeaderType, HeaderProps>(({ componentId }: { component
         ...styles.container,
         backgroundColor: theme['q-surface-base'],
         borderBottomColor: theme['q-outline'],
+        ...(phone ? { borderBottomWidth: 0 } : {}),
       }}
     >
-      <View style={styles.infoRow}>
+      <View style={[styles.infoRow, phone ? { paddingHorizontal: 20, paddingBottom: 20 } : null]}>
         <Pic componentId={componentId} playCount={detailInfo.playCount} imgUrl={detailInfo.imgUrl} />
-        <View style={styles.info} nativeID={NAV_SHEAR_NATIVE_IDS.songlistDetail_title}>
-          <Text style={styles.title} size={16} color={theme['q-text-primary']} numberOfLines={2}>{detailInfo.name}</Text>
+        <View style={[styles.info, phone ? { height: 112, maxHeight: 112, paddingLeft: 16, overflow: 'hidden', justifyContent: 'space-between' } : null]} nativeID={NAV_SHEAR_NATIVE_IDS.songlistDetail_title}>
+          <Text style={styles.title} size={phone ? 18 : 16} color={theme['q-text-primary']} numberOfLines={2}>{detailInfo.name}</Text>
           <View style={{ flexGrow: 0, flexShrink: 1 }}>
-            <Text style={styles.description} size={12} color={theme['q-text-secondary']} numberOfLines={3}>{detailInfo.desc}</Text>
+            <Text style={styles.description} size={12} color={theme['q-text-secondary']} numberOfLines={phone ? 2 : 3}>{detailInfo.desc}</Text>
           </View>
         </View>
       </View>

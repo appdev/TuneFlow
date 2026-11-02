@@ -1,16 +1,16 @@
 <template>
-  <div :class="$style.container">
-    <div :class="$style.songListHeader">
-      <button type="button" :class="$style.backButton" :aria-label="$t('back')" :title="$t('back')" @click="handleBack">
-        <svg-icon name="angle-right-solid" />
+  <div class="tf-catalog-detail" :class="$style.container">
+    <div class="tf-detail-header" :class="$style.songListHeader">
+      <button type="button" class="tf-detail-back" :class="$style.backButton" :aria-label="$t('back')" :title="$t('back')" @click="handleBack">
+        <svg-icon name="angle-right-solid" /><span>{{ $t('back') }}</span>
       </button>
-      <div :class="$style.songListHeaderLeft" :style="{ backgroundImage: (picUrl || listDetailInfo.info.img) ? `url(${picUrl || listDetailInfo.info.img})` : 'none' }">
+      <div class="tf-detail-cover" :class="$style.songListHeaderLeft" :style="{ backgroundImage: (picUrl || listDetailInfo.info.img) ? `url(${picUrl || listDetailInfo.info.img})` : 'none' }">
         <!-- <span v-if="listDetailInfo.info.play_count" :class="$style.playNum">{{ listDetailInfo.info.play_count }}</span> -->
       </div>
-      <div :class="$style.songListHeaderMiddle">
+      <div class="tf-detail-copy" :class="$style.songListHeaderMiddle">
         <h3 :title="listDetailInfo.info.name">{{ listDetailInfo.info.name }}</h3>
         <p :title="listDetailInfo.info.desc">{{ listDetailInfo.info.desc }}</p>
-        <div :class="$style.songListHeaderRight">
+        <div class="tf-detail-actions" :class="$style.songListHeaderRight">
           <base-btn :class="$style.headerRightBtn" :disabled="listDetailInfo.noItemLabel == $t('list__loading')" @click="getListData(source, id, listDetailInfo.page, true)">{{ $t('playlist_import_modal__refresh') }}</base-btn>
           <base-btn
             :class="$style.headerRightBtn"
@@ -286,5 +286,19 @@ export default {
   .songListHeader { gap: 10px; padding: 12px; }
   .songListHeaderLeft { width: 60px; height: 60px; }
 }
+.songListHeader { gap: 32px; min-height: 272px; padding: 24px 0 32px; }
+.backButton { background: transparent; color: var(--tf-muted); }
+.songListHeaderLeft { width: 224px; height: 224px; border-radius: var(--tf-radius); opacity: 1; box-shadow: none; background-color: var(--tf-surface); }
+.songListHeaderMiddle {
+  h3 { color: var(--tf-ink); font-size: 36px; font-weight: 700; margin-bottom: 16px; }
+  p { color: var(--tf-muted); font-size: 14px; line-height: 1.6; }
+}
+.songListHeaderRight {
+  gap: 8px; margin-top: 24px;
+  .headerRightBtn { min-height: 40px; border-radius: 999px; padding: 8px 16px; background: var(--tf-surface); color: var(--tf-ink); box-shadow: none; font-size: 14px; }
+  .headerRightBtn:nth-child(2) { background: var(--tf-accent); color: var(--tf-accent-ink); }
+}
+@container (max-width: 720px) { .songListHeader { gap: 16px; min-height: 180px; padding-block: 16px; } .songListHeaderLeft { width: 128px; height: 128px; } .songListHeaderMiddle h3 { font-size: 26px; } }
+@container (max-width: 420px) { .songListHeader { flex-wrap: wrap; } .songListHeaderLeft { width: 96px; height: 96px; } .songListHeaderMiddle { flex: 1 1 140px; } .songListHeaderRight { margin-top: 12px; } }
 </style>
 

@@ -15,7 +15,7 @@ const handleLinkAction = async(link: string) => {
   const [type, action, ...paths] = url.replace('qmusic://', '').split('/')
   const params: {
     paths: string[]
-    data?: string
+    data?: any
     [key: string]: any
   } = {
     paths: [],
@@ -28,7 +28,6 @@ const handleLinkAction = async(link: string) => {
     if (params.data) params.data = JSON.parse(decodeURIComponent(params.data))
   }
   params.paths = paths.map(p => decodeURIComponent(p))
-  console.log(params)
   switch (type) {
     case 'music':
       await handleMusicAction(action, params)

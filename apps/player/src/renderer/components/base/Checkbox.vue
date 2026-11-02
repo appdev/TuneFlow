@@ -1,5 +1,5 @@
 <template>
-  <div :class="$style.checkbox">
+  <div class="tf-checkbox" :class="$style.checkbox">
     <input
       :id="id" ref="dom_input" :type="need ? 'radio' : 'checkbox'" :aria-hidden="true" :checked="checked"
       :class="$style.input" :disabled="disabled" :value="value" :name="name" @input="handleInput($event.target.checked)"

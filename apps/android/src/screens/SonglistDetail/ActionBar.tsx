@@ -12,9 +12,11 @@ import { Icon } from '@/components/common/Icon'
 import { Q_UI } from '@/theme/ui'
 import Loading from '@/components/common/Loading'
 import { toast } from '@/utils/tools'
+import useAdaptiveLayout from '@/utils/hooks/useAdaptiveLayout'
 
 export default () => {
   const theme = useTheme()
+  const { phone } = useAdaptiveLayout()
   const t = useI18n()
   const info = useListInfo()
   const [pendingAction, setPendingAction] = useState<'play' | 'collect' | null>(null)
@@ -57,12 +59,13 @@ export default () => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, phone && { paddingHorizontal: 20 }]}>
       <View
         style={{
           ...styles.group,
           backgroundColor: theme['q-surface-raised'],
           borderColor: theme['q-outline'],
+          ...(phone ? { borderWidth: 0, gap: 8, backgroundColor: theme['q-surface-base'] } : {}),
         }}
       >
         <Button
@@ -73,18 +76,19 @@ export default () => {
           style={{
             ...styles.controlBtn,
             ...styles.primaryBtn,
-            backgroundColor: theme['q-surface-tint'],
+            backgroundColor: theme[phone ? 'q-accent' : 'q-surface-tint'],
+            ...(phone ? { borderRadius: 12 } : {}),
           }}
         >
-          {pendingAction == 'play' ? <Loading size={16} color={theme['q-accent-text']} /> : <Icon accessible={false} name="play-outline" size={16} color={theme['q-accent-text']} />}
-          <Text style={styles.primaryText} numberOfLines={1} size={13} color={theme['q-accent-text']}>{t(pendingAction == 'play' ? 'loading' : 'play_all')}</Text>
+          {pendingAction == 'play' ? <Loading size={16} color={theme[phone ? 'q-on-accent' : 'q-accent-text']} /> : <Icon accessible={false} name="play-outline" size={16} color={theme[phone ? 'q-on-accent' : 'q-accent-text']} />}
+          <Text style={styles.primaryText} numberOfLines={1} size={13} color={theme[phone ? 'q-on-accent' : 'q-accent-text']}>{t(pendingAction == 'play' ? 'loading' : 'play_all')}</Text>
         </Button>
         <Button
           accessibilityLabel={t('collect_songlist')}
           accessibilityState={{ busy: pendingAction == 'collect' }}
           disabled={!collectionName || !info.id || pendingAction != null}
           onPress={handleCollection}
-          style={{ ...styles.controlBtn, borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: theme['q-outline'] }}
+          style={{ ...styles.controlBtn, borderLeftWidth: phone ? 0 : StyleSheet.hairlineWidth, borderLeftColor: theme['q-outline'], ...(phone ? { borderRadius: 12, backgroundColor: theme['q-surface-raised'] } : {}) }}
         >
           {pendingAction == 'collect' ? <Loading size={16} color={theme['q-accent-text']} /> : <Icon accessible={false} name="love" size={16} color={theme['q-accent-text']} />}
           <Text style={styles.secondaryText} numberOfLines={1} size={13} color={theme['q-accent-text']}>{t(pendingAction == 'collect' ? 'loading' : 'collect_songlist')}</Text>

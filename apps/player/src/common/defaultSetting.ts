@@ -158,9 +158,9 @@ const defaultSetting: LX.AppSetting = {
   'openAPI.bindLan': false,
 
   // 'theme.id': 'blue_plus',
-  'theme.id': 'green',
-  'theme.lightId': 'green',
-  'theme.darkId': 'black',
+  'theme.id': 'yesplay',
+  'theme.lightId': 'yesplay',
+  'theme.darkId': 'yesplay',
   'theme.autoByTime': false,
   'theme.appearance': null,
   'theme.dayStart': '07:00',
@@ -172,13 +172,6 @@ const defaultSetting: LX.AppSetting = {
   'odc.isAutoClearSearchInput': false,
   'odc.isAutoClearSearchList': false,
 
-}
-
-
-// 使用新年皮肤
-if (new Date().getMonth() < 2) {
-  defaultSetting['theme.id'] = 'happy_new_year'
-  defaultSetting['desktopLyric.style.lyricPlayedColor'] = 'rgba(255, 57, 71, 1)'
 }
 
 

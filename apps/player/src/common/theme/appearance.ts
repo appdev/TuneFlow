@@ -1,5 +1,6 @@
 import { isNightTime } from './schedule'
 import { createThemeColors } from './utils'
+import { buildReferenceMaterial } from './reference'
 
 export type ThemeAppearance = 'light' | 'dark' | 'system' | 'time'
 type Settings = Partial<LX.AppSetting>
@@ -63,6 +64,7 @@ export const adaptThemeAppearance = (theme: LX.Theme, dark: boolean): LX.Theme =
         '--color-app-background': dark ? 'rgba(0, 0, 0, 0.36)' : 'rgba(255, 255, 255, 0)',
         '--color-main-background': `rgba(${surface.map(Math.round).join(', ')}, ${dark ? '0.84' : '0.8'})`,
         '--color-nav-font': dark ? 'var(--color-font)' : 'var(--color-primary)',
+        ...(theme.id === 'yesplay' && !theme.isCustom ? buildReferenceMaterial(dark) : {}),
       },
     },
   }

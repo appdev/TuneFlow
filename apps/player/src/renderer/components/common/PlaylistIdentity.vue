@@ -1,6 +1,7 @@
 <template>
   <span :class="$style.identity">
-    <span :class="$style.local" aria-hidden="true"><svg-icon :name="list.id == 'love' ? 'love' : 'music'" /></span>
+    <img v-if="cover" :src="cover" alt="" :class="$style.cover" loading="lazy" @error="$event.target.style.visibility = 'hidden'">
+    <span v-else :class="$style.local" aria-hidden="true"><svg-icon :name="list.id == 'love' ? 'love' : 'music'" /></span>
     <span :class="$style.copy">
       <span :class="$style.name">{{ name || list.name }}</span>
       <span v-if="subtitle" :class="$style.source">{{ sourceName }}</span>
@@ -20,13 +21,15 @@ export default {
   setup(props) {
     const source = computed(() => props.list.source)
     const sourceName = computed(() => props.list.id === 'service_library' ? '服务器音乐库' : props.list.id === 'service_history' ? '服务器播放记录' : source.value ? `${({ tx: 'QQ音乐', wy: '网易云音乐', kg: '酷狗音乐', kw: '酷我音乐', mg: '咪咕音乐' })[source.value] || source.value} · 服务器` : '服务器歌单')
-    return { source, sourceName }
+    const cover = computed(() => props.list.img || props.list.pic || '')
+    return { source, sourceName, cover }
   },
 }
 </script>
 
 <style lang="less" module>
 .identity { display: inline-flex; width: 100%; min-width: 0; align-items: center; gap: 10px; text-align: left; }
+.cover { width: 42px; height: 42px; flex: none; object-fit: cover; border-radius: 6px; }
 .local { width: 22px; height: 22px; flex: none; display: grid; place-items: center; color: var(--color-font-label); }
 .local svg { width: 18px; height: 18px; }
 .copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; line-height: 1.25; }

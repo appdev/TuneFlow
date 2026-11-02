@@ -1,5 +1,5 @@
 <template>
-  <div id="container" :class="['view-container', { 'mac-native-window': isMac, 'control-btn-right': !isMac && appSetting['common.controlBtnPosition'] == 'right', 'show-player-detail': isShowPlayerDetail && appSetting['playDetail.style.layout'] == 'immersive' }]">
+  <div id="container" :class="['view-container', 'tf-app', { 'mac-native-window': isMac, 'control-btn-right': !isMac && appSetting['common.controlBtnPosition'] == 'right', 'show-player-detail': isShowPlayerDetail && appSetting['playDetail.style.layout'] == 'immersive' }]">
     <div id="window-drag-bar" aria-hidden="true" />
     <WindowControlBtns
       v-if="!isMac && appSetting['common.controlBtnPosition'] == 'right'"
@@ -7,7 +7,6 @@
       :detail-action="isShowPlayerDetail && appSetting['playDetail.style.layout'] == 'immersive' ? 'none' : isShowPlayerDetail ? 'hide' : 'show'"
       fullscreen-exit-enabled
     />
-    <layout-aside id="left" />
     <div id="right">
       <layout-toolbar id="toolbar" />
       <layout-view id="view" />
@@ -36,6 +35,9 @@ import { isShowPlayerDetail } from '@renderer/store/player/state'
 // import '@common/utils/effects/snow.min'
 import useApp from '@renderer/core/useApp'
 import WindowControlBtns from './components/layout/WindowControlBtns.vue'
+import useTrackRowHeight from '@renderer/utils/compositions/useTrackRowHeight'
+
+watch(useTrackRowHeight(), height => document.documentElement.style.setProperty('--tf-track-row-height', `${height}px`), { immediate: true })
 
 useApp()
 
@@ -402,4 +404,5 @@ body {
   opacity: .2;
 }
 
+@import './assets/styles/coverFirst.less';
 </style>

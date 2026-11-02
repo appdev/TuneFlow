@@ -1,12 +1,10 @@
-import { computed, watch, type Ref } from '@common/utils/vueTools'
-import { isFullscreen } from '@renderer/store'
-import { getFontSizeWithScreen } from '@renderer/utils'
-import { appSetting } from '@renderer/store/setting'
+import { watch, type Ref } from '@common/utils/vueTools'
+import useTrackRowHeight from '@renderer/utils/compositions/useTrackRowHeight'
 import useListSelection from '@renderer/utils/compositions/useListSelection'
 
-export default ({ listRef, props }: { listRef: Ref<any>, props: { list: LX.Music.MusicInfoOnline[] } }) => {
+export default ({ listRef, props }: { listRef: Ref<any>, props: { list: LX.Music.MusicInfoOnline[], comfortable?: boolean } }) => {
   const selection = useListSelection(() => props.list, listRef)
-  const listItemHeight = computed(() => Math.max(34, Math.ceil((isFullscreen.value ? getFontSizeWithScreen() : appSetting['common.fontSize']) * 2.3)))
+  const listItemHeight = useTrackRowHeight()
   watch(() => props.list, selection.removeAllSelect)
   return { ...selection, listItemHeight }
 }

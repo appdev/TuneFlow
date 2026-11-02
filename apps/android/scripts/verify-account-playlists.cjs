@@ -8,8 +8,19 @@ const crypto = require('node:crypto')
 const ts = require('typescript')
 const root = path.join(__dirname, '../src')
 function load(file, dependencies, globals = {}) {
+  if (file === 'core/musicAccount/playlistSync.ts') {
+    dependencies['@/service/session'] = { isServiceMode: () => false }
+    dependencies['@/service/accounts'] = {}
+    dependencies['@/utils/playlistMerge'] = load('utils/playlistMerge.ts', {})
+    dependencies['./syncState'] = { setPlaylistSyncState: () => {} }
+  }
   const context = { exports: {}, Buffer, URLSearchParams, AbortController, setTimeout, clearTimeout, Error, ...globals,
-    require: id => { if (!(id in dependencies)) throw new Error(`Unexpected dependency: ${id}`); return dependencies[id] },
+    require: id => {
+      if (id === './qqCredentials') return load('core/musicAccount/qqCredentials.ts', {})
+      if (id === './qqImportedSession') return load('core/musicAccount/qqImportedSession.ts', dependencies)
+      if (!(id in dependencies)) throw new Error(`Unexpected dependency: ${id}`)
+      return dependencies[id]
+    },
   }
   vm.runInNewContext(ts.transpileModule(readSource(path.join(root, file)), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText, context)
   return context.exports
@@ -51,19 +62,30 @@ const requests = load('core/musicAccount/requests.ts', { './cookies': cookies, '
     return { ok: true, json: async () => result }
   },
 })
-const api = load('core/musicAccount/playlists.ts', { './requests': requests, './cookies': cookies, '@/utils/musicSdk/tx/songList': qq, '@/utils/musicSdk/wy/songList': wy, '@/utils': utils })
+const api = load('core/musicAccount/playlists.ts', {
+  './requests': requests, './cookies': cookies, '@/utils/musicSdk/tx/songList': qq, '@/utils/musicSdk/wy/songList': wy, '@/utils': utils,
+  '@/utils/musicSdk/kg/songList': {}, './kugou': {},
+})
 const wyTrack = id => ({ id, name: `歌 ${id}`, ar: [{ name: '歌手' }], al: { id: 2, name: '专辑', picUrl: 'https://example.test/cover' }, dt: 120000 })
 const qqTrack = id => ({ id, mid: `mid${id}`, title: `歌 ${id}`, singer: [{ name: '歌手' }], album: { mid: 'album', name: '专辑' }, file: { media_mid: `media${id}`, size_128mp3: 100, size_320mp3: 0, size_flac: 0, size_hires: 0 }, interval: 120 })
 const state = { userList: [] }
 const storage = new Map()
+const listUpdates = {}
 let failWrite = false
 const sync = load('core/musicAccount/playlistSync.ts', {
   '@/store/list/state': { default: state }, './playlists': api,
   '@/core/list': {
+    getListMusics: async id => storage.get(id) ?? [],
     setFetchingListStatus: () => {},
     createList: async info => { state.userList.push(info); storage.set(info.id, info.list) },
     overwriteListMusics: async (id, tracks) => { if (failWrite) throw new Error('disk'); storage.set(id, tracks) },
-  }, '@/utils/data': { setListUpdateTime: async () => {} },
+  }, '@/utils/data': {
+    getListUpdateInfo: async () => listUpdates,
+    setListUpdateTime: async () => {},
+    setListSourceSnapshot: async (id, sourceSnapshot) => { listUpdates[id] = { ...listUpdates[id], sourceSnapshot } },
+    setListSourceAccount: async (id, sourceAccountId) => { listUpdates[id] = { ...listUpdates[id], sourceAccountId } },
+    setListAutoUpdate: async (id, isAutoUpdate) => { listUpdates[id] = { ...listUpdates[id], isAutoUpdate } },
+  },
 })
 let incomplete = false
 let total = 205
@@ -97,9 +119,12 @@ async function main() {
   assert.equal(storage.get(first.id)[0].meta.albumName, '专辑')
   await sync.syncAccountPlaylist(session, lists[0])
   assert.equal(state.userList.length, 1, '重复同步不新建')
+  const callsBeforeConcurrent = detailCalls
   const ongoing = sync.syncAccountPlaylist(session, lists[0])
-  await assert.rejects(sync.syncAccountPlaylist(session, lists[0]), /busy/)
-  await ongoing
+  const duplicateSync = sync.syncAccountPlaylist(session, lists[0])
+  const results = await Promise.all([ongoing, duplicateSync])
+  assert.equal(results[0].id, results[1].id)
+  assert.equal(detailCalls - callsBeforeConcurrent, 2, '并发重复同步仅请求一组分页')
   incomplete = true
   await assert.rejects(sync.syncAccountPlaylist(session, lists[0]), /incomplete/)
   assert.equal(storage.get(first.id).length, 205, '不完整返回不能覆盖')

@@ -1,33 +1,28 @@
-<template lang="pug">
-dt#list {{ $t('setting__list') }}
-dd
-  .gap-top
-    base-checkbox(id="setting_list_actionButtonsVisible_enable" :model-value="appSetting['list.actionButtonsVisible']" :label="$t('setting__list_action_btn')" @update:model-value="updateSetting({'list.actionButtonsVisible': $event})")
-  .gap-top
-    base-checkbox(id="setting_list_showSource_enable" :model-value="appSetting['list.isShowSource']" :label="$t('setting__list_source')" @update:model-value="updateSetting({'list.isShowSource': $event})")
-  .gap-top
-    base-checkbox(id="setting_list_scroll_enable" :model-value="appSetting['list.isSaveScrollLocation']" :label="$t('setting__list_scroll')" @update:model-value="updateSetting({'list.isSaveScrollLocation': $event})")
-dd
-  h3 {{ $t('setting_single_play') }}
-  div
-    base-checkbox(id="single_play_replace" name="single_play_mode" need :model-value="appSetting['list.singlePlayMode']" value="replace" :label="$t('setting_single_play_replace')" @update:model-value="updateSetting({'list.singlePlayMode': $event})")
-    base-checkbox.gap-left(id="single_play_add" name="single_play_mode" need :model-value="appSetting['list.singlePlayMode']" value="add" :label="$t('setting_single_play_add')" @update:model-value="updateSetting({'list.singlePlayMode': $event})")
-  p {{ $t('setting_single_play_tip') }}
-  .gap-top
-    base-checkbox(id="prefer_local" :model-value="appSetting['player.preferLocal']" :label="$t('setting_prefer_local')" @update:model-value="updateSetting({'player.preferLocal': $event})")
-  p {{ $t('setting_prefer_local_tip') }}
-dd(:aria-label="$t('setting__basic_sourcename_title')")
-  h3#list_addMusicLocationType {{ $t('setting__list_add_music_location_type') }}
-  div
-    base-checkbox.gap-left(
-      id="setting_list_add_music_location_type_top" name="setting_list_add_music_location_type" need
-      :model-value="appSetting['list.addMusicLocationType']" value="top" :label="$t('setting__list_add_music_location_type_top')"
-      @update:model-value="updateSetting({'list.addMusicLocationType': $event})")
-    base-checkbox.gap-left(
-      id="setting_list_add_music_location_type_bottom" name="setting_list_add_music_location_type" need
-      :model-value="appSetting['list.addMusicLocationType']" value="bottom" :label="$t('setting__list_add_music_location_type_bottom')"
-      @update:model-value="updateSetting({'list.addMusicLocationType': $event})")
-
+<template>
+  <dt id="list">{{ $t('setting__list') }}</dt>
+  <dd class="tf-preference-group">
+    <h3>列表显示</h3>
+    <label class="tf-preference-row"><span>{{ $t('setting__list_action_btn') }}</span><input id="setting_list_actionButtonsVisible_enable" type="checkbox" :checked="appSetting['list.actionButtonsVisible']" @change="updateSetting({ 'list.actionButtonsVisible': $event.target.checked })"></label>
+    <label class="tf-preference-row"><span>{{ $t('setting__list_source') }}</span><input id="setting_list_showSource_enable" type="checkbox" :checked="appSetting['list.isShowSource']" @change="updateSetting({ 'list.isShowSource': $event.target.checked })"></label>
+    <label class="tf-preference-row"><span>{{ $t('setting__list_scroll') }}</span><input id="setting_list_scroll_enable" type="checkbox" :checked="appSetting['list.isSaveScrollLocation']" @change="updateSetting({ 'list.isSaveScrollLocation': $event.target.checked })"></label>
+  </dd>
+  <dd class="tf-preference-group">
+    <h3>{{ $t('setting_single_play') }}</h3>
+    <div class="tf-preference-options" role="radiogroup" :aria-label="$t('setting_single_play')">
+      <label><input id="single_play_replace" type="radio" name="single_play_mode" :checked="appSetting['list.singlePlayMode'] === 'replace'" @change="updateSetting({ 'list.singlePlayMode': 'replace' })"><span>{{ $t('setting_single_play_replace') }}</span></label>
+      <label><input id="single_play_add" type="radio" name="single_play_mode" :checked="appSetting['list.singlePlayMode'] === 'add'" @change="updateSetting({ 'list.singlePlayMode': 'add' })"><span>{{ $t('setting_single_play_add') }}</span></label>
+    </div>
+    <p class="tf-preference-help">{{ $t('setting_single_play_tip') }}</p>
+    <label class="tf-preference-row"><span>{{ $t('setting_prefer_local') }}</span><input id="prefer_local" type="checkbox" :checked="appSetting['player.preferLocal']" @change="updateSetting({ 'player.preferLocal': $event.target.checked })"></label>
+    <p class="tf-preference-help">{{ $t('setting_prefer_local_tip') }}</p>
+  </dd>
+  <dd class="tf-preference-group">
+    <h3 id="list_addMusicLocationType">{{ $t('setting__list_add_music_location_type') }}</h3>
+    <div class="tf-preference-options" role="radiogroup" :aria-label="$t('setting__list_add_music_location_type')">
+      <label><input id="setting_list_add_music_location_type_top" type="radio" name="add_music_location" :checked="appSetting['list.addMusicLocationType'] === 'top'" @change="updateSetting({ 'list.addMusicLocationType': 'top' })"><span>{{ $t('setting__list_add_music_location_type_top') }}</span></label>
+      <label><input id="setting_list_add_music_location_type_bottom" type="radio" name="add_music_location" :checked="appSetting['list.addMusicLocationType'] === 'bottom'" @change="updateSetting({ 'list.addMusicLocationType': 'bottom' })"><span>{{ $t('setting__list_add_music_location_type_bottom') }}</span></label>
+    </div>
+  </dd>
 </template>
 
 <script>
