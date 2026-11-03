@@ -6,11 +6,11 @@
 
 ## 共享 Web 界面预览
 
-![共享 Vue Web 首页与推荐](../../docs/images/web-home.png)
+![共享 Vue Web 首页与推荐](../../docs/images/web-home.jpg)
 
-![共享 Vue Web 歌单列表](../../docs/images/web-playlist.png)
+![共享 Vue Web 歌单列表](../../docs/images/web-playlist.jpg)
 
-以上为浏览器实际截图，使用隔离示例数据；桌面复用同一套 Vue 页面，并通过 Electron 提供原生能力。[截图版本与来源](../../docs/images/README.md)。
+以上为 2026-11-03 的 Web 实际截图，展示平台公开推荐与歌单，不含私人账号数据。桌面使用相同页面，截图未覆盖桌面原生能力。[截图版本与来源](../../docs/images/README.md)。
 
 ## 在产品中的位置
 

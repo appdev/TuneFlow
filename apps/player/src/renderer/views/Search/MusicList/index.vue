@@ -75,7 +75,8 @@ const handleTogglePage = (page: number) => {
   width: 100%;
   height: 100%;
   box-sizing: border-box;
-  padding: 4px 16px calc(@height-player + 18px);
+  // The app shell already reserves the fixed player's height.
+  padding: 4px 16px 18px;
 }
 
 .list {

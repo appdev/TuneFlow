@@ -2,7 +2,9 @@
   <div :class="$style.container">
     <div :class="$style.header">
       <div :class="$style.left">
-        <base-selection :model-value="source" :class="$style.sourceSelect" :list="sourceList" item-key="id" item-name="name" @update:model-value="handleToggleSource" />
+        <div :class="$style.sourceSelect">
+          <SourcePicker :value="source" :options="sourceList.map(item => item.id)" :source-name="id => sourceNames[id]" prominent @change="handleToggleSource" />
+        </div>
         <tag-list :source="source" :tag-id="tagId" :sort-id="sortId" />
         <sort-tab :source="source" :tag-id="tagId" :sort-id="sortId" />
       </div>
@@ -21,6 +23,7 @@ import TagList from './components/TagList.vue'
 import SortTab from './components/SortTab.vue'
 import OpenListModal from './components/OpenListModal.vue'
 import ListView from './ListView.vue'
+import SourcePicker from '@renderer/components/common/SourcePicker.vue'
 import { sources, sortList, listInfo, isVisibleListDetail } from '@renderer/store/songList/state'
 import { sourceNames } from '@renderer/store'
 import { selectedSource } from '@renderer/store/search/state'
@@ -103,6 +106,7 @@ export default {
     TagList,
     SortTab,
     ListView,
+    SourcePicker,
     OpenListModal,
   },
   beforeRouteEnter: verifyQueryParams,
@@ -141,6 +145,7 @@ export default {
       page,
       listInfo,
       sourceList,
+      sourceNames,
       handleToggleSource,
       visibleOpenSongListModal,
     }
@@ -184,7 +189,7 @@ export default {
   align-items: center;
   gap: 6px;
 }
-.sourceSelect { width: 120px; font-size: 12px; }
+.sourceSelect { flex: none; width: 168px; max-width: 100%; }
 
 .btn {
   color: var(--color-font);

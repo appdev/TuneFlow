@@ -166,7 +166,7 @@ onBeforeUnmount(() => { revision++ })
 
 <style lang="less" module>
 @import '@renderer/assets/styles/layout.less';
-.container { display: flex; flex-direction: column; height: 100%; min-height: 0; padding-bottom: @height-player + 18px; box-sizing: border-box; }
+.container { display: flex; flex-direction: column; height: 100%; min-height: 0; padding-bottom: 18px; box-sizing: border-box; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); align-content: start; gap: 24px 20px; padding: 18px 24px; min-height: 0; flex: 1; overflow-y: auto; }
 .card { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 0; border: 0; text-align: left; background: transparent; color: var(--color-900); cursor: pointer;
   strong, .singer, small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; line-height: 1.5; }

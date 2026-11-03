@@ -4,14 +4,14 @@
 
 [产品首页](../../README.md) · [客户端下载安装](https://github.com/appdev/TuneFlow/releases) · [问题反馈](https://github.com/appdev/TuneFlow/issues) · [桌面/Web](../player/README.md)
 
-## 界面预览
+## 界面预览（历史版本）
 
 <p>
   <img src="../../docs/images/android-home.png" width="320" alt="Android 首页与每日推荐">
   <img src="../../docs/images/android-playlist.png" width="320" alt="Android 共享歌单列表">
 </p>
 
-截图来自已发布预览包的独立 Android 模拟器，连接与 Web 相同的隔离示例服务，不含私人账号数据。[截图版本与来源](../../docs/images/README.md)。
+截图截取于 2026-10-26，来自 Q-music v0.4.24 历史预览包的独立 Android 模拟器，使用隔离示例数据，不含私人账号信息，不代表当前 Android 最新界面。[截图版本与来源](../../docs/images/README.md)。
 
 ## 在产品中的位置
 
