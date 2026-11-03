@@ -42,7 +42,7 @@ afterEach(() => {
 
 describe('TagLib-Wasm audio metadata writer', () => {
   it.each([
-    ['mp3', () => readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3'))],
+    ['mp3', () => readFileSync(path.join(process.cwd(), 'tests/fixtures/silence.mp3'))],
     ['flac', minimalFlac],
     ['ape', () => Buffer.from(apeFixture)],
     ['wav', minimalWav],
@@ -75,7 +75,7 @@ describe('TagLib-Wasm audio metadata writer', () => {
   })
 
   it('fills only missing lyrics and preserves an existing picture', async() => {
-    const filePath = createFile('fixture.mp3', readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3')))
+    const filePath = createFile('fixture.mp3', readFileSync(path.join(process.cwd(), 'tests/fixtures/silence.mp3')))
     await writeAudioMetadata(filePath, { title: 'Fixture', picture: png, pictureMimeType: 'image/png' })
 
     const changed = await addMissingAudioMetadata(filePath, { lyrics: '[00:01.00]new lyric' })
@@ -87,7 +87,7 @@ describe('TagLib-Wasm audio metadata writer', () => {
   })
 
   it('does not replace existing lyrics or artwork', async() => {
-    const filePath = createFile('fixture.mp3', readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3')))
+    const filePath = createFile('fixture.mp3', readFileSync(path.join(process.cwd(), 'tests/fixtures/silence.mp3')))
     await writeAudioMetadata(filePath, {
       title: 'Fixture',
       picture: png,

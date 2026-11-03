@@ -127,6 +127,11 @@ export const updateSetting = (setting?: Partial<LX.AppSetting>, isInit: boolean 
     originSetting = { ...defaultSetting }
   } else originSetting = global.lx.appSetting
 
+  // Status-bar lyrics need the native tray and background playback on macOS.
+  // Normalize before merging so persistence and all renderer notifications agree.
+  if (isMac && (setting?.['player.isShowStatusBarLyric'] ?? originSetting['player.isShowStatusBarLyric'])) {
+    setting = { ...setting, 'tray.enable': true }
+  }
   const result = mergeSetting(originSetting, setting)
 
   result.setting.version = defaultSetting.version

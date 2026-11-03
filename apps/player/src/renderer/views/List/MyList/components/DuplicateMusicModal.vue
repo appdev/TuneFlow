@@ -36,7 +36,7 @@
 </template>
 
 <script>
-import { ref, watch, markRawList } from '@common/utils/vueTools'
+import { computed, ref, watch, markRawList } from '@common/utils/vueTools'
 import { playList } from '@renderer/core/player'
 import { getListMusics, removeListMusics } from '@renderer/store/list/action'
 import useTrackRowHeight from '@renderer/utils/compositions/useTrackRowHeight'

@@ -1,5 +1,5 @@
 param(
-    [string]$Source = (Join-Path $PSScriptRoot "../doc/images/icon.png")
+    [string]$Source = (Join-Path $PSScriptRoot "../../player/resources/icons/icon.png")
 )
 
 $ErrorActionPreference = "Stop"

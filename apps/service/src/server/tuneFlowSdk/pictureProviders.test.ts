@@ -1,10 +1,10 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import mgPic from '../../renderer/utils/musicSdk/mg/pic'
-import { httpFetch } from '../../renderer/utils/request'
-import getSongId from '../../renderer/utils/musicSdk/mg/songId'
+import mgPic from './musicSdk/mg/pic'
+import { httpFetch } from './request'
+import getSongId from './musicSdk/mg/songId'
 
-vi.mock('../../renderer/utils/request', () => ({ httpFetch: vi.fn() }))
-vi.mock('../../renderer/utils/musicSdk/mg/songId', () => ({ default: vi.fn() }))
+vi.mock('./request', () => ({ httpFetch: vi.fn() }))
+vi.mock('./musicSdk/mg/songId', () => ({ default: vi.fn() }))
 
 afterEach(() => { vi.resetAllMocks() })
 

@@ -15,6 +15,9 @@ let tray: Electron.Tray | null
 let isEnableTray: boolean = false
 let themeId: number
 let isShowStatusBarLyric: boolean = false
+type PlaybackControl = 'prev' | 'toggle' | 'next'
+let playbackControls: Partial<Record<PlaybackControl, Electron.Tray>> = {}
+let playbackImages: Record<'prev' | 'play' | 'pause' | 'next', Electron.NativeImage> | null = null
 
 const playerState = {
   empty: false,
@@ -143,6 +146,59 @@ const getIconPath = (id: number) => {
   return path.join(global.staticPath, 'images/tray', theme.fileName + (isWin ? '.ico' : '.png'))
 }
 
+const getPlaybackImages = () => {
+  if (playbackImages) return playbackImages
+  const createImage = (symbol: string) => {
+    const source = nativeImage.createFromNamedImage(symbol)
+    const size = source.getSize()
+    // Keep each symbol's proportions inside the same canvas so play/pause never shifts the controls.
+    const render = (scale: number) => {
+      const canvasSize = 16 * scale
+      const ratio = 14 * scale / Math.max(size.width, size.height)
+      const width = Math.max(1, Math.round(size.width * ratio))
+      const height = Math.max(1, Math.round(size.height * ratio))
+      const pixels = source.resize({ width, height }).toBitmap()
+      const canvas = Buffer.alloc(canvasSize * canvasSize * 4)
+      const left = Math.floor((canvasSize - width) / 2)
+      const top = Math.floor((canvasSize - height) / 2)
+      for (let row = 0; row < height; row++) {
+        pixels.copy(canvas, ((top + row) * canvasSize + left) * 4, row * width * 4, (row + 1) * width * 4)
+      }
+      return nativeImage.createFromBitmap(canvas, { width: canvasSize, height: canvasSize })
+    }
+    const image = render(1)
+    image.addRepresentation({ scaleFactor: 2, dataURL: render(2).toDataURL() })
+    image.setTemplateImage(true)
+    return image
+  }
+  return playbackImages = {
+    prev: createImage('backward.end.fill'),
+    play: createImage('play.fill'),
+    pause: createImage('pause.fill'),
+    next: createImage('forward.end.fill'),
+  }
+}
+
+const updatePlaybackControls = () => {
+  if (!isMac || !tray) return
+  const images = getPlaybackImages()
+  const toggleAction = playerState.play ? 'pause' : 'play'
+  // macOS inserts new status items to the left of existing items.
+  for (const control of ['next', 'toggle', 'prev'] as const) {
+    const action = control === 'toggle' ? toggleAction : control
+    let item = playbackControls[control]
+    if (!item) {
+      item = playbackControls[control] = new Tray(images[action])
+      item.setIgnoreDoubleClickEvents(true)
+      item.on('click', () => {
+        if (playerState.empty || !global.lx.player_status.name) return
+        sendTaskbarButtonClick(control === 'toggle' ? playerState.play ? 'pause' : 'play' : control)
+      })
+    } else item.setImage(images[action])
+    item.setToolTip(i18n.getMessage(action))
+  }
+}
+
 export const createTray = () => {
   // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
   if ((tray && !tray.isDestroyed()) || !global.lx.appSetting['tray.enable']) return
@@ -158,9 +214,12 @@ export const createTray = () => {
       showMainWindow()
     })
   }
+  updatePlaybackControls()
 }
 
 export const destroyTray = () => {
+  for (const item of Object.values(playbackControls)) item.destroy()
+  playbackControls = {}
   if (!tray) return
   tray.destroy()
   isEnableTray = false
@@ -343,6 +402,7 @@ const init = () => {
     }
   }
   setTip()
+  updatePlaybackControls()
   createMenu()
 }
 

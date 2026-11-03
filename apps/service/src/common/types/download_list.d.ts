@@ -1,4 +1,4 @@
-import { type Message } from '@root/lang'
+import type messages from '../../lang/en-us.json'
 
 // interface DownloadList {
 
@@ -38,7 +38,7 @@ declare global {
       | DownloadTaskAction<'statusText', string>
       | DownloadTaskAction<'progress', ProgressInfo>
       | DownloadTaskAction<'error', {
-        error?: keyof Message
+        error?: keyof typeof messages
         message?: string
       }>
 

@@ -10,7 +10,7 @@ import type { ApiFastifyInstance } from '../api/types'
 import { init, close } from '../db/core/db'
 import { getAllUserList, getListMusics, musicsAdd } from '../db/lists'
 
-vi.mock('../../renderer/utils/musicSdk/tx/musicInfo', () => ({
+vi.mock('../tuneFlowSdk/musicSdk/tx/musicInfo', () => ({
   default: async(mid: string) => {
     if (mid === 'failed-fixture') throw new Error('one track unavailable')
     if (mid === 'missing-fixture') return null

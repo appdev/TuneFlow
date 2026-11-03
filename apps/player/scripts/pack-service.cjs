@@ -5,6 +5,7 @@ const path = require('node:path')
 const crypto = require('node:crypto')
 const { spawnSync } = require('node:child_process')
 const builder = require('electron-builder')
+const { prepareDarwinDependencies, auditDarwinBundle } = require('./package-architecture.cjs')
 const root = path.resolve(__dirname, '..')
 const pkg = require('../package.json')
 const electronVersion = pkg.devDependencies.electron
@@ -81,7 +82,9 @@ const run = async(target) => {
   await verifyNative(qrc, platform, arch)
   await fs.mkdir(path.join(stage, 'build/Release'), { recursive: true })
   await fs.copyFile(qrc, path.join(stage, 'build/Release/qrc_decode.node'))
+  if (platform === 'darwin') await prepareDarwinDependencies(stage, arch)
   await fs.writeFile(path.join(stage, 'package.json'), JSON.stringify({ name: 'tuneflow', version: process.env.Q_PREVIEW_VERSION || pkg.version, main: 'dist/main.js', description: 'TuneFlow music client', author: pkg.author, license: pkg.license, dependencies }, null, 2))
+  let architectureAudit
   const config = {
     appId: 'io.github.qmusic.docker.preview', productName: 'TuneFlow', electronVersion,
     directories: { app: stage, output, buildResources: path.join(root, 'resources') },
@@ -89,6 +92,9 @@ const run = async(target) => {
     files: ['dist/**/*', 'build/Release/qrc_decode.node', 'package.json', 'node_modules/**/*'],
     extraResources: [{ from: path.join(root, 'licenses'), to: 'licenses' }, { from: path.join(root, 'NOTICE'), to: 'NOTICE' }, { from: path.join(root, 'LICENSE'), to: 'LICENSE' }],
     publish: null, artifactName: 'TuneFlow-${version}-${os}-${arch}.${ext}',
+    afterPack: platform === 'darwin' ? async(context) => {
+      architectureAudit = await auditDarwinBundle(path.join(context.appOutDir, 'TuneFlow.app'), arch)
+    } : undefined,
     mac: { identity: '-', hardenedRuntime: false, gatekeeperAssess: false, icon: path.join(root, 'resources/icons/icon.icns'), category: 'public.app-category.music', target: ['zip'] },
     win: { icon: path.join(root, 'resources/icons/icon.ico'), target: ['zip'], signAndEditExecutable: true },
     linux: { executableName: 'TuneFlow', icon: path.join(root, 'resources/icons'), category: 'AudioVideo', target: ['tar.gz'], maintainer: 'TuneFlow contributors' },
@@ -97,7 +103,7 @@ const run = async(target) => {
   await builder.build({ [option]: config[option].target, [arch]: true, publish: 'never', config })
   const hash = async(file) => crypto.createHash('sha256').update(await fs.readFile(file)).digest('hex')
   const binaries = { sqlite: { source: path.relative(root, sqliteSource), sha256: await hash(sqliteSource) }, qrc: { source: path.relative(root, qrc), sha256: await hash(qrc) } }
-  await fs.writeFile(path.join(output, 'native-bindings.json'), JSON.stringify({ target, electronVersion, abi, binaries, runtimeVerified: false }, null, 2))
+  await fs.writeFile(path.join(output, 'native-bindings.json'), JSON.stringify({ target, electronVersion, abi, binaries, architectureAudit, runtimeVerified: false }, null, 2))
   console.log(`Packaged ${target}; runtime validation is a separate step.`)
 }
 ;(async() => { for (const target of targets) await run(target) })().catch(error => { console.error(error); process.exitCode = 1 })

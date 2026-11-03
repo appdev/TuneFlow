@@ -38,7 +38,9 @@ TUNEFLOW_WEB_ROOT="$PWD/apps/service/dist/web-qmusic" npm run start:server
 
 产物为 `apps/service/dist/web-qmusic`，仅包含位于 `/` 的共享 Vue Web。构建使用 staging，已有同名产物保留为时间戳备份；不会启动或替换容器。
 
-也可运行 `npm --prefix apps/player run build:web`，输出 `apps/player/dist/web-client`。根命令 `npm run build:service` 保留旧 Web 与服务的开发构建，不能替代共享 Vue Web 构建；Docker 不使用该入口。
+也可运行 `npm --prefix apps/player run build:web`，输出 `apps/player/dist/web-client`。根命令 `npm run build:web` 和 `npm run build:service` 同样构建共享 Vue Web，静态输出为 `apps/service/dist/web`；旧 Web 源码和构建入口已移除。
+
+`npm --prefix apps/service run dev:web` 构建并预览同一套新界面。前端开发依赖由 `apps/player` 独立安装；服务依赖仍由 `apps/service` 独立安装。
 
 ### 本地页面连接已有 Service
 

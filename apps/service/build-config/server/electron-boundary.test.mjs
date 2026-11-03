@@ -7,6 +7,15 @@ const root = resolve(import.meta.dirname, '../..')
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
 
 const retiredPaths = [
+  'src/renderer',
+  'src/web-runtime',
+  'build-config/renderer-web',
+  'resources/icons',
+  'src/common/theme',
+  'src/common/utils/vueTools.ts',
+  'src/common/utils/vueRouter.ts',
+  'src/common/utils/renderer.ts',
+  'src/lang/i18n.ts',
   'src/main',
   'src/renderer-lyric',
   'publish',
@@ -125,8 +134,12 @@ test('Web-only source has no desktop capability classifications or runtime guard
   assert.deepEqual(matches, [])
 })
 
-test('maintained CI runs the Web and Service test suite', () => {
-  assert.match(readFileSync(join(root, '../../.github/workflows/build-test.yml'), 'utf8'), /run:\s+npm test/)
+test('maintained CI runs the shared Web and Service test suite', () => {
+  const workflow = readFileSync(join(root, '../../.github/workflows/build-test.yml'), 'utf8')
+  assert.match(workflow, /run:\s+npm test/)
+  assert.match(workflow, /run:\s+npm run test:e2e/)
+  assert.equal(pkg.scripts['build:web'], 'node build-config/server/build-qmusic-web.mjs --default')
+  assert.equal(pkg.scripts['test:e2e'], 'node build-config/server/test-shared-web.mjs')
 })
 
 test('GitHub Actions use Node 24 runtime generations', () => {

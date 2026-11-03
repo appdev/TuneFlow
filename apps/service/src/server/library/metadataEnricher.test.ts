@@ -19,7 +19,7 @@ const fixture = async(): Promise<{ root: string, audio: string }> => {
   const audioRoot = path.join(root, 'audio')
   mkdirSync(audioRoot, { recursive: true })
   const audio = path.join(audioRoot, 'fixture.mp3')
-  copyFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3'), audio)
+  copyFileSync(path.join(process.cwd(), 'tests/fixtures/silence.mp3'), audio)
   await writeAudioMetadata(audio, { title: 'Fixture', picture: png, pictureMimeType: 'image/png' })
   return { root, audio }
 }

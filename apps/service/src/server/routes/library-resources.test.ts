@@ -7,7 +7,7 @@ import { writeAudioMetadata } from '../downloads/taglibMetadata'
 
 const roots: string[] = []
 const apps: Array<Awaited<ReturnType<typeof createServer>>> = []
-const fixtureAudio = path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3')
+const fixtureAudio = path.join(process.cwd(), 'tests/fixtures/silence.mp3')
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
 
 const createTestServer = async(files: Array<{ name: string, bytes?: Buffer }> = [{ name: 'fixture.mp3' }]) => {
@@ -141,7 +141,7 @@ describe('local library resources', () => {
   it('keeps a sidecar while another audio variant with the same basename still uses it', async() => {
     const fixture = await createTestServer([
       { name: 'shared.mp3', bytes: readFileSync(fixtureAudio) },
-      { name: 'shared.wav', bytes: readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/filters/filter-telephone.wav')) },
+      { name: 'shared.wav', bytes: readFileSync(path.join(process.cwd(), 'tests/fixtures/telephone.wav')) },
     ])
     const sidecarPath = path.join(fixture.audioRoot, 'shared.lrc')
     writeFileSync(sidecarPath, '[00:01.00]Shared lyric')

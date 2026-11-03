@@ -1,4 +1,3 @@
-import type { I18n } from '../../lang/i18n'
 
 declare global {
 
@@ -26,7 +25,7 @@ declare global {
       /**
        * 语言id
        */
-      'common.langId': I18n['locale'] | null
+      'common.langId': 'en-us' | 'zh-cn' | 'zh-tw' | null
 
       /**
        * api id

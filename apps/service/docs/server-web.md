@@ -26,7 +26,8 @@ Open <http://127.0.0.1:3124>. Stop the foreground Service with `Ctrl+C`.
 `build:web:qmusic` prepares `dist/web-qmusic` with the shared Vue Web at `/`.
 `prepare:service` prepares the self-contained `dist/server`
 runtime, including the Node ABI build of `better-sqlite3`. `build:service`
-remains a legacy-Web-plus-Service build; it does not build the shared Vue Web.
+builds the same shared Vue Web into `dist/web` together with the Service. The
+separate legacy Web source and build configuration have been removed.
 
 Configuration is supplied with environment variables:
 

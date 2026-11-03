@@ -2,8 +2,8 @@ import http from 'node:http'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { browsePlaylists, getAlbumDetail, getPlaylistDetail, getPlaylistTags, search, searchCollections, validateAlbumId, validatePlaylistId } from './index'
 import { proxy } from './rendererStoreShim'
-import { decodeLyric } from '../../renderer/utils/musicSdk/kw/util'
-import musicSdk from '../../renderer/utils/musicSdk'
+import { decodeLyric } from './musicSdk/kw/util'
+import musicSdk from './musicSdk'
 
 let server: http.Server | undefined
 const originalWindow = (globalThis as { window?: unknown }).window

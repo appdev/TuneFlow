@@ -1,5 +1,5 @@
 import { Type } from '@fastify/type-provider-typebox'
-import type { ServiceDomainEvent, WebRuntimeEventSnapshot } from '../../web-runtime/types'
+import type { ServiceDomainEvent, WebRuntimeEventSnapshot } from './eventTypes'
 import { projectBrowserDto } from '../playback/browserDto'
 import type { ApiFastifyInstance } from '../api/types'
 import { ApiSuccess, ErrorResponses } from '../api/schemas/common'

@@ -105,3 +105,61 @@ test('native close destroys the window when tray is disabled', () => {
   assert.equal(api.isExistWindow(), false)
   assert.equal(appEvents.some(([event]) => event === 'main_window_close'), true)
 })
+
+function settingHarness(platform, current = {}) {
+  const defaults = { version: 'test', 'tray.enable': false, 'player.isShowStatusBarLyric': false }
+  const saved = []
+  const runtime = { lx: { appSetting: { ...defaults, ...current } }, envParams: { cmdParams: {} } }
+  const dependencies = {
+    '@common/utils': { isMac: platform === 'darwin', throttle: fn => fn },
+    '@common/utils/migrateSetting': value => value,
+    '@common/theme/appearance': {},
+    '@main/utils/store': () => ({ override: value => saved.push(value) }),
+    '@common/constants': { STORE_NAMES: { APP_SETTINGS: 'config_v2' } },
+    '@common/defaultSetting': defaults,
+    '@common/defaultHotKey': {},
+    './migrate': {},
+    electron: {},
+    '@common/utils/nodejs': {},
+    '@common/theme/index.json': [],
+    '@common/theme/material': {},
+  }
+  const context = { exports: {}, global: runtime, process, require: name => {
+    if (!(name in dependencies)) throw Error('Unexpected dependency: ' + name)
+    return dependencies[name]
+  } }
+  vm.runInNewContext(ts.transpileModule(readSource(path.join(__dirname, '../src/main/utils/index.ts')), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
+  }).outputText, context)
+  return { update: context.exports.updateSetting, saved, runtime }
+}
+
+test('macOS status-bar lyrics enable and persist background playback in the same update', () => {
+  const { update, saved } = settingHarness('darwin')
+  const input = { 'player.isShowStatusBarLyric': true }
+  const result = update(input)
+  assert.equal(result.setting['tray.enable'], true)
+  assert.equal(result.updatedSetting['tray.enable'], true)
+  assert.equal(result.updatedSetting['player.isShowStatusBarLyric'], true)
+  assert.equal(saved[0].setting['tray.enable'], true)
+  assert.deepEqual(input, { 'player.isShowStatusBarLyric': true })
+})
+
+test('macOS startup repairs saved status-bar lyrics without background playback', () => {
+  const { update, saved } = settingHarness('darwin')
+  const result = update({ 'player.isShowStatusBarLyric': true, 'tray.enable': false }, true)
+  assert.equal(result.setting['tray.enable'], true)
+  assert.equal(saved[0].setting['tray.enable'], true)
+})
+
+test('macOS keeps background playback while status-bar lyrics are enabled', () => {
+  const { update } = settingHarness('darwin', { 'player.isShowStatusBarLyric': true, 'tray.enable': true })
+  assert.equal(update({ 'tray.enable': false }).setting['tray.enable'], true)
+  assert.equal(update({ 'player.isShowStatusBarLyric': false }).setting['tray.enable'], true)
+  assert.equal(update({ 'player.isShowStatusBarLyric': false, 'tray.enable': false }).setting['tray.enable'], false)
+})
+
+for (const platform of ['win32', 'linux']) test(`${platform} does not apply macOS status-bar background policy`, () => {
+  const { update } = settingHarness(platform)
+  assert.equal(update({ 'player.isShowStatusBarLyric': true }).setting['tray.enable'], false)
+})

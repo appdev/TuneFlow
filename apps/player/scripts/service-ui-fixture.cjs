@@ -16,7 +16,7 @@ wave.write('data', 36); wave.writeUInt32LE(wave.length - 44, 40)
 for (let i = 0; i < 70 * sampleRate; i++) wave.writeInt16LE(Math.round(Math.sin(i * 440 * 2 * Math.PI / sampleRate) * 500), 44 + i * 2)
 fs.writeFileSync(path.join(root, 'audio', 'Fixture Native - QMusic QA.wav'), wave)
 fs.writeFileSync(path.join(root, 'audio', 'Fixture Native - QMusic QA.lrc'), '[00:00.00]Native Service fixture\n[00:30.00]Seek point\n[01:00.00]Native end')
-const mp3 = fs.readFileSync(path.join(serverRoot, 'src/renderer/assets/medias/Silence02s.mp3'))
+const mp3 = fs.readFileSync(path.join(serverRoot, 'tests/fixtures/silence.mp3'))
 const upstream = http.createServer((req, res) => {
   const match = /^bytes=(\d+)-(\d*)$/.exec(req.headers.range || '')
   const start = match ? Number(match[1]) : 0

@@ -45,6 +45,8 @@ Q_PREVIEW_OUTPUT_ROOT=artifacts/release npm run pack:player -- darwin-arm64
 
 将目标替换为上表中的其他值；构建依赖目标平台的可用原生绑定，跨平台打包通过不代表已在对应系统实机验收。上例归档输出到 `apps/player/artifacts/release/<target>/`。
 
+macOS 的 arm64 与 x64 分别打包。暂存依赖仅保留目标架构的预编译模块，字体工具中的通用二进制会裁为目标架构；生成归档前扫描整个 `.app` 和 `app.asar`，发现其他架构或非 macOS 原生模块即停止打包。arm64 包不包含 Intel 切片，开发机的原始依赖不受清理影响。相关检查：`node --test apps/player/test/packageArchitecture.test.cjs`。
+
 开发模式：`npm --prefix apps/player run dev`。请先准备可连接的 Server，客户端不会在断线后悄悄改用旧本地数据库。
 
 ## Web 构建

@@ -18,7 +18,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
 test('Q client → actual isolated Service: search, playlist CRUD, sources, playback/Range/lyrics/artwork, downloads/library, history/settings', { timeout: 120000 }, async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qmusic-service-contract-'))
   const serverRoot = process.env.Q_SERVICE_ROOT || path.resolve(__dirname, '../..', 'service')
-  const wave = fs.readFileSync(path.join(serverRoot, 'src/renderer/assets/medias/Silence02s.mp3'))
+  const wave = fs.readFileSync(path.join(serverRoot, 'tests/fixtures/silence.mp3'))
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jNOkAAAAASUVORK5CYII=', 'base64')
   let script = ''
   const mediaRequests = []

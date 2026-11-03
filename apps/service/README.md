@@ -1,4 +1,4 @@
-<p align="center"><img width="200" src="./TuneFlow.png" alt="TuneFlow logo"></p>
+<p align="center"><img width="200" src="../player/resources/icons/icon.png" alt="TuneFlow logo"></p>
 
 <h1 align="center">TuneFlow · 音流</h1>
 
@@ -33,7 +33,7 @@ TuneFlow（音流）的 Server 为桌面、Web 与 Android 提供统一的数据
 - Node.js 24+
 - Vue 3
 
-本目录 `apps/service` 负责服务，保留旧 Web 源码供开发调试；桌面和共享 Web 源码位于同仓库的 `apps/player`，Android 位于 `apps/android`。Docker 仅托管共享 Vue Web。完整结构见[单仓库说明](../../docs/monorepo.md)。
+本目录 `apps/service` 负责服务；桌面和共享 Web 源码统一位于同仓库的 `apps/player`，Android 位于 `apps/android`。旧 Web 源码已移除，Docker 仅托管共享 Vue Web。完整结构见[单仓库说明](../../docs/monorepo.md)。
 
 <a id="feature-boundaries"></a>
 
@@ -148,7 +148,7 @@ npm run prepare:service
 TUNEFLOW_WEB_ROOT="$PWD/apps/service/dist/web-qmusic" npm run start:server
 ```
 
-浏览器打开 <http://127.0.0.1:3124>。`npm run build:service` 仍构建兼容旧 Web 与服务，不能替代上面的共享 Web 构建。默认只监听本机回环地址；若要在可信局域网使用，可显式设置 `TUNEFLOW_HOST=0.0.0.0`，并通过主机防火墙或反向代理限制访问。
+浏览器打开 <http://127.0.0.1:3124>。也可以运行 `npm run build:service` 一并构建共享 Vue Web 和服务，默认静态目录为 `apps/service/dist/web`。默认只监听本机回环地址；若要在可信局域网使用，可显式设置 `TUNEFLOW_HOST=0.0.0.0`，并通过主机防火墙或反向代理限制访问。
 
 <a id="data-storage"></a>
 

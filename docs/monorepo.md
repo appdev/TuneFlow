@@ -8,7 +8,7 @@ TuneFlow 是主源码仓库。服务、桌面/Web 与 Android 在同一个 Git �
 
 | 目录 | 边界 |
 | --- | --- |
-| `apps/service` | Node Service、SQLite、音源执行、下载、音乐库与兼容旧 Web |
+| `apps/service` | Node Service、SQLite、音源执行、下载、音乐库；音乐源 SDK 位于 `src/server/tuneFlowSdk` |
 | `apps/player` | Electron 与共享 Vue 页面；`src/web-runtime` 提供浏览器适配 |
 | `apps/android` | React Native 与 Android 平台适配 |
 | `packages/service-client` | API、DTO、超时、地址与资源安全规则 |

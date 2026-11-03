@@ -86,7 +86,7 @@ describe('same-origin playback proxy', () => {
     const webRoot = path.join(root, 'web')
     mkdirSync(webRoot)
     writeFileSync(path.join(webRoot, 'index.html'), '<!doctype html><title>fixture</title>')
-    const audio = readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3'))
+    const audio = readFileSync(path.join(process.cwd(), 'tests/fixtures/silence.mp3'))
     const picture = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
     const upstream = createHttpServer((request, response) => {
       if (request.url === '/a') {
@@ -595,7 +595,7 @@ window.tuneflow.send(window.tuneflow.EVENT_NAMES.inited, {
     tempRoots.push(root)
     mkdirSync(path.join(root, 'audio'))
     writeFileSync(path.join(root, 'private.txt'), 'private')
-    const libraryBytes = readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3'))
+    const libraryBytes = readFileSync(path.join(process.cwd(), 'tests/fixtures/silence.mp3'))
     writeFileSync(path.join(root, 'audio', 'fixture.mp3'), libraryBytes)
     const registry = new LibraryScanner(root, () => [path.join(root, 'audio')])
     const restartedRegistry = new LibraryScanner(root, () => [path.join(root, 'audio')])

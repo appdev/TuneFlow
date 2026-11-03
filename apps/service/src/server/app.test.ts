@@ -409,7 +409,7 @@ describe('TuneFlow service', () => {
   })
 
   it('proactively resolves missing artwork while an asynchronous download proceeds', async() => {
-    const audio = readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3'))
+    const audio = readFileSync(path.join(process.cwd(), 'tests/fixtures/silence.mp3'))
     const picture = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z9aQAAAAASUVORK5CYII=', 'base64')
     let pictureRequests = 0
     const upstream = createHttpServer((request, response) => {

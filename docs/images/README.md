@@ -19,7 +19,7 @@
 
 ## Android 历史截图 · 2026-10-26
 
-以下图片仍供 [Android 说明](../../apps/android/README.md)使用，未在本次更新中重新截取，不代表当前 Android 最新界面。
+以下图片用于[产品首页](../../README.md)与 [Android 说明](../../apps/android/README.md)，未在本次更新中重新截取，不代表当前 Android 最新界面。
 
 | 文件 | 来源与页面 |
 | --- | --- |

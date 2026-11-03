@@ -18,7 +18,7 @@ describe('library scanner resource matching', () => {
     const audioRoot = path.join(root, 'audio')
     mkdirSync(audioRoot, { recursive: true })
     const audio = path.join(audioRoot, 'Fixture - Artist.mp3')
-    copyFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3'), audio)
+    copyFileSync(path.join(process.cwd(), 'tests/fixtures/silence.mp3'), audio)
     const picture = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'))
     await writeAudioMetadata(audio, {
       title: 'Fixture',

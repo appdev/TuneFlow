@@ -21,7 +21,7 @@
 import { isFullscreen } from '@renderer/store'
 import { isMac } from '@common/utils'
 import { appSetting, updateSetting } from '@renderer/store/setting'
-import appIcon from '@renderer/assets/images/app-icon.png'
+import appIcon from '../../../../../resources/icons/icon.png'
 import NavBar from '../Aside/NavBar.vue'
 import SearchInput from './SearchInput.vue'
 import { ref, watch } from '@common/utils/vueTools'

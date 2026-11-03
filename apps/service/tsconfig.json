@@ -9,13 +9,5 @@
     "resolveJsonModule": true,
     "rootDir": "./",
     "outDir": "./dist",
-    // "paths": {                                           /* Specify a set of entries that re-map imports to additional lookup locations. */
-    //   "@common/*": ["common/*"],
-    //   "@renderer/*": ["renderer/*"],
-    //   "@main/*": ["main/*"],
-    //   // "@lyric/*": ["renderer-lyric/*"],
-    //   "@static/*": ["static/*"],
-    //   "@root/*": ["./*"],
-    // },
   },
 }

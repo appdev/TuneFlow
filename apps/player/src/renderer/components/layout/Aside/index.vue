@@ -11,7 +11,7 @@
 </template>
 
 <script setup>
-import appIcon from '@renderer/assets/images/app-icon.png'
+import appIcon from '../../../../../resources/icons/icon.png'
 import { isMac } from '@common/utils'
 import { isFullscreen } from '@renderer/store'
 import { appSetting } from '@renderer/store/setting'

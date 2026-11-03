@@ -3,7 +3,7 @@
     <div :class="$style.header">
       <div :class="$style.left">
         <div :class="$style.sourceSelect">
-          <SourcePicker :value="source" :options="sourceList.map(item => item.id)" :source-name="id => sourceNames[id]" prominent @change="handleToggleSource" />
+          <SourcePicker :value="source" :options="sourceOptions" :source-name="getSourceName" prominent @change="handleToggleSource" />
         </div>
         <tag-list :source="source" :tag-id="tagId" :sort-id="sortId" />
         <sort-tab :source="source" :tag-id="tagId" :sort-id="sortId" />
@@ -117,6 +117,8 @@ export default {
     const sourceList = computed(() => {
       return sources.map(s => ({ id: s, name: sourceNames.value[s] }))
     })
+    const sourceOptions = computed(() => sourceList.value.map(item => item.id))
+    const getSourceName = (id: string) => sourceList.value.find(item => item.id == id)?.name ?? id
     const router = useRouter()
     const route = useRoute()
     const handleToggleSource = (id: LX.OnlineSource) => {
@@ -145,7 +147,8 @@ export default {
       page,
       listInfo,
       sourceList,
-      sourceNames,
+      sourceOptions,
+      getSourceName,
       handleToggleSource,
       visibleOpenSongListModal,
     }

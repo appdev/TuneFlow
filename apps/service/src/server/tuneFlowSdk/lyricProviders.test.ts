@@ -1,9 +1,9 @@
 import http from 'node:http'
 import { afterEach, expect, it, vi } from 'vitest'
-import mgLyric from '../../renderer/utils/musicSdk/mg/lyric'
-import { getMusicInfo } from '../../renderer/utils/musicSdk/mg/musicInfo'
+import mgLyric from './musicSdk/mg/lyric'
+import { getMusicInfo } from './musicSdk/mg/musicInfo'
 
-vi.mock('../../renderer/utils/musicSdk/mg/musicInfo', () => ({ getMusicInfo: vi.fn() }))
+vi.mock('./musicSdk/mg/musicInfo', () => ({ getMusicInfo: vi.fn() }))
 
 let server: http.Server | undefined
 

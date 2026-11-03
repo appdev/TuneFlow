@@ -22,7 +22,7 @@ import type { DownloadDto } from './types'
 
 process.env.TUNEFLOW_SERVICE_NODE_MODULES = path.join(process.cwd(), 'dist/server/node_modules')
 
-const validMp3 = readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3'))
+const validMp3 = readFileSync(path.join(process.cwd(), 'tests/fixtures/silence.mp3'))
 // Transport/resume fixtures must also pass the production audio validation.
 const bytes = Buffer.concat([validMp3, Buffer.alloc(64 * 1024 - validMp3.length)])
 const roots: string[] = []
@@ -144,7 +144,7 @@ describe('TuneFlow download policy', () => {
     const root = createRoot()
     const mp3 = path.join(root, 'audio', 'metadata.mp3')
     const ape = path.join(root, 'audio', 'metadata.ape')
-    const original = readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3'))
+    const original = readFileSync(path.join(process.cwd(), 'tests/fixtures/silence.mp3'))
     writeFileSync(mp3, original)
     writeFileSync(ape, apeFixture)
     const baseSettings = metadataSettings()
@@ -483,7 +483,7 @@ describe('durable download manager', () => {
 
   it('persists final post-metadata integrity for completed downloads', async() => {
     const root = createRoot()
-    const audio = readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3'))
+    const audio = readFileSync(path.join(process.cwd(), 'tests/fixtures/silence.mp3'))
     const upstream = await startUpstream({ payload: audio })
     const manager = new DownloadManager({
       storageRoot: root,
@@ -1902,7 +1902,7 @@ describe('local library ownership', () => {
   it('rejects a parseable downloaded file when its retained integrity no longer matches', async() => {
     const root = createRoot()
     const filePath = path.join(root, 'audio', 'Known.mp3')
-    const original = readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3'))
+    const original = readFileSync(path.join(process.cwd(), 'tests/fixtures/silence.mp3'))
     const integrity = { size: original.length, sha256: createHash('sha256').update(original).digest('hex') }
     writeFileSync(filePath, original)
     const scanner = new LibraryScanner(
@@ -1931,7 +1931,7 @@ describe('local library ownership', () => {
 
   it('ignores parts, returns path-opaque metadata DTOs, and owns all Range forms', async() => {
     const root = createRoot()
-    writeFileSync(path.join(root, 'audio', 'fixture.mp3'), readFileSync(path.join(process.cwd(), 'src/renderer/assets/medias/Silence02s.mp3')))
+    writeFileSync(path.join(root, 'audio', 'fixture.mp3'), readFileSync(path.join(process.cwd(), 'tests/fixtures/silence.mp3')))
     writeFileSync(path.join(root, 'audio', 'ignored.mp3.part'), bytes)
     const scanner = new LibraryScanner(root, () => [path.join(root, 'audio')])
     const tracks = await scanner.refresh()

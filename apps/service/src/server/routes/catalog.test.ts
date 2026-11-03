@@ -1,7 +1,7 @@
 import Fastify from 'fastify'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { registerCatalogRoutes } from './catalog'
-import musicSdk from '../../renderer/utils/musicSdk'
+import musicSdk from '../tuneFlowSdk/musicSdk'
 import { ApiError } from '../errors'
 import { SourceServiceError } from '../sources/types'
 import { PlaybackResourceStore } from '../playback/resourceStore'

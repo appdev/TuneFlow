@@ -1,4 +1,4 @@
-import musicSdk from '../../renderer/utils/musicSdk'
+import musicSdk from './musicSdk'
 import { SourceWorkerHost } from '../sources/worker-host'
 import { toSourceMusicInfo } from '../sources/musicInfo'
 import type { AlbumDetailResult, CatalogCollection, CatalogSearchKind, CollectionSearchResult, SearchRequest, SearchResult } from '../sources/types'

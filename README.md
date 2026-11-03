@@ -26,6 +26,17 @@
 
 ![歌单详情：查看歌曲、艺术家与专辑，播放整张歌单](docs/images/web-playlist.jpg)
 
+## 手机上也能继续听
+
+Android 客户端提供推荐、搜索、歌单、收藏和播放历史入口。连接同一服务后，可以在手机上访问电脑整理的歌单和音乐库。
+
+<p align="center">
+  <img src="docs/images/android-home.png" width="300" alt="Android 首页：搜索、推荐和音乐发现（历史版本）">
+  <img src="docs/images/android-playlist.png" width="300" alt="Android 我的列表：音乐库、收藏和歌单（历史版本）">
+</p>
+
+以上为 2026-10-26 截取的 Android 历史预览界面，使用示例数据，不代表当前最新版外观。[截图版本与来源](docs/images/README.md)。
+
 ## 日常听歌需要的功能
 
 | 功能 | 可以做什么 |
