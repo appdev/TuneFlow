@@ -1,5 +1,9 @@
 # lx-music-desktop change log
 
+## TuneFlow 2.13.14 - 2026-11-03
+
+- macOS 默认开启状态栏图标，提供直接播放控制；启用状态栏歌词时自动保持后台播放。统一新版界面与紫色音符图标，修正 macOS 原生依赖架构打包。
+
 All notable changes to this project will be documented in this file.
 
 Project versioning adheres to [Semantic Versioning](http://semver.org/).

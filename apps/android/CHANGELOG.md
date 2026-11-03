@@ -1,5 +1,9 @@
 # lx-music-mobile change log
 
+## TuneFlow 2.13.14 - 2026-11-03
+
+- 与桌面和 Service 统一升级至 2.13.14，versionCode 基数升至 61，沿用原预览包身份、签名与用户数据。应用素材沿用统一紫色音符图标来源。
+
 All notable changes to this project will be documented in this file.
 
 Project versioning adheres to [Semantic Versioning](http://semver.org/).

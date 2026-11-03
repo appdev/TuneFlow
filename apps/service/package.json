@@ -1,6 +1,6 @@
 {
   "name": "tuneflow-server-web",
-  "version": "2.13.13",
+  "version": "2.13.14",
   "description": "TuneFlow (音流) shared music Service",
   "scripts": {
     "build:theme": "npm --prefix ../player run build:theme",
