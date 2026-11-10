@@ -4,13 +4,17 @@
 
 [产品首页](../../README.md) · [客户端下载安装](https://github.com/appdev/TuneFlow/releases) · [问题反馈](https://github.com/appdev/TuneFlow/issues) · [Android](../android/README.md)
 
-## 共享 Web 界面预览
+## 新版界面预览
 
-![共享 Vue Web 首页与推荐](../../docs/images/web-home.jpg)
+桌面与 Web 共用新版 Vue UI：顶部导航和搜索入口、以封面与推荐卡片为主的首页、歌曲列表，以及固定在底部的播放栏。浏览推荐、歌单或搜索结果时，都可以继续控制播放；外观支持浅色、深色与跟随系统。
 
-![共享 Vue Web 歌单列表](../../docs/images/web-playlist.jpg)
+![新版 Web 首页：顶部导航、推荐卡片与底部播放栏](../../docs/images/web-home.jpg)
 
-以上为 2026-11-03 的 Web 实际截图，展示平台公开推荐与歌单，不含私人账号数据。桌面使用相同页面，截图未覆盖桌面原生能力。[截图版本与来源](../../docs/images/README.md)。
+![新版 Web 首页：深色外观](../../docs/images/web-home-dark.jpg)
+
+![新版 Web 歌单详情与歌曲列表](../../docs/images/web-playlist.jpg)
+
+以上为 2026-11-10 从当前工作区源码构建并运行的 Web 界面截图，使用隔离的示例曲目、歌单与封面素材，不含私人账号数据。桌面使用相同页面，截图未覆盖桌面原生能力。[截图版本、来源与封面署名](../../docs/images/README.md)。
 
 ## 在产品中的位置
 
